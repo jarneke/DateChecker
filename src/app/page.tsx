@@ -112,7 +112,7 @@ export default function HomePage() {
                         fontWeight: 700,
                       }}
                     >
-                      30%-controle
+                      30% controle
                     </Typography>
 
                     <Typography color="text.secondary">
