@@ -18,28 +18,39 @@ import { useEffect, useState } from "react";
 
 export default function HomePage() {
   const [itemsToSticker, setItemsToSticker] = useState<number | null>(null);
+  const [itemsToMonthlyCheck, setItemsToMonthlyCheck] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
-    async function loadCount() {
+    async function loadCounts() {
       try {
-        const res = await fetch("/api/items/due/count", {
-          cache: "no-store",
-        });
+        const [stickerRes, monthlyRes] = await Promise.all([
+          fetch("/api/items/due/count", {
+            cache: "no-store",
+          }),
+          fetch("/api/items/monthly/count", {
+            cache: "no-store",
+          }),
+        ]);
 
-        if (!res.ok) {
-          throw new Error("Aantal items kon niet geladen worden.");
+        if (!stickerRes.ok || !monthlyRes.ok) {
+          throw new Error("Aantallen konden niet geladen worden.");
         }
 
-        const data = await res.json();
+        const stickerData = await stickerRes.json();
+        const monthlyData = await monthlyRes.json();
 
-        setItemsToSticker(data.count ?? 0);
+        setItemsToSticker(stickerData.count ?? 0);
+        setItemsToMonthlyCheck(monthlyData.count ?? 0);
       } catch (error) {
         console.error(error);
         setItemsToSticker(null);
+        setItemsToMonthlyCheck(null);
       }
     }
 
-    loadCount();
+    loadCounts();
   }, []);
 
   return (
@@ -131,6 +142,60 @@ export default function HomePage() {
               </Stack>
             </CardContent>
           </Card>
+
+          {itemsToMonthlyCheck !== null && itemsToMonthlyCheck > 0 && (
+            <Card
+              sx={{
+                borderRadius: 3,
+              }}
+            >
+              <CardContent
+                sx={{
+                  p: 3,
+                }}
+              >
+                <Stack spacing={2}>
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    sx={{
+                      alignItems: "center",
+                    }}
+                  >
+                    <Inventory2OutlinedIcon fontSize="large" />
+
+                    <Box>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          fontWeight: 700,
+                        }}
+                      >
+                        Maandelijkse controle
+                      </Typography>
+
+                      <Typography color="text.secondary">
+                        {itemsToMonthlyCheck}{" "}
+                        {itemsToMonthlyCheck === 1 ? "item" : "items"} te
+                        controleren
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Button
+                    component={Link}
+                    href="/maandelijkse-check"
+                    variant="contained"
+                    size="large"
+                    endIcon={<ArrowForwardIcon />}
+                    fullWidth
+                  >
+                    Start maandelijkse controle
+                  </Button>
+                </Stack>
+              </CardContent>
+            </Card>
+          )}
 
           <Stack spacing={2}>
             <Button
