@@ -10,6 +10,15 @@ export async function POST(request: Request) {
     const body = await request.json();
     const pin = body.pin;
 
+
+
+    console.log("AUTH_PIN_HASH exists:", !!process.env.AUTH_PIN_HASH);
+    console.log("AUTH_PIN_HASH length:", process.env.AUTH_PIN_HASH?.length);
+    console.log("AUTH_PIN_HASH start:", process.env.AUTH_PIN_HASH?.slice(0, 10));
+    console.log("AUTH_SECRET exists:", !!process.env.AUTH_SECRET);
+    console.log("AUTH_SECRET length:", process.env.AUTH_SECRET?.length);
+
+
     if (typeof pin !== "string" || !/^\d{6}$/.test(pin)) {
         return NextResponse.json(
             { error: "Invalid PIN" },
@@ -41,12 +50,5 @@ export async function POST(request: Request) {
         path: "/",
         maxAge: SESSION_DURATION,
     });
-
-    console.log("AUTH_PIN_HASH exists:", !!process.env.AUTH_PIN_HASH);
-    console.log("AUTH_PIN_HASH length:", process.env.AUTH_PIN_HASH?.length);
-    console.log("AUTH_PIN_HASH start:", process.env.AUTH_PIN_HASH?.slice(0, 10));
-    console.log("AUTH_SECRET exists:", !!process.env.AUTH_SECRET);
-    console.log("AUTH_SECRET length:", process.env.AUTH_SECRET?.length);
-
     return response;
 }
