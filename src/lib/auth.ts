@@ -44,4 +44,7 @@ export async function verifySession(token: string) {
     }
 }
 
-export { COOKIE_NAME, SESSION_DURATION };
+export {
+    COOKIE_NAME,
+    SESSION_DURATION,
+};

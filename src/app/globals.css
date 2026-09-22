@@ -1,26 +1,105 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #100f0e;
+  color: #fff2dd;
+}
+
+.StyledBox {
+  padding: 1rem !important;
+  border-radius: 0.5rem !important;
+}
+
+.color-invert {
+  background: #fff2dd !important;
+  color: #100f0e !important;
+}
+
+/* Global MUI Switch styling */
+.MuiSwitch-switchBase {
+  color: #100f0e !important;
+}
+
+.MuiSwitch-track {
+  background-color: #36322f !important;
+}
+
+.MuiSwitch-switchBase.Mui-checked {
+  color: #a89d92 !important;
+}
+
+.MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background-color: #c1b4a7 !important;
+}
+/* Global MUI focus and selection styling */
+
+.MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
+  border-color: #716b65 !important;
+}
+
+.MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #a89d92 !important;
+}
+
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #c1b4a7 !important;
+  border-width: 2px !important;
+}
+
+.MuiInputLabel-root.Mui-focused {
+  color: #c1b4a7 !important;
+}
+
+/* Select focus */
+
+.MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #c1b4a7 !important;
+}
+
+/* Checkboxes */
+
+.MuiCheckbox-root {
+  color: #716b65 !important;
+}
+
+.MuiCheckbox-root.Mui-checked {
+  color: #c1b4a7 !important;
+}
+
+/* Radio buttons */
+
+.MuiRadio-root {
+  color: #716b65 !important;
+}
+
+.MuiRadio-root.Mui-checked {
+  color: #c1b4a7 !important;
+}
+
+/* Sliders */
+
+.MuiSlider-root {
+  color: #c1b4a7 !important;
+}
+
+.MuiSlider-thumb:focus,
+.MuiSlider-thumb:hover,
+.MuiSlider-thumb.Mui-focusVisible {
+  box-shadow: 0 0 0 8px rgba(193, 180, 167, 0.16) !important;
+}
+
+/* General keyboard focus */
+
+*:focus-visible {
+  outline-color: #c1b4a7;
+}
+
+/* Menu selected states */
+
+.MuiMenuItem-root.Mui-selected {
+  background-color: rgba(193, 180, 167, 0.12) !important;
+}
+
+.MuiMenuItem-root.Mui-selected:hover {
+  background-color: rgba(193, 180, 167, 0.18) !important;
 }
