@@ -4,8 +4,6 @@ import Link from "next/link";
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Container,
   Stack,
   TextField,
@@ -16,8 +14,8 @@ import CheckIcon from "@mui/icons-material/Check";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
 
 type CheckType = "sticker" | "overdue" | "monthly";
 
@@ -67,10 +65,11 @@ const checkConfig: Record<
   },
 };
 
-export default function CheckPage() {
+function CheckContent() {
   const searchParams = useSearchParams();
 
   const typeParam = searchParams.get("type");
+
   const type: CheckType | null =
     typeParam === "sticker" ||
     typeParam === "overdue" ||
@@ -551,5 +550,23 @@ export default function CheckPage() {
         </Stack>
       </Box>
     </Container>
+  );
+}
+
+function CheckPageFallback() {
+  return (
+    <Container maxWidth="sm">
+      <Box sx={{ py: 6 }}>
+        <Typography>Controle laden...</Typography>
+      </Box>
+    </Container>
+  );
+}
+
+export default function CheckPage() {
+  return (
+    <Suspense fallback={<CheckPageFallback />}>
+      <CheckContent />
+    </Suspense>
   );
 }
