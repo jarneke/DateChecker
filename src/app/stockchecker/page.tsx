@@ -4,8 +4,6 @@ import Link from "next/link";
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Container,
   FormControl,
   InputLabel,
@@ -16,6 +14,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useMemo, useState } from "react";
@@ -147,14 +146,30 @@ export default function StockCheckerPage() {
     <Container maxWidth="md">
       <Box sx={{ minHeight: "100vh", py: 4 }}>
         <Stack spacing={4}>
-          <Button
-            component={Link}
-            href="/"
-            startIcon={<ArrowBackIcon />}
-            sx={{ alignSelf: "flex-start" }}
+          <Stack
+            spacing={3}
+            direction="row"
+            sx={{
+              justifyContent: "space-between",
+            }}
           >
-            Terug
-          </Button>
+            <Button
+              component={Link}
+              href="/"
+              startIcon={<ArrowBackIcon />}
+              sx={{ alignSelf: "flex-start" }}
+            >
+              Terug
+            </Button>
+            <Button
+              component={Link}
+              href="/stockchecker/new"
+              variant="contained"
+              startIcon={<AddIcon />}
+            >
+              Nieuw item
+            </Button>
+          </Stack>
 
           <Box>
             <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>

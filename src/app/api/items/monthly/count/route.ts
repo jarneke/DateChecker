@@ -5,25 +5,12 @@ export async function GET() {
   try {
     const result = await sql`
             SELECT COUNT(*)::int AS count
-            FROM items i
-            CROSS JOIN settings s
+            FROM items
             WHERE
-                i.sticker_30_percent = FALSE
-                AND i.expiry_date = (
-                    DATE_TRUNC('month', CURRENT_DATE)
-                    + INTERVAL '1 month'
-                    - INTERVAL '1 day'
-                )::date
-                AND CURRENT_DATE >= (
-                    DATE_TRUNC('month', CURRENT_DATE)
-                    + INTERVAL '1 month'
-                    - INTERVAL '1 day'
-                    - (s.month_check_days_before_end * INTERVAL '1 day')
-                )::date
-                AND CURRENT_DATE <= (
-                    DATE_TRUNC('month', CURRENT_DATE)
-                    + INTERVAL '1 month'
-                    - INTERVAL '1 day'
+                sticker_30_percent = FALSE
+                AND expiry_date >= DATE_TRUNC('month', CURRENT_DATE)::date
+                AND expiry_date < (
+                    DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
                 )::date;
         `;
 
@@ -31,10 +18,10 @@ export async function GET() {
       count: result[0].count,
     });
   } catch (error) {
-    console.error("Failed to count monthly items:", error);
+    console.error("Failed to count monthly check items:", error);
 
     return NextResponse.json(
-      { error: "Failed to count monthly items" },
+      { error: "Failed to count monthly check items" },
       { status: 500 }
     );
   }

@@ -205,6 +205,7 @@ export default function CheckPage() {
             </Box>
 
             <Button
+              className="StyledButton1"
               component={Link}
               href="/"
               variant="outlined"
@@ -254,6 +255,7 @@ export default function CheckPage() {
             </Box>
 
             <Button
+              className="StyledButton1"
               component={Link}
               href="/"
               variant="outlined"
@@ -296,6 +298,7 @@ export default function CheckPage() {
             </Box>
 
             <Button
+              className="StyledButton1"
               component={Link}
               href="/"
               variant="outlined"
@@ -328,6 +331,7 @@ export default function CheckPage() {
         }}
       >
         <Button
+          className="StyledButton3"
           component={Link}
           href="/"
           startIcon={<ArrowBackIcon />}
@@ -375,193 +379,175 @@ export default function CheckPage() {
             </Box>
           )}
 
-          <Card
-            sx={{
-              borderRadius: 3,
-            }}
-          >
-            <CardContent
-              sx={{
-                p: 4,
-              }}
-            >
-              <Stack spacing={3}>
-                <Stack
-                  direction="row"
-                  spacing={2}
-                  sx={{
-                    alignItems: "center",
-                  }}
-                >
-                  {config.icon}
-
-                  <Box>
-                    <Typography
-                      variant="h5"
-                      component="h2"
-                      sx={{
-                        fontWeight: 700,
-                      }}
-                    >
-                      {currentItem.name}
-                    </Typography>
-
-                    <Typography color="text.secondary">
-                      {currentItem.category_name}
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                {currentItem.photo_url && (
-                  <Box
-                    component="img"
-                    src={currentItem.photo_url}
-                    alt={currentItem.name}
-                    sx={{
-                      width: "100%",
-                      maxHeight: 300,
-                      objectFit: "contain",
-                      borderRadius: 2,
-                    }}
-                  />
-                )}
+          <Box className="StyledBox color-invert">
+            <Stack spacing={3}>
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{
+                  alignItems: "center",
+                }}
+              >
+                {config.icon}
 
                 <Box>
-                  {missedCheck && (
-                    <Box
-                      sx={{
-                        mb: 1.5,
-                        p: 1.5,
-                        borderRadius: 2,
-                        bgcolor: "error.light",
-                        color: "error.dark",
-                      }}
-                    >
-                      <Typography sx={{ fontWeight: 700 }}>
-                        Vervaldatum verstreken
-                      </Typography>
-
-                      <Typography variant="body2" sx={{ mt: 0.5 }}>
-                        Controleer de facing op producten met vervaldatum{" "}
-                        {new Date(currentItem.expiry_date).toLocaleDateString(
-                          "nl-BE",
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            timeZone: "Europe/Brussels",
-                          },
-                        )}
-                        .
-                      </Typography>
-
-                      <Typography variant="body2" sx={{ mt: 0.5 }}>
-                        Is er nieuwe stock? Noteer dan de eerstvolgende
-                        vervaldatum.
-                      </Typography>
-                    </Box>
-                  )}
-
-                  <Typography color="text.secondary">
-                    Huidige vervaldatum
-                  </Typography>
-
                   <Typography
+                    variant="h5"
+                    component="h2"
                     sx={{
-                      fontSize: "1.1rem",
-                      fontWeight: 600,
+                      fontWeight: 700,
                     }}
                   >
-                    {new Date(currentItem.expiry_date).toLocaleDateString(
-                      "nl-BE",
-                      {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        timeZone: "Europe/Brussels",
-                      },
-                    )}
+                    {currentItem.name}
+                  </Typography>
+
+                  <Typography color="text.secondary">
+                    {currentItem.category_name}
                   </Typography>
                 </Box>
+              </Stack>
 
-                {!showDateInput ? (
-                  <Stack spacing={2}>
-                    <Typography sx={{ fontWeight: 600 }}>
-                      Is er nieuwe stock aanwezig?
+              {currentItem.photo_url && (
+                <Box
+                  component="img"
+                  src={currentItem.photo_url}
+                  alt={currentItem.name}
+                  sx={{
+                    width: "100%",
+                    maxHeight: 300,
+                    objectFit: "contain",
+                    borderRadius: 2,
+                  }}
+                />
+              )}
+
+              <Box>
+                {missedCheck && (
+                  <Box
+                    sx={{
+                      mb: 1.5,
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: "error.light",
+                      color: "error.contrastText",
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 700 }}>
+                      Vervaldatum verstreken
                     </Typography>
 
-                    <Button
-                      variant="contained"
-                      size="large"
-                      onClick={handleNewStock}
-                    >
-                      Ja, nieuwe stock
-                    </Button>
-
-                    <Button
-                      variant="outlined"
-                      size="large"
-                      onClick={handleSkip}
-                    >
-                      Nee, overslaan
-                    </Button>
-                  </Stack>
-                ) : (
-                  <Stack spacing={2}>
-                    <TextField
-                      label="Eerst volgende vervaldatum"
-                      type="date"
-                      value={nextExpiryDate}
-                      onChange={(event) =>
-                        setNextExpiryDate(event.target.value)
-                      }
-                      slotProps={{
-                        inputLabel: {
-                          shrink: true,
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      Controleer de facing op producten met vervaldatum{" "}
+                      {new Date(currentItem.expiry_date).toLocaleDateString(
+                        "nl-BE",
+                        {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          timeZone: "Europe/Brussels",
                         },
-                        htmlInput: {
-                          min: todayString,
-                        },
-                      }}
-                      fullWidth
-                    />
+                      )}
+                      .
+                    </Typography>
 
-                    <Button
-                      variant="contained"
-                      size="large"
-                      startIcon={<CheckIcon />}
-                      onClick={handleChecked}
-                      disabled={!nextExpiryDate || saving}
-                      fullWidth
-                    >
-                      {saving ? "Opslaan..." : "Gecontroleerd"}
-                    </Button>
-
-                    <Button
-                      variant="text"
-                      onClick={() => {
-                        setShowDateInput(false);
-                        setNextExpiryDate("");
-                      }}
-                      disabled={saving}
-                    >
-                      Terug
-                    </Button>
-                  </Stack>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      Is er nieuwe stock? Noteer dan de eerstvolgende
+                      vervaldatum.
+                    </Typography>
+                  </Box>
                 )}
 
+                <Typography color="text.secondary">
+                  Huidige vervaldatum
+                </Typography>
+
                 <Typography
-                  color="text.secondary"
                   sx={{
-                    textAlign: "center",
-                    fontSize: "0.875rem",
+                    fontSize: "1.1rem",
+                    fontWeight: 600,
                   }}
                 >
-                  1 / {items.length}
+                  {new Date(currentItem.expiry_date).toLocaleDateString(
+                    "nl-BE",
+                    {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      timeZone: "Europe/Brussels",
+                    },
+                  )}
                 </Typography>
-              </Stack>
-            </CardContent>
-          </Card>
+              </Box>
+
+              {!showDateInput ? (
+                <Stack spacing={2}>
+                  <Typography sx={{ fontWeight: 600 }}>
+                    Is er nieuwe stock aanwezig?
+                  </Typography>
+
+                  <Button
+                    className="StyledButton1"
+                    variant="contained"
+                    size="large"
+                    onClick={handleNewStock}
+                  >
+                    Ja, nieuwe stock
+                  </Button>
+
+                  <Button
+                    className="StyledButton2"
+                    variant="outlined"
+                    size="large"
+                    onClick={handleSkip}
+                  >
+                    Nee, overslaan
+                  </Button>
+                </Stack>
+              ) : (
+                <Stack spacing={2}>
+                  <TextField
+                    label="Eerst volgende vervaldatum"
+                    type="date"
+                    value={nextExpiryDate}
+                    onChange={(event) => setNextExpiryDate(event.target.value)}
+                    slotProps={{
+                      inputLabel: {
+                        shrink: true,
+                      },
+                      htmlInput: {
+                        min: todayString,
+                      },
+                    }}
+                    fullWidth
+                  />
+
+                  <Button
+                    className="StyledButton1"
+                    variant="contained"
+                    size="large"
+                    startIcon={<CheckIcon />}
+                    onClick={handleChecked}
+                    disabled={!nextExpiryDate || saving}
+                    fullWidth
+                  >
+                    {saving ? "Opslaan..." : "Gecontroleerd"}
+                  </Button>
+
+                  <Button
+                    className="StyledButton2"
+                    variant="outlined"
+                    onClick={() => {
+                      setShowDateInput(false);
+                      setNextExpiryDate("");
+                    }}
+                    disabled={saving}
+                  >
+                    Terug
+                  </Button>
+                </Stack>
+              )}
+            </Stack>
+          </Box>
         </Stack>
       </Box>
     </Container>

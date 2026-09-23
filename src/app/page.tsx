@@ -120,6 +120,7 @@ export default function HomePage() {
 
               {itemsOverdue !== null && itemsOverdue > 0 && (
                 <Button
+                  className="StyledButton1"
                   component={Link}
                   href="/check?type=overdue"
                   variant="contained"
@@ -167,6 +168,7 @@ export default function HomePage() {
 
               {itemsToSticker !== null && itemsToSticker > 0 && (
                 <Button
+                  className="StyledButton1"
                   component={Link}
                   href="/check?type=sticker"
                   variant="contained"
@@ -214,6 +216,7 @@ export default function HomePage() {
               </Stack>
               {itemsToMonthlyCheck !== null && itemsToMonthlyCheck > 0 && (
                 <Button
+                  className="StyledButton1"
                   component={Link}
                   href="/check?type=monthly"
                   variant="contained"
@@ -229,6 +232,7 @@ export default function HomePage() {
 
           <Stack spacing={2}>
             <Button
+              className="StyledButton3"
               component={Link}
               href="/stockchecker"
               variant="outlined"
@@ -240,6 +244,7 @@ export default function HomePage() {
             </Button>
 
             <Button
+              className="StyledButton3"
               component={Link}
               href="/settings"
               variant="outlined"
