@@ -17,9 +17,9 @@ export async function GET() {
             FROM items i
             INNER JOIN categories c
                 ON c.id = i.category_id
-            WHERE
-                i.sticker_30_percent = TRUE
-                AND i.expiry_date < CURRENT_DATE
+            WHERE i.expiry_date < (
+                CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels'
+            )::date
             ORDER BY
                 i.expiry_date ASC,
                 i.name ASC;

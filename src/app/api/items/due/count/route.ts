@@ -4,11 +4,13 @@ import { sql } from "@/lib/db";
 export async function GET() {
     try {
         const result = await sql`
-      SELECT COUNT(*)::int AS count
-      FROM items
-      WHERE sticker_30_percent = TRUE
-        AND expiry_date = CURRENT_DATE
-    `;
+            SELECT COUNT(*)::int AS count
+            FROM items
+            WHERE sticker_30_percent = TRUE
+              AND expiry_date = (
+                  CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels'
+              )::date;
+        `;
 
         return NextResponse.json({
             count: result[0]?.count ?? 0,
@@ -18,7 +20,7 @@ export async function GET() {
 
         return NextResponse.json(
             { error: "Aantal items kon niet geladen worden." },
-            { status: 500 },
+            { status: 500 }
         );
     }
 }

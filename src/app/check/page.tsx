@@ -54,7 +54,7 @@ const checkConfig: Record<
     emptyDescription:
       "Alle items met een verlopen controledatum zijn gecontroleerd.",
     instructions:
-      "Deze controle is eerder gepland maar nog niet uitgevoerd. Zoek het aangegeven product en controleer de aanwezige stock en vervaldatums.",
+      "De geplande controle is gemist. Controleer de huidige stock en vervaldatums van dit product.",
     icon: <FactCheckOutlinedIcon fontSize="large" />,
   },
   monthly: {
@@ -63,7 +63,7 @@ const checkConfig: Record<
     emptyDescription:
       "Alle items voor de maandelijkse controle zijn gecontroleerd.",
     instructions:
-      "Zoek het aangegeven product in de winkel en controleer welke vervaldatum momenteel de eerstvolgende is.",
+      "Ga naar het aangegeven product in de winkel en controleer de vervaldatum van de aanwezige producten.",
     icon: <CalendarMonthOutlinedIcon fontSize="large" />,
   },
 };

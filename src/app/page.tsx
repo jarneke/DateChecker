@@ -32,7 +32,7 @@ export default function HomePage() {
           }),
         ]);
 
-        if (!stickerRes.ok || !monthlyRes.ok) {
+        if (!stickerRes.ok || !overdueRes.ok || !monthlyRes.ok) {
           throw new Error("Aantallen konden niet geladen worden.");
         }
 

@@ -6,13 +6,13 @@ export async function GET() {
         const result = await sql`
             SELECT COUNT(*)::int AS count
             FROM items
-            WHERE
-                sticker_30_percent = TRUE
-                AND expiry_date < CURRENT_DATE;
+            WHERE expiry_date < (
+                CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels'
+            )::date;
         `;
 
         return NextResponse.json({
-            count: result[0].count,
+            count: result[0]?.count ?? 0,
         });
     } catch (error) {
         console.error("Failed to count overdue items:", error);
