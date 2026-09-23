@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -38,6 +38,33 @@ export async function POST(request: Request) {
 
         return NextResponse.json(
             { error: "Foto kon niet geüpload worden." },
+            { status: 500 },
+        );
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const body = await request.json();
+        const url = body.url;
+
+        if (!url || typeof url !== "string") {
+            return NextResponse.json(
+                { error: "Geen foto URL ontvangen." },
+                { status: 400 },
+            );
+        }
+
+        await del(url);
+
+        return NextResponse.json({
+            success: true,
+        });
+    } catch (error) {
+        console.error("Blob delete error:", error);
+
+        return NextResponse.json(
+            { error: "Foto kon niet verwijderd worden." },
             { status: 500 },
         );
     }

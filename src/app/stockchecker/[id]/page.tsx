@@ -6,7 +6,6 @@ import Link from "next/link";
 import {
   Box,
   Button,
-  Card,
   Container,
   MenuItem,
   Stack,
@@ -16,6 +15,7 @@ import {
 } from "@mui/material";
 import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
 import SaveOutlined from "@mui/icons-material/SaveOutlined";
+import CameraAltOutlined from "@mui/icons-material/CameraAltOutlined";
 
 type Category = {
   id: string;
@@ -38,6 +38,9 @@ export default function ItemDetailPage() {
 
   const [item, setItem] = useState<Item | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [removePhoto, setRemovePhoto] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -59,6 +62,10 @@ export default function ItemDetailPage() {
 
         setItem(itemData);
         setCategories(categoriesData);
+
+        if (itemData.photo_url) {
+          setPhotoPreview(itemData.photo_url);
+        }
       } catch {
         setError("Kon item niet laden.");
       } finally {
@@ -69,13 +76,103 @@ export default function ItemDetailPage() {
     load();
   }, [id]);
 
+  useEffect(() => {
+    return () => {
+      if (photoPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(photoPreview);
+      }
+    };
+  }, [photoPreview]);
+
+  function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError("Selecteer een geldige afbeelding.");
+      return;
+    }
+
+    setError("");
+    setPhoto(file);
+    setRemovePhoto(false);
+
+    if (photoPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(photoPreview);
+    }
+
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  function handleRemovePhoto() {
+    setPhoto(null);
+    setRemovePhoto(true);
+
+    if (photoPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(photoPreview);
+    }
+
+    setPhotoPreview("");
+  }
+
+  async function deleteBlob(url: string) {
+    const response = await fetch("/api/upload", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+
+      throw new Error(data?.error || "Foto kon niet verwijderd worden.");
+    }
+  }
+
   async function handleSave() {
-    if (!item) return;
+    if (!item) {
+      return;
+    }
 
     setSaving(true);
     setError("");
 
     try {
+      const oldPhotoUrl = item.photo_url;
+      let photoUrl = removePhoto ? null : oldPhotoUrl;
+
+      if (photo) {
+        const formData = new FormData();
+        formData.append("file", photo);
+
+        const uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          const data = await uploadResponse.json().catch(() => null);
+
+          throw new Error(data?.error || "Foto kon niet geüpload worden.");
+        }
+
+        const uploadData = await uploadResponse.json();
+        photoUrl = uploadData.url;
+
+        if (oldPhotoUrl && oldPhotoUrl !== photoUrl) {
+          await deleteBlob(oldPhotoUrl);
+        }
+      } else if (removePhoto && oldPhotoUrl) {
+        await deleteBlob(oldPhotoUrl);
+      }
+
       const response = await fetch(`/api/items/${id}`, {
         method: "PATCH",
         headers: {
@@ -83,7 +180,7 @@ export default function ItemDetailPage() {
         },
         body: JSON.stringify({
           name: item.name,
-          photo_url: item.photo_url,
+          photo_url: photoUrl,
           category_id: item.category_id,
           expiry_date: item.expiry_date,
           sticker_30_percent: item.sticker_30_percent,
@@ -91,31 +188,41 @@ export default function ItemDetailPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to save");
+        throw new Error("Opslaan mislukt.");
       }
 
       const updatedItem = await response.json();
+
       setItem((current) => ({
         ...current!,
         ...updatedItem,
+        photo_url: photoUrl,
       }));
 
+      setPhoto(null);
+      setRemovePhoto(false);
+      setPhotoPreview(photoUrl || "");
+
       router.refresh();
-    } catch {
-      setError("Opslaan mislukt.");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Opslaan mislukt.");
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!item) return;
+    if (!item) {
+      return;
+    }
 
     const confirmed = window.confirm(
       `Weet je zeker dat je "${item.name}" wilt verwijderen?`,
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -126,7 +233,7 @@ export default function ItemDetailPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete item");
+        throw new Error("Verwijderen mislukt.");
       }
 
       router.push("/stockchecker");
@@ -234,17 +341,57 @@ export default function ItemDetailPage() {
               fullWidth
             />
 
-            <TextField
-              label="Foto URL"
-              value={item.photo_url ?? ""}
-              onChange={(event) =>
-                setItem({
-                  ...item,
-                  photo_url: event.target.value || null,
-                })
-              }
-              fullWidth
-            />
+            <Box>
+              <Stack spacing={2}>
+                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                  Productfoto
+                </Typography>
+
+                {photoPreview && (
+                  <Box
+                    component="img"
+                    src={photoPreview}
+                    alt={item.name}
+                    sx={{
+                      width: "100%",
+                      maxHeight: 300,
+                      objectFit: "contain",
+                      borderRadius: 2,
+                    }}
+                  />
+                )}
+
+                <Button
+                  component="label"
+                  variant="outlined"
+                  size="large"
+                  startIcon={<CameraAltOutlined />}
+                  fullWidth
+                  disabled={saving}
+                >
+                  {photoPreview ? "Andere foto nemen" : "Foto nemen"}
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    hidden
+                    onChange={handlePhotoChange}
+                  />
+                </Button>
+
+                {photoPreview && (
+                  <Button
+                    variant="text"
+                    color="error"
+                    onClick={handleRemovePhoto}
+                    disabled={saving}
+                  >
+                    Foto verwijderen
+                  </Button>
+                )}
+              </Stack>
+            </Box>
 
             <Box
               sx={{
@@ -269,6 +416,7 @@ export default function ItemDetailPage() {
                     sticker_30_percent: event.target.checked,
                   })
                 }
+                disabled={saving}
               />
             </Box>
 
