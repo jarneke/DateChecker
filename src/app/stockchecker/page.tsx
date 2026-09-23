@@ -161,6 +161,7 @@ export default function StockCheckerPage() {
             >
               Terug
             </Button>
+
             <Button
               component={Link}
               href="/stockchecker/new"
@@ -206,11 +207,9 @@ export default function StockCheckerPage() {
                     setControlFilter(event.target.value as ControlFilter)
                   }
                 >
-                  <MenuItem value="all">Alle controles</MenuItem>
-
-                  <MenuItem value="30">30%-controle</MenuItem>
-
-                  <MenuItem value="month">Maandcontrole</MenuItem>
+                  <MenuItem value="all">Alle Controles</MenuItem>
+                  <MenuItem value="30">Dagelijkse controle</MenuItem>
+                  <MenuItem value="month">Maandelijkse controle</MenuItem>
                 </Select>
               </FormControl>
 
@@ -339,6 +338,9 @@ export default function StockCheckerPage() {
                   component={Link}
                   href={`/stockchecker/${item.id}`}
                   sx={{
+                    display: "flex",
+                    gap: 2,
+                    alignItems: "center",
                     textDecoration: "none",
                     color: "inherit",
                     transition: "transform 0.15s",
@@ -347,11 +349,51 @@ export default function StockCheckerPage() {
                     },
                   }}
                 >
-                  <Stack spacing={1}>
+                  {item.photo_url ? (
+                    <Box
+                      component="img"
+                      src={item.photo_url}
+                      alt={item.name}
+                      sx={{
+                        width: 100,
+                        height: 100,
+                        objectFit: "cover",
+                        borderRadius: 2,
+                        flexShrink: 0,
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: 2,
+                        backgroundColor: "action.hover",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ textAlign: "center" }}
+                      >
+                        Geen foto
+                      </Typography>
+                    </Box>
+                  )}
+
+                  <Stack spacing={1} sx={{ minWidth: 0 }}>
                     <Typography
                       className="color-invert"
                       variant="h6"
-                      sx={{ fontWeight: 700 }}
+                      sx={{
+                        fontWeight: 700,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
                     >
                       {item.name}
                     </Typography>
@@ -371,7 +413,7 @@ export default function StockCheckerPage() {
                       color="text.secondary"
                     >
                       {item.sticker_30_percent
-                        ? "30%-controle"
+                        ? "Dagelijkse Controle"
                         : "Maandcontrole"}
                     </Typography>
                   </Stack>

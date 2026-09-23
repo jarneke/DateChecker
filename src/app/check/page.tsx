@@ -33,34 +33,37 @@ const checkConfig: Record<
   CheckType,
   {
     title: string;
-    description: string;
     endpoint: string;
     emptyDescription: string;
+    instructions: string;
     icon: React.ReactNode;
   }
 > = {
   sticker: {
-    title: "Dagelijkse 30%-controle",
-    description: "items te controleren",
+    title: "Dagelijkse controle",
     endpoint: "/api/items/due",
     emptyDescription:
-      "Alle items voor de dagelijkse 30%-controle zijn gecontroleerd.",
+      "Alle items voor de dagelijkse controle zijn gecontroleerd.",
+    instructions:
+      "Ga naar het aangegeven product in de winkel en controleer de vervaldatum van de aanwezige producten.",
     icon: <LocalOfferOutlinedIcon fontSize="large" />,
   },
   overdue: {
     title: "Te controleren",
-    description: "items met een verlopen controledatum",
     endpoint: "/api/items/overdue",
     emptyDescription:
       "Alle items met een verlopen controledatum zijn gecontroleerd.",
+    instructions:
+      "Deze controle is eerder gepland maar nog niet uitgevoerd. Zoek het aangegeven product en controleer de aanwezige stock en vervaldatums.",
     icon: <FactCheckOutlinedIcon fontSize="large" />,
   },
   monthly: {
     title: "Maandelijkse controle",
-    description: "items voor de maandelijkse controle",
     endpoint: "/api/items/monthly",
     emptyDescription:
       "Alle items voor de maandelijkse controle zijn gecontroleerd.",
+    instructions:
+      "Zoek het aangegeven product in de winkel en controleer welke vervaldatum momenteel de eerstvolgende is.",
     icon: <CalendarMonthOutlinedIcon fontSize="large" />,
   },
 };
@@ -365,6 +368,23 @@ function CheckContent() {
             </Typography>
           </Box>
 
+          <Box
+            className="StyledBox"
+            sx={{
+              bgcolor: "rgba(255, 255, 255, 0.06)",
+            }}
+          >
+            <Stack spacing={1}>
+              <Typography sx={{ fontWeight: 700 }}>
+                Stap 1 — Zoek het product
+              </Typography>
+
+              <Typography color="text.secondary">
+                {config.instructions}
+              </Typography>
+            </Stack>
+          </Box>
+
           {error && (
             <Box
               sx={{
@@ -448,11 +468,6 @@ function CheckContent() {
                       )}
                       .
                     </Typography>
-
-                    <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      Is er nieuwe stock? Noteer dan de eerstvolgende
-                      vervaldatum.
-                    </Typography>
                   </Box>
                 )}
 
@@ -480,9 +495,16 @@ function CheckContent() {
 
               {!showDateInput ? (
                 <Stack spacing={2}>
-                  <Typography sx={{ fontWeight: 600 }}>
-                    Is er nieuwe stock aanwezig?
-                  </Typography>
+                  <Box>
+                    <Typography sx={{ fontWeight: 700 }}>
+                      Stap 2 — Controleer de stock
+                    </Typography>
+
+                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                      Kijk of er nieuwe producten aanwezig zijn met een latere
+                      vervaldatum.
+                    </Typography>
+                  </Box>
 
                   <Button
                     className="StyledButton1"
@@ -493,19 +515,45 @@ function CheckContent() {
                     Ja, nieuwe stock
                   </Button>
 
-                  <Button
-                    className="StyledButton2"
-                    variant="outlined"
-                    size="large"
-                    onClick={handleSkip}
-                  >
-                    Nee, overslaan
-                  </Button>
+                  <Box>
+                    <Button
+                      className="StyledButton2"
+                      variant="outlined"
+                      size="large"
+                      onClick={handleSkip}
+                      fullWidth
+                    >
+                      Nee, geen nieuwe stock
+                    </Button>
+
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        mt: 1,
+                        textAlign: "center",
+                      }}
+                    >
+                      Geen nieuwe stock gevonden? Kies deze optie om verder te
+                      gaan naar het volgende item.
+                    </Typography>
+                  </Box>
                 </Stack>
               ) : (
                 <Stack spacing={2}>
+                  <Box>
+                    <Typography sx={{ fontWeight: 700 }}>
+                      Stap 3 — Noteer de nieuwe vervaldatum
+                    </Typography>
+
+                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                      Vul de eerstvolgende vervaldatum in die je op de nieuwe
+                      stock vindt.
+                    </Typography>
+                  </Box>
+
                   <TextField
-                    label="Eerst volgende vervaldatum"
+                    label="Eerstvolgende vervaldatum"
                     type="date"
                     value={nextExpiryDate}
                     onChange={(event) => setNextExpiryDate(event.target.value)}
@@ -531,6 +579,15 @@ function CheckContent() {
                   >
                     {saving ? "Opslaan..." : "Gecontroleerd"}
                   </Button>
+
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ textAlign: "center" }}
+                  >
+                    Na het opslaan wordt dit item als gecontroleerd beschouwd en
+                    ga je verder met het volgende item.
+                  </Typography>
 
                   <Button
                     className="StyledButton2"

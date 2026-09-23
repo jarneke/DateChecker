@@ -243,7 +243,7 @@ export default function HomePage() {
               Stock Checker
             </Button>
 
-            <Button
+            {/* <Button
               className="StyledButton3"
               component={Link}
               href="/settings"
@@ -253,7 +253,7 @@ export default function HomePage() {
               fullWidth
             >
               Instellingen
-            </Button>
+            </Button>*/}
           </Stack>
         </Stack>
       </Box>

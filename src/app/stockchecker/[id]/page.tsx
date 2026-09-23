@@ -9,7 +9,6 @@ import {
   Container,
   MenuItem,
   Stack,
-  Switch,
   TextField,
   Typography,
 } from "@mui/material";
@@ -341,6 +340,24 @@ export default function ItemDetailPage() {
               fullWidth
             />
 
+            <TextField
+              select
+              label="Controle"
+              value={item.sticker_30_percent ? "daily" : "monthly"}
+              onChange={(event) =>
+                setItem({
+                  ...item,
+                  sticker_30_percent: event.target.value === "daily",
+                })
+              }
+              disabled={saving}
+              fullWidth
+            >
+              <MenuItem value="daily">Dagelijkse check</MenuItem>
+
+              <MenuItem value="monthly">Maandelijkse check</MenuItem>
+            </TextField>
+
             <Box>
               <Stack spacing={2}>
                 <Typography variant="body1" sx={{ fontWeight: 600 }}>
@@ -391,33 +408,6 @@ export default function ItemDetailPage() {
                   </Button>
                 )}
               </Stack>
-            </Box>
-
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Box>
-                <Typography>30% sticker</Typography>
-
-                <Typography variant="body2" color="text.secondary">
-                  Item krijgt de 30% sticker-routine.
-                </Typography>
-              </Box>
-
-              <Switch
-                checked={item.sticker_30_percent}
-                onChange={(event) =>
-                  setItem({
-                    ...item,
-                    sticker_30_percent: event.target.checked,
-                  })
-                }
-                disabled={saving}
-              />
             </Box>
 
             <Stack spacing={2}>
