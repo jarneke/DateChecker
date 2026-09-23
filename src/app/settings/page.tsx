@@ -122,7 +122,7 @@ export default function SettingsPage() {
               Instellingen laden...
             </Typography>
           ) : (
-            <Box sx={{ bgcolor: "background.paper", p: 2 }}>
+            <Box className="StyledBox color-invert">
               <Stack spacing={2}>
                 <TextField
                   label="Dagen voor einde maand"
