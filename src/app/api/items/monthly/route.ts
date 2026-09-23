@@ -2,57 +2,47 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
 export async function GET() {
-    try {
-        const settings = await sql`
-      SELECT month_check_days_before_end
-      FROM settings
-      WHERE id = 1
-      LIMIT 1
-    `;
+  try {
+    const result = await sql`
+            SELECT
+                i.id,
+                i.name,
+                i.photo_url,
+                i.expiry_date,
+                i.sticker_30_percent,
+                i.category_id,
+                c.name AS category_name
+            FROM items i
+            LEFT JOIN categories c ON c.id = i.category_id
+            CROSS JOIN settings s
+            WHERE
+                i.sticker_30_percent = FALSE
+                AND i.expiry_date = (
+                    DATE_TRUNC('month', CURRENT_DATE)
+                    + INTERVAL '1 month'
+                    - INTERVAL '1 day'
+                )::date
+                AND CURRENT_DATE >= (
+                    DATE_TRUNC('month', CURRENT_DATE)
+                    + INTERVAL '1 month'
+                    - INTERVAL '1 day'
+                    - (s.month_check_days_before_end * INTERVAL '1 day')
+                )::date
+                AND CURRENT_DATE <= (
+                    DATE_TRUNC('month', CURRENT_DATE)
+                    + INTERVAL '1 month'
+                    - INTERVAL '1 day'
+                )::date
+            ORDER BY i.expiry_date ASC, i.name ASC;
+        `;
 
-        if (settings.length === 0) {
-            return NextResponse.json(
-                { error: "Settings not found" },
-                { status: 500 },
-            );
-        }
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("Failed to fetch monthly items:", error);
 
-        const daysBeforeEnd = Number(settings[0].month_check_days_before_end);
-
-        const result = await sql`
-      SELECT
-        i.id,
-        i.name,
-        i.photo_url,
-        i.category_id,
-        i.expiry_date,
-        i.sticker_30_percent,
-        i.created_at,
-        i.updated_at,
-        c.name AS category_name
-      FROM items i
-      LEFT JOIN categories c ON c.id = i.category_id
-      WHERE CURRENT_DATE >= (
-        DATE_TRUNC('month', CURRENT_DATE)
-        + INTERVAL '1 month'
-        - INTERVAL '1 day'
-        - (${daysBeforeEnd} * INTERVAL '1 day')
-      )::date
-      AND CURRENT_DATE <= (
-        DATE_TRUNC('month', CURRENT_DATE)
-        + INTERVAL '1 month'
-        - INTERVAL '1 day'
-      )::date
-      ORDER BY c.name, i.name
-    `;
-
-        return NextResponse.json(result);
-    } catch (error) {
-        console.error("GET /api/items/monthly error:", error);
-
-        return NextResponse.json(
-            { error: "Failed to fetch monthly items" },
-            { status: 500 },
-        );
-    }
+    return NextResponse.json(
+      { error: "Failed to fetch monthly items" },
+      { status: 500 }
+    );
+  }
 }

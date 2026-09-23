@@ -18,7 +18,7 @@ export async function GET(
         i.name,
         i.photo_url,
         i.category_id,
-        i.expiry_date,
+        i.expiry_date::text AS expiry_date,
         i.sticker_30_percent,
         i.created_at,
         i.updated_at,
@@ -64,28 +64,31 @@ export async function PATCH(
         } = body;
 
         const result = await sql`
-            UPDATE items
-            SET
-                name = COALESCE(${name ?? null}, name),
-                photo_url = COALESCE(${photo_url ?? null}, photo_url),
-                category_id = COALESCE(${category_id ?? null}, category_id),
-                expiry_date = COALESCE(${expiry_date ?? null}, expiry_date),
-                sticker_30_percent = COALESCE(
-                    ${sticker_30_percent ?? null},
-                    sticker_30_percent
-                ),
-                updated_at = NOW()
-            WHERE id = ${id}
-            RETURNING
-                id,
-                name,
-                photo_url,
-                category_id,
-                expiry_date,
-                sticker_30_percent,
-                created_at,
-                updated_at
-        `;
+      UPDATE items
+      SET
+        name = COALESCE(${name ?? null}, name),
+        photo_url = COALESCE(${photo_url ?? null}, photo_url),
+        category_id = COALESCE(${category_id ?? null}, category_id),
+        expiry_date = COALESCE(
+          ${expiry_date ?? null}::date,
+          expiry_date
+        ),
+        sticker_30_percent = COALESCE(
+          ${sticker_30_percent ?? null},
+          sticker_30_percent
+        ),
+        updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING
+        id,
+        name,
+        photo_url,
+        category_id,
+        expiry_date::text AS expiry_date,
+        sticker_30_percent,
+        created_at,
+        updated_at
+    `;
 
         if (result.length === 0) {
             return NextResponse.json(
@@ -104,6 +107,7 @@ export async function PATCH(
         );
     }
 }
+
 export async function DELETE(
     _request: NextRequest,
     { params }: Params

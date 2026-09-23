@@ -219,7 +219,7 @@ export default function ItemDetailPage() {
             <TextField
               label="Vervaldatum"
               type="date"
-              value={item.expiry_date?.split("T")[0] ?? ""}
+              value={item.expiry_date ? item.expiry_date.slice(0, 10) : ""}
               onChange={(event) =>
                 setItem({
                   ...item,
