@@ -154,6 +154,7 @@ export default function NewItemPage() {
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Stack spacing={3}>
         <Button
+          className="StyledButton3"
           component={Link}
           href="/stockchecker"
           startIcon={<ArrowBackOutlined />}
@@ -177,15 +178,8 @@ export default function NewItemPage() {
 
         <Box className="StyledBox color-invert">
           <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
-            <TextField
-              label="Naam"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-              fullWidth
-            />
-
             <Button
+              className="StyledButton3"
               component="label"
               variant="outlined"
               size="large"
@@ -215,6 +209,13 @@ export default function NewItemPage() {
                 }}
               />
             )}
+            <TextField
+              label="Naam"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              required
+              fullWidth
+            />
 
             <TextField
               label="Vervaldatum"

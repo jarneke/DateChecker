@@ -517,7 +517,7 @@ function CheckContent() {
 
                   <Box>
                     <Button
-                      className="StyledButton2"
+                      className="StyledButton3"
                       variant="outlined"
                       size="large"
                       onClick={handleSkip}
@@ -590,7 +590,7 @@ function CheckContent() {
                   </Typography>
 
                   <Button
-                    className="StyledButton2"
+                    className="StyledButton3"
                     variant="outlined"
                     onClick={() => {
                       setShowDateInput(false);

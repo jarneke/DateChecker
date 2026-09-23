@@ -154,15 +154,16 @@ export default function StockCheckerPage() {
             }}
           >
             <Button
+              className="StyledButton3"
               component={Link}
               href="/"
               startIcon={<ArrowBackIcon />}
-              sx={{ alignSelf: "flex-start" }}
             >
               Terug
             </Button>
 
             <Button
+              className="StyledButton3"
               component={Link}
               href="/stockchecker/new"
               variant="contained"

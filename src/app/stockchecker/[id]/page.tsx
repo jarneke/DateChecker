@@ -275,6 +275,7 @@ export default function ItemDetailPage() {
     <Container maxWidth="md">
       <Box sx={{ py: 4 }}>
         <Button
+          className="StyledButton3"
           component={Link}
           href="/stockchecker"
           startIcon={<ArrowBackOutlined />}
@@ -291,6 +292,58 @@ export default function ItemDetailPage() {
           <Stack spacing={3}>
             {error && <Typography color="error">{error}</Typography>}
 
+            <Box>
+              <Stack spacing={2}>
+                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                  Productfoto
+                </Typography>
+
+                {photoPreview && (
+                  <Box
+                    component="img"
+                    src={photoPreview}
+                    alt={item.name}
+                    sx={{
+                      width: "100%",
+                      maxHeight: 300,
+                      objectFit: "contain",
+                      borderRadius: 2,
+                    }}
+                  />
+                )}
+
+                <Button
+                  className="StyledButton3"
+                  component="label"
+                  variant="outlined"
+                  size="large"
+                  startIcon={<CameraAltOutlined />}
+                  fullWidth
+                  disabled={saving}
+                >
+                  {photoPreview ? "Andere foto nemen" : "Foto nemen"}
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    hidden
+                    onChange={handlePhotoChange}
+                  />
+                </Button>
+
+                {photoPreview && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={handleRemovePhoto}
+                    disabled={saving}
+                  >
+                    Foto verwijderen
+                  </Button>
+                )}
+              </Stack>
+            </Box>
             <TextField
               label="Naam"
               value={item.name}
@@ -358,60 +411,9 @@ export default function ItemDetailPage() {
               <MenuItem value="monthly">Maandelijkse check</MenuItem>
             </TextField>
 
-            <Box>
-              <Stack spacing={2}>
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  Productfoto
-                </Typography>
-
-                {photoPreview && (
-                  <Box
-                    component="img"
-                    src={photoPreview}
-                    alt={item.name}
-                    sx={{
-                      width: "100%",
-                      maxHeight: 300,
-                      objectFit: "contain",
-                      borderRadius: 2,
-                    }}
-                  />
-                )}
-
-                <Button
-                  component="label"
-                  variant="outlined"
-                  size="large"
-                  startIcon={<CameraAltOutlined />}
-                  fullWidth
-                  disabled={saving}
-                >
-                  {photoPreview ? "Andere foto nemen" : "Foto nemen"}
-
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    hidden
-                    onChange={handlePhotoChange}
-                  />
-                </Button>
-
-                {photoPreview && (
-                  <Button
-                    variant="text"
-                    color="error"
-                    onClick={handleRemovePhoto}
-                    disabled={saving}
-                  >
-                    Foto verwijderen
-                  </Button>
-                )}
-              </Stack>
-            </Box>
-
             <Stack spacing={2}>
               <Button
+                className="StyledButton1"
                 variant="contained"
                 size="large"
                 startIcon={<SaveOutlined />}
