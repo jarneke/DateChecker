@@ -21,6 +21,8 @@ type Category = {
   name: string;
 };
 
+type CheckType = "daily" | "monthly";
+
 export default function NewItemPage() {
   const router = useRouter();
 
@@ -30,6 +32,7 @@ export default function NewItemPage() {
   const [photoPreview, setPhotoPreview] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [checkType, setCheckType] = useState<CheckType>("daily");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -85,7 +88,7 @@ export default function NewItemPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!name.trim() || !expiryDate || !categoryId) {
+    if (!name.trim() || !expiryDate || !categoryId || !checkType) {
       setError("Vul alle verplichte velden in.");
       return;
     }
@@ -125,7 +128,7 @@ export default function NewItemPage() {
           photo_url: photoUrl,
           expiry_date: expiryDate,
           category_id: categoryId,
-          sticker_30_percent: false,
+          sticker_30_percent: checkType === "daily",
         }),
       });
 
@@ -240,6 +243,21 @@ export default function NewItemPage() {
                   {category.name}
                 </MenuItem>
               ))}
+            </TextField>
+
+            <TextField
+              select
+              label="Controle"
+              value={checkType}
+              onChange={(event) =>
+                setCheckType(event.target.value as CheckType)
+              }
+              required
+              fullWidth
+            >
+              <MenuItem value="daily">Dagelijkse check</MenuItem>
+
+              <MenuItem value="monthly">Maandelijkse check</MenuItem>
             </TextField>
 
             {error && (
