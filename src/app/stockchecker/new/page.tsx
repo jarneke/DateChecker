@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -85,19 +86,6 @@ export default function NewItemPage() {
     setPhotoPreview(URL.createObjectURL(file));
   };
 
-  const uploadPhotoInBackground = (file: File, itemId: string) => {
-    const formData = new FormData();
-
-    formData.append("file", file);
-    formData.append("itemId", itemId);
-
-    const queued = navigator.sendBeacon("/api/upload", formData);
-
-    if (!queued) {
-      console.error("Photo upload could not be queued.");
-    }
-  };
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -108,6 +96,9 @@ export default function NewItemPage() {
 
     setLoading(true);
     setError("");
+
+    let itemId: string | null = null;
+    let photoUrl: string | null = null;
 
     try {
       const response = await fetch("/api/items", {
@@ -130,15 +121,67 @@ export default function NewItemPage() {
         throw new Error(itemData?.error || "Item kon niet toegevoegd worden.");
       }
 
-      const itemId = itemData.id;
+      itemId = itemData.id;
 
       if (photo && itemId) {
-        uploadPhotoInBackground(photo, itemId);
+        const blob = await upload(photo.name, photo, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          clientPayload: JSON.stringify({
+            itemId,
+          }),
+        });
+
+        photoUrl = blob.url;
+
+        const photoResponse = await fetch(`/api/items/${itemId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            photo_url: photoUrl,
+          }),
+        });
+
+        if (!photoResponse.ok) {
+          const data = await photoResponse.json().catch(() => null);
+
+          throw new Error(
+            data?.error || "Foto kon niet aan het item gekoppeld worden.",
+          );
+        }
       }
 
       router.push("/stockchecker");
     } catch (error) {
       console.error("Failed to create item:", error);
+
+      if (photoUrl) {
+        try {
+          await fetch("/api/upload", {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              url: photoUrl,
+            }),
+          });
+        } catch (deleteError) {
+          console.error("Failed to clean up uploaded photo:", deleteError);
+        }
+      }
+
+      if (itemId) {
+        try {
+          await fetch(`/api/items/${itemId}`, {
+            method: "DELETE",
+          });
+        } catch (deleteError) {
+          console.error("Failed to clean up item after error:", deleteError);
+        }
+      }
 
       setError(
         error instanceof Error
