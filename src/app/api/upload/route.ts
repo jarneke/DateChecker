@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
-        const result = await handleUpload({
+        const response = await handleUpload({
             request,
             body,
             onBeforeGenerateToken: async () => {
@@ -25,14 +25,15 @@ export async function POST(request: NextRequest) {
                     const itemId = payload.itemId;
 
                     if (!itemId) {
-                        throw new Error("Missing itemId in upload token payload");
+                        console.error("Upload completed without itemId.");
+                        return;
                     }
 
                     await sql`
             UPDATE items
             SET photo_url = ${blob.url}
             WHERE id = ${itemId}
-`;
+          `;
                 } catch (error) {
                     console.error(
                         "Failed to update item after upload:",
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        return NextResponse.json(result);
+        return NextResponse.json(response);
     } catch (error) {
         console.error("POST /api/upload error:", error);
 
