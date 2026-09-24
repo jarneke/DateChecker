@@ -1,9 +1,9 @@
 "use client";
 
-import { upload } from "@vercel/blob/client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { upload } from "@vercel/blob/client";
 import {
   Box,
   Button,
@@ -13,95 +13,63 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
-import AddOutlined from "@mui/icons-material/AddOutlined";
-import CameraAltOutlined from "@mui/icons-material/CameraAltOutlined";
+import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
 
 type Category = {
   id: string;
   name: string;
 };
 
-type CheckType = "daily" | "monthly";
-
 export default function NewItemPage() {
   const router = useRouter();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [name, setName] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [checkType, setCheckType] = useState<CheckType>("daily");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const response = await fetch("/api/categories");
-
+  useState(() => {
+    fetch("/api/categories")
+      .then(async (response) => {
         if (!response.ok) {
-          throw new Error("Failed to load categories");
+          throw new Error("Categorieën konden niet geladen worden.");
         }
 
-        const data = await response.json();
+        return response.json();
+      })
+      .then((data) => {
         setCategories(data);
-      } catch {
-        setError("Categorieën konden niet geladen worden.");
-      }
-    };
+      })
+      .catch((err) => {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Categorieën konden niet geladen worden.",
+        );
+      });
+  });
 
-    loadCategories();
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (photoPreview) {
-        URL.revokeObjectURL(photoPreview);
-      }
-    };
-  }, [photoPreview]);
-
-  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) {
       return;
     }
 
-    if (!file.type.startsWith("image/")) {
-      setError("Selecteer een geldige afbeelding.");
-      return;
-    }
-
-    setError("");
     setPhoto(file);
-
-    if (photoPreview) {
-      URL.revokeObjectURL(photoPreview);
-    }
-
     setPhotoPreview(URL.createObjectURL(file));
-  };
+  }
 
-  const uploadPhotoInBackground = (itemId: string, file: File) => {
-    void upload(`items/${itemId}/${file.name}`, file, {
-      access: "public",
-      handleUploadUrl: "/api/upload",
-      clientPayload: JSON.stringify({
-        itemId,
-      }),
-    }).catch((error) => {
-      console.error("Background photo upload failed:", error);
-    });
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!name.trim() || !expiryDate || !categoryId || !checkType) {
+    if (!name.trim() || !categoryId || !expiryDate) {
       setError("Vul alle verplichte velden in.");
       return;
     }
@@ -110,86 +78,140 @@ export default function NewItemPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/items", {
+      const itemResponse = await fetch("/api/items", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: name.trim(),
-          photo_url: null,
           expiry_date: expiryDate,
           category_id: categoryId,
-          sticker_30_percent: checkType === "daily",
+          sticker_30_percent: false,
+          photo_url: null,
         }),
       });
 
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
+      const itemData = await itemResponse.json();
 
-        throw new Error(data?.error || "Item kon niet toegevoegd worden.");
+      if (!itemResponse.ok) {
+        throw new Error(itemData?.error || "Item kon niet aangemaakt worden.");
       }
 
-      const item = await response.json();
+      const itemId = itemData.id;
 
       if (photo) {
-        uploadPhotoInBackground(item.id, photo);
+        await upload(photo.name, photo, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          clientPayload: JSON.stringify({
+            itemId,
+          }),
+        });
       }
 
       router.push("/stockchecker");
-    } catch (error) {
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to create item:", err);
+
       setError(
-        error instanceof Error
-          ? error.message
-          : "Item kon niet toegevoegd worden.",
+        err instanceof Error ? err.message : "Item kon niet aangemaakt worden.",
       );
+    } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Stack spacing={3}>
-        <Button
-          className="StyledButton3"
-          component={Link}
-          href="/stockchecker"
-          startIcon={<ArrowBackOutlined />}
-          sx={{
-            alignSelf: "flex-start",
-            color: "inherit",
-          }}
-        >
-          Terug
-        </Button>
-
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+          <Button
+            component={Link}
+            href="/stockchecker"
+            startIcon={<ArrowBackOutlinedIcon />}
+            sx={{
+              color: "text.secondary",
+              textTransform: "none",
+              mb: 2,
+            }}
+          >
+            Terug
+          </Button>
+
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
             Nieuw item
           </Typography>
 
-          <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
-            Voeg een nieuw product toe aan de voorraad.
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Voeg een product toe aan de voorraadcontrole.
           </Typography>
         </Box>
 
-        <Box className="StyledBox color-invert">
-          <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          <TextField
+            label="Naam"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+            fullWidth
+          />
+
+          <TextField
+            select
+            label="Categorie"
+            value={categoryId}
+            onChange={(event) => setCategoryId(event.target.value)}
+            required
+            fullWidth
+          >
+            {categories.map((category) => (
+              <MenuItem key={category.id} value={category.id}>
+                {category.name}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            label="Vervaldatum"
+            type="date"
+            value={expiryDate}
+            onChange={(event) => setExpiryDate(event.target.value)}
+            required
+            fullWidth
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+              },
+            }}
+          />
+
+          <Box>
             <Button
-              className="StyledButton3"
               component="label"
               variant="outlined"
-              size="large"
-              startIcon={<CameraAltOutlined />}
+              startIcon={<CameraAltOutlinedIcon />}
               fullWidth
+              sx={{
+                minHeight: 52,
+                textTransform: "none",
+              }}
             >
-              {photo ? "Andere foto nemen" : "Foto nemen"}
-
+              {photo ? "Foto wijzigen" : "Foto toevoegen"}
               <input
                 type="file"
-                accept="image/*"
-                capture="environment"
                 hidden
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
                 onChange={handlePhotoChange}
               />
             </Button>
@@ -198,85 +220,38 @@ export default function NewItemPage() {
               <Box
                 component="img"
                 src={photoPreview}
-                alt="Voorbeeld van productfoto"
+                alt="Voorbeeld van gekozen foto"
                 sx={{
+                  display: "block",
                   width: "100%",
                   maxHeight: 300,
-                  objectFit: "cover",
+                  objectFit: "contain",
                   borderRadius: 2,
+                  mt: 2,
                 }}
               />
             )}
+          </Box>
 
-            <TextField
-              label="Naam"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-              fullWidth
-            />
+          {error && (
+            <Typography color="error" variant="body2">
+              {error}
+            </Typography>
+          )}
 
-            <TextField
-              label="Vervaldatum"
-              type="date"
-              value={expiryDate}
-              onChange={(event) => setExpiryDate(event.target.value)}
-              required
-              fullWidth
-              slotProps={{
-                inputLabel: {
-                  shrink: true,
-                },
-              }}
-            />
-
-            <TextField
-              select
-              label="Categorie"
-              value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
-              required
-              fullWidth
-            >
-              {categories.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              label="Controle"
-              value={checkType}
-              onChange={(event) =>
-                setCheckType(event.target.value as CheckType)
-              }
-              required
-              fullWidth
-            >
-              <MenuItem value="daily">Dagelijkse check</MenuItem>
-
-              <MenuItem value="monthly">Maandelijkse check</MenuItem>
-            </TextField>
-
-            {error && (
-              <Typography variant="body2" sx={{ color: "error.main" }}>
-                {error}
-              </Typography>
-            )}
-
-            <Button
-              className="StyledButton1"
-              type="submit"
-              variant="contained"
-              size="large"
-              startIcon={<AddOutlined />}
-              disabled={loading}
-            >
-              {loading ? "Toevoegen..." : "Item toevoegen"}
-            </Button>
-          </Stack>
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            disabled={loading}
+            startIcon={<AddOutlinedIcon />}
+            sx={{
+              minHeight: 52,
+              textTransform: "none",
+            }}
+          >
+            {loading ? "Bezig met opslaan..." : "Item toevoegen"}
+          </Button>
         </Box>
       </Stack>
     </Container>
