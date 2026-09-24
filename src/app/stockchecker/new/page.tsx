@@ -1,9 +1,9 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { upload } from "@vercel/blob/client";
 import {
   Box,
   Button,
@@ -13,60 +13,58 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
-import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
+import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
+import AddOutlined from "@mui/icons-material/AddOutlined";
+import CameraAltOutlined from "@mui/icons-material/CameraAltOutlined";
 
 type Category = {
   id: string;
   name: string;
 };
 
+type CheckType = "daily" | "monthly";
+
 export default function NewItemPage() {
   const router = useRouter();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [name, setName] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [checkType, setCheckType] = useState<CheckType>("daily");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadCategories() {
+    const loadCategories = async () => {
       try {
         const response = await fetch("/api/categories");
 
         if (!response.ok) {
-          throw new Error("Categorieën konden niet geladen worden.");
+          throw new Error("Failed to load categories");
         }
 
         const data = await response.json();
-
         setCategories(data);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Categorieën konden niet geladen worden.",
-        );
+      } catch {
+        setError("Categorieën konden niet geladen worden.");
       }
-    }
+    };
 
     loadCategories();
   }, []);
 
   useEffect(() => {
     return () => {
-      if (photoPreview.startsWith("blob:")) {
+      if (photoPreview) {
         URL.revokeObjectURL(photoPreview);
       }
     };
   }, [photoPreview]);
 
-  function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
     if (!file) {
@@ -81,17 +79,17 @@ export default function NewItemPage() {
     setError("");
     setPhoto(file);
 
-    if (photoPreview.startsWith("blob:")) {
+    if (photoPreview) {
       URL.revokeObjectURL(photoPreview);
     }
 
     setPhotoPreview(URL.createObjectURL(file));
-  }
+  };
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!name.trim() || !categoryId || !expiryDate) {
+    if (!name.trim() || !expiryDate || !categoryId || !checkType) {
       setError("Vul alle verplichte velden in.");
       return;
     }
@@ -99,30 +97,32 @@ export default function NewItemPage() {
     setLoading(true);
     setError("");
 
+    let itemId: string | null = null;
+
     try {
-      const itemResponse = await fetch("/api/items", {
+      const response = await fetch("/api/items", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: name.trim(),
+          photo_url: null,
           expiry_date: expiryDate,
           category_id: categoryId,
-          sticker_30_percent: false,
-          photo_url: null,
+          sticker_30_percent: checkType === "daily",
         }),
       });
 
-      const itemData = await itemResponse.json();
+      const itemData = await response.json();
 
-      if (!itemResponse.ok) {
-        throw new Error(itemData?.error || "Item kon niet aangemaakt worden.");
+      if (!response.ok) {
+        throw new Error(itemData?.error || "Item kon niet toegevoegd worden.");
       }
 
-      const itemId = itemData.id;
+      itemId = itemData.id;
 
-      if (photo) {
+      if (photo && itemId) {
         await upload(photo.name, photo, {
           access: "public",
           handleUploadUrl: "/api/upload",
@@ -133,48 +133,114 @@ export default function NewItemPage() {
       }
 
       router.push("/stockchecker");
-      router.refresh();
-    } catch (err) {
-      console.error("Failed to create item:", err);
+    } catch (error) {
+      console.error("Failed to create item:", error);
+
+      if (itemId) {
+        try {
+          await fetch(`/api/items/${itemId}`, {
+            method: "DELETE",
+          });
+        } catch (deleteError) {
+          console.error(
+            "Failed to clean up item after upload error:",
+            deleteError,
+          );
+        }
+      }
 
       setError(
-        err instanceof Error ? err.message : "Item kon niet aangemaakt worden.",
+        error instanceof Error
+          ? error.message
+          : "Item kon niet toegevoegd worden.",
       );
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ py: 4 }}>
+    <Container maxWidth="sm" sx={{ py: 4 }}>
+      <Stack spacing={3}>
         <Button
+          className="StyledButton3"
           component={Link}
           href="/stockchecker"
-          startIcon={<ArrowBackOutlinedIcon />}
-          sx={{ mb: 3 }}
+          startIcon={<ArrowBackOutlined />}
+          sx={{
+            alignSelf: "flex-start",
+            color: "inherit",
+          }}
         >
           Terug
         </Button>
 
-        <Typography variant="h4" sx={{ mb: 3 }}>
-          Nieuw item
-        </Typography>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            Nieuw item
+          </Typography>
 
-        <Box
-          component="form"
-          onSubmit={handleSubmit}
-          className="StyledBox color-invert"
-        >
-          <Stack spacing={3}>
-            {error && <Typography color="error">{error}</Typography>}
+          <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
+            Voeg een nieuw product toe aan de voorraad.
+          </Typography>
+        </Box>
+
+        <Box className="StyledBox color-invert">
+          <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
+            <Button
+              className="StyledButton3"
+              component="label"
+              variant="outlined"
+              size="large"
+              startIcon={<CameraAltOutlined />}
+              fullWidth
+              disabled={loading}
+            >
+              {photo ? "Andere foto nemen" : "Foto nemen"}
+
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                onChange={handlePhotoChange}
+              />
+            </Button>
+
+            {photoPreview && (
+              <Box
+                component="img"
+                src={photoPreview}
+                alt="Voorbeeld van productfoto"
+                sx={{
+                  width: "100%",
+                  maxHeight: 300,
+                  objectFit: "cover",
+                  borderRadius: 2,
+                }}
+              />
+            )}
 
             <TextField
               label="Naam"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              fullWidth
               required
+              fullWidth
+            />
+
+            <TextField
+              label="Vervaldatum"
+              type="date"
+              value={expiryDate}
+              onChange={(event) => setExpiryDate(event.target.value)}
+              required
+              fullWidth
+              slotProps={{
+                inputLabel: {
+                  shrink: true,
+                },
+              }}
             />
 
             <TextField
@@ -182,8 +248,8 @@ export default function NewItemPage() {
               label="Categorie"
               value={categoryId}
               onChange={(event) => setCategoryId(event.target.value)}
-              fullWidth
               required
+              fullWidth
             >
               {categories.map((category) => (
                 <MenuItem key={category.id} value={category.id}>
@@ -193,91 +259,39 @@ export default function NewItemPage() {
             </TextField>
 
             <TextField
-              label="Vervaldatum"
-              type="date"
-              value={expiryDate}
-              onChange={(event) => setExpiryDate(event.target.value)}
-              slotProps={{
-                inputLabel: {
-                  shrink: true,
-                },
-              }}
-              fullWidth
+              select
+              label="Controle"
+              value={checkType}
+              onChange={(event) =>
+                setCheckType(event.target.value as CheckType)
+              }
               required
-            />
+              fullWidth
+            >
+              <MenuItem value="daily">Dagelijkse check</MenuItem>
 
-            <Box>
-              <Stack spacing={2}>
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  Productfoto
-                </Typography>
+              <MenuItem value="monthly">Maandelijkse check</MenuItem>
+            </TextField>
 
-                {photoPreview && (
-                  <Box
-                    component="img"
-                    src={photoPreview}
-                    alt={name || "Productfoto"}
-                    sx={{
-                      width: "100%",
-                      maxHeight: 300,
-                      objectFit: "contain",
-                      borderRadius: 2,
-                    }}
-                  />
-                )}
-
-                <Button
-                  component="label"
-                  variant="outlined"
-                  size="large"
-                  startIcon={<CameraAltOutlinedIcon />}
-                  fullWidth
-                  disabled={loading}
-                >
-                  {photoPreview ? "Andere foto nemen" : "Foto nemen"}
-
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    hidden
-                    onChange={handlePhotoChange}
-                  />
-                </Button>
-
-                {photoPreview && (
-                  <Button
-                    variant="text"
-                    color="error"
-                    onClick={() => {
-                      setPhoto(null);
-
-                      if (photoPreview.startsWith("blob:")) {
-                        URL.revokeObjectURL(photoPreview);
-                      }
-
-                      setPhotoPreview("");
-                    }}
-                    disabled={loading}
-                  >
-                    Foto verwijderen
-                  </Button>
-                )}
-              </Stack>
-            </Box>
+            {error && (
+              <Typography variant="body2" sx={{ color: "error.main" }}>
+                {error}
+              </Typography>
+            )}
 
             <Button
+              className="StyledButton1"
               type="submit"
               variant="contained"
               size="large"
-              startIcon={<AddOutlinedIcon />}
+              startIcon={<AddOutlined />}
               disabled={loading}
             >
-              {loading ? "Aanmaken..." : "Item toevoegen"}
+              {loading ? "Toevoegen..." : "Item toevoegen"}
             </Button>
           </Stack>
         </Box>
-      </Box>
+      </Stack>
     </Container>
   );
 }

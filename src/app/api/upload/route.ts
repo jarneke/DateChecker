@@ -17,7 +17,7 @@ export async function POST(
             request,
 
             onBeforeGenerateToken: async (
-                pathname,
+                _pathname,
                 clientPayload,
             ) => {
                 let payload: { itemId?: string } = {};
