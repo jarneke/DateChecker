@@ -17,7 +17,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SearchIcon from "@mui/icons-material/Search";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Item = {
   id: string;
@@ -26,11 +26,21 @@ type Item = {
   expiry_date: string;
   sticker_30_percent: boolean;
   category_id: string;
-  category_name: string;
+  category_name: string | null;
 };
 
 type ControlFilter = "all" | "30" | "month";
 type DateFilterMode = "exact" | "range";
+
+type ItemsResponse = {
+  items: Item[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+const PAGE_SIZE = 20;
 
 export default function StockCheckerPage() {
   const [items, setItems] = useState<Item[]>([]);
@@ -46,38 +56,92 @@ export default function StockCheckerPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   useEffect(() => {
-    async function loadItems() {
-      try {
-        setError(null);
+    setPage(1);
+  }, [search, controlFilter, exactDate, fromDate, toDate, dateFilterMode]);
 
-        const response = await fetch("/api/items", {
-          cache: "no-store",
-        });
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      loadItems();
+    }, 300);
 
-        if (!response.ok) {
-          const error = await response.text();
-          console.error("API /items error:", error);
-          throw new Error(`Items konden niet geladen worden: ${error}`);
-        }
+    return () => clearTimeout(timeout);
+  }, [
+    page,
+    search,
+    controlFilter,
+    exactDate,
+    fromDate,
+    toDate,
+    dateFilterMode,
+  ]);
 
-        const data = await response.json();
+  async function loadItems() {
+    try {
+      setLoading(true);
+      setError(null);
 
-        if (!Array.isArray(data)) {
-          throw new Error("Ongeldige data ontvangen.");
-        }
+      const params = new URLSearchParams();
 
-        setItems(data);
-      } catch (error) {
-        console.error(error);
-        setError("Items konden niet geladen worden.");
-      } finally {
-        setLoading(false);
+      params.set("page", String(page));
+
+      if (search.trim()) {
+        params.set("search", search.trim());
       }
-    }
 
-    loadItems();
-  }, []);
+      if (controlFilter !== "all") {
+        params.set("control", controlFilter);
+      }
+
+      if (dateFilterMode === "exact") {
+        if (exactDate) {
+          params.set("exactDate", exactDate);
+        }
+      } else {
+        if (fromDate) {
+          params.set("fromDate", fromDate);
+        }
+
+        if (toDate) {
+          params.set("toDate", toDate);
+        }
+      }
+
+      const response = await fetch(`/api/items?${params.toString()}`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+
+        console.error("API /items error:", errorText);
+
+        throw new Error("Items konden niet geladen worden.");
+      }
+
+      const data: ItemsResponse = await response.json();
+
+      if (!Array.isArray(data.items)) {
+        throw new Error("Ongeldige data ontvangen.");
+      }
+
+      setItems(data.items);
+      setTotal(data.total);
+      setTotalPages(data.totalPages);
+    } catch (error) {
+      console.error(error);
+      setError("Items konden niet geladen worden.");
+      setItems([]);
+      setTotal(0);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function getDateString(date: string) {
     return new Date(date).toLocaleDateString("en-CA", {
@@ -94,38 +158,6 @@ export default function StockCheckerPage() {
     });
   }
 
-  const filteredItems = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    return items.filter((item) => {
-      const itemDate = getDateString(item.expiry_date);
-
-      const matchesSearch =
-        !normalizedSearch || item.name.toLowerCase().includes(normalizedSearch);
-
-      const matchesControl =
-        controlFilter === "all" ||
-        (controlFilter === "30" && item.sticker_30_percent) ||
-        (controlFilter === "month" && !item.sticker_30_percent);
-
-      const matchesDate =
-        dateFilterMode === "exact"
-          ? !exactDate || itemDate === exactDate
-          : (!fromDate || itemDate >= fromDate) &&
-            (!toDate || itemDate <= toDate);
-
-      return matchesSearch && matchesControl && matchesDate;
-    });
-  }, [
-    items,
-    search,
-    controlFilter,
-    dateFilterMode,
-    exactDate,
-    fromDate,
-    toDate,
-  ]);
-
   function clearFilters() {
     setSearch("");
     setControlFilter("all");
@@ -133,6 +165,7 @@ export default function StockCheckerPage() {
     setExactDate("");
     setFromDate("");
     setToDate("");
+    setPage(1);
   }
 
   const filtersActive =
@@ -141,6 +174,55 @@ export default function StockCheckerPage() {
     exactDate !== "" ||
     fromDate !== "" ||
     toDate !== "";
+
+  const firstItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const lastItem = Math.min(page * PAGE_SIZE, total);
+
+  function goToPage(newPage: number) {
+    if (newPage < 1 || newPage > totalPages || newPage === page) {
+      return;
+    }
+
+    setPage(newPage);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function getPageNumbers() {
+    const pages: (number | "...")[] = [];
+
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+
+      return pages;
+    }
+
+    pages.push(1);
+
+    if (page > 4) {
+      pages.push("...");
+    }
+
+    const start = Math.max(2, page - 1);
+    const end = Math.min(totalPages - 1, page + 1);
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    if (page < totalPages - 3) {
+      pages.push("...");
+    }
+
+    pages.push(totalPages);
+
+    return pages;
+  }
 
   return (
     <Container maxWidth="md">
@@ -209,7 +291,9 @@ export default function StockCheckerPage() {
                   }
                 >
                   <MenuItem value="all">Alle Controles</MenuItem>
+
                   <MenuItem value="30">Dagelijkse controle</MenuItem>
+
                   <MenuItem value="month">Maandelijkse controle</MenuItem>
                 </Select>
               </FormControl>
@@ -273,7 +357,9 @@ export default function StockCheckerPage() {
                     onChange={(event) => setExactDate(event.target.value)}
                     fullWidth
                     slotProps={{
-                      inputLabel: { shrink: true },
+                      inputLabel: {
+                        shrink: true,
+                      },
                     }}
                   />
                 ) : (
@@ -291,7 +377,9 @@ export default function StockCheckerPage() {
                       onChange={(event) => setFromDate(event.target.value)}
                       fullWidth
                       slotProps={{
-                        inputLabel: { shrink: true },
+                        inputLabel: {
+                          shrink: true,
+                        },
                       }}
                     />
 
@@ -302,7 +390,9 @@ export default function StockCheckerPage() {
                       onChange={(event) => setToDate(event.target.value)}
                       fullWidth
                       slotProps={{
-                        inputLabel: { shrink: true },
+                        inputLabel: {
+                          shrink: true,
+                        },
                       }}
                     />
                   </Stack>
@@ -327,12 +417,30 @@ export default function StockCheckerPage() {
 
           {!loading && !error && (
             <Stack spacing={2}>
-              <Typography color="text.secondary">
-                {filteredItems.length}{" "}
-                {filteredItems.length === 1 ? "item" : "items"}
-              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <Typography color="text.secondary">
+                  {total === 0
+                    ? "Geen items"
+                    : `${firstItem}-${lastItem} van ${total} ${
+                        total === 1 ? "item" : "items"
+                      }`}
+                </Typography>
 
-              {filteredItems.map((item) => (
+                {totalPages > 1 && (
+                  <Typography variant="body2" color="text.secondary">
+                    Pagina {page} van {totalPages}
+                  </Typography>
+                )}
+              </Box>
+
+              {items.map((item) => (
                 <Box
                   className="StyledBox color-invert"
                   key={item.id}
@@ -379,14 +487,21 @@ export default function StockCheckerPage() {
                       <Typography
                         variant="body2"
                         color="text.secondary"
-                        sx={{ textAlign: "center" }}
+                        sx={{
+                          textAlign: "center",
+                        }}
                       >
                         Geen foto
                       </Typography>
                     </Box>
                   )}
 
-                  <Stack spacing={1} sx={{ minWidth: 0 }}>
+                  <Stack
+                    spacing={1}
+                    sx={{
+                      minWidth: 0,
+                    }}
+                  >
                     <Typography
                       className="color-invert"
                       variant="h6"
@@ -400,7 +515,7 @@ export default function StockCheckerPage() {
                     </Typography>
 
                     <Typography className="color-invert" color="text.secondary">
-                      {item.category_name}
+                      {item.category_name ?? "Geen categorie"}
                     </Typography>
 
                     <Typography className="color-invert">
@@ -421,10 +536,63 @@ export default function StockCheckerPage() {
                 </Box>
               ))}
 
-              {filteredItems.length === 0 && (
+              {items.length === 0 && (
                 <Typography color="text.secondary">
                   Geen items gevonden met deze filters.
                 </Typography>
+              )}
+
+              {totalPages > 1 && (
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{
+                    pt: 2,
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    disabled={page === 1}
+                    onClick={() => goToPage(page - 1)}
+                  >
+                    Vorige
+                  </Button>
+
+                  {getPageNumbers().map((pageNumber, index) =>
+                    pageNumber === "..." ? (
+                      <Typography
+                        key={`ellipsis-${index}`}
+                        sx={{
+                          px: 1,
+                        }}
+                      >
+                        ...
+                      </Typography>
+                    ) : (
+                      <Button
+                        key={pageNumber}
+                        variant={pageNumber === page ? "contained" : "outlined"}
+                        size="small"
+                        onClick={() => goToPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </Button>
+                    ),
+                  )}
+
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    disabled={page === totalPages}
+                    onClick={() => goToPage(page + 1)}
+                  >
+                    Volgende
+                  </Button>
+                </Stack>
               )}
             </Stack>
           )}
