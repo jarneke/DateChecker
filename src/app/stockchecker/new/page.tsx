@@ -97,9 +97,6 @@ export default function NewItemPage() {
     setLoading(true);
     setError("");
 
-    let itemId: string | null = null;
-    let photoUrl: string | null = null;
-
     try {
       const response = await fetch("/api/items", {
         method: "POST",
@@ -121,67 +118,25 @@ export default function NewItemPage() {
         throw new Error(itemData?.error || "Item kon niet toegevoegd worden.");
       }
 
-      itemId = itemData.id;
+      const itemId = itemData.id;
 
       if (photo && itemId) {
-        const blob = await upload(photo.name, photo, {
+        const photoToUpload = photo;
+
+        void upload(photoToUpload.name, photoToUpload, {
           access: "public",
           handleUploadUrl: "/api/upload",
           clientPayload: JSON.stringify({
             itemId,
           }),
+        }).catch((uploadError) => {
+          console.error("Failed to upload item photo:", uploadError);
         });
-
-        photoUrl = blob.url;
-
-        const photoResponse = await fetch(`/api/items/${itemId}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            photo_url: photoUrl,
-          }),
-        });
-
-        if (!photoResponse.ok) {
-          const data = await photoResponse.json().catch(() => null);
-
-          throw new Error(
-            data?.error || "Foto kon niet aan het item gekoppeld worden.",
-          );
-        }
       }
 
       router.push("/stockchecker");
     } catch (error) {
       console.error("Failed to create item:", error);
-
-      if (photoUrl) {
-        try {
-          await fetch("/api/upload", {
-            method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              url: photoUrl,
-            }),
-          });
-        } catch (deleteError) {
-          console.error("Failed to clean up uploaded photo:", deleteError);
-        }
-      }
-
-      if (itemId) {
-        try {
-          await fetch(`/api/items/${itemId}`, {
-            method: "DELETE",
-          });
-        } catch (deleteError) {
-          console.error("Failed to clean up item after error:", deleteError);
-        }
-      }
 
       setError(
         error instanceof Error
