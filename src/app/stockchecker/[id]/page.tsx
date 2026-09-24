@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { upload } from "@vercel/blob/client";
 import {
   Box,
   Button,
@@ -54,6 +55,10 @@ export default function ItemDetailPage() {
 
         if (!itemResponse.ok) {
           throw new Error("Item not found");
+        }
+
+        if (!categoriesResponse.ok) {
+          throw new Error("Categories could not be loaded");
         }
 
         const itemData = await itemResponse.json();
@@ -117,24 +122,6 @@ export default function ItemDetailPage() {
     setPhotoPreview("");
   }
 
-  async function deleteBlob(url: string) {
-    const response = await fetch("/api/upload", {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url,
-      }),
-    });
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-
-      throw new Error(data?.error || "Foto kon niet verwijderd worden.");
-    }
-  }
-
   async function handleSave() {
     if (!item) {
       return;
@@ -148,28 +135,43 @@ export default function ItemDetailPage() {
       let photoUrl = removePhoto ? null : oldPhotoUrl;
 
       if (photo) {
-        const formData = new FormData();
-        formData.append("file", photo);
-
-        const uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
+        const uploadedBlob = await upload(photo.name, photo, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          clientPayload: JSON.stringify({
+            itemId: item.id,
+          }),
         });
 
-        if (!uploadResponse.ok) {
-          const data = await uploadResponse.json().catch(() => null);
-
-          throw new Error(data?.error || "Foto kon niet geüpload worden.");
-        }
-
-        const uploadData = await uploadResponse.json();
-        photoUrl = uploadData.url;
+        photoUrl = uploadedBlob.url;
 
         if (oldPhotoUrl && oldPhotoUrl !== photoUrl) {
-          await deleteBlob(oldPhotoUrl);
+          await fetch("/api/upload", {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              url: oldPhotoUrl,
+            }),
+          });
         }
       } else if (removePhoto && oldPhotoUrl) {
-        await deleteBlob(oldPhotoUrl);
+        const deleteResponse = await fetch("/api/upload", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            url: oldPhotoUrl,
+          }),
+        });
+
+        if (!deleteResponse.ok) {
+          const data = await deleteResponse.json().catch(() => null);
+
+          throw new Error(data?.error || "Foto kon niet verwijderd worden.");
+        }
       }
 
       const response = await fetch(`/api/items/${id}`, {
@@ -178,7 +180,7 @@ export default function ItemDetailPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: item.name,
+          name: item.name.trim(),
           photo_url: photoUrl,
           category_id: item.category_id,
           expiry_date: item.expiry_date,
@@ -187,16 +189,22 @@ export default function ItemDetailPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Opslaan mislukt.");
+        const data = await response.json().catch(() => null);
+
+        throw new Error(data?.error || "Opslaan van het item mislukt.");
       }
 
       const updatedItem = await response.json();
 
-      setItem((current) => ({
-        ...current!,
-        ...updatedItem,
-        photo_url: photoUrl,
-      }));
+      setItem((current) =>
+        current
+          ? {
+              ...current,
+              ...updatedItem,
+              photo_url: photoUrl,
+            }
+          : current,
+      );
 
       setPhoto(null);
       setRemovePhoto(false);
@@ -232,12 +240,15 @@ export default function ItemDetailPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Verwijderen mislukt.");
+        const data = await response.json().catch(() => null);
+
+        throw new Error(data?.error || "Verwijderen mislukt.");
       }
 
       router.push("/stockchecker");
-    } catch {
-      setError("Verwijderen mislukt.");
+      router.refresh();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Verwijderen mislukt.");
       setSaving(false);
     }
   }
@@ -325,7 +336,7 @@ export default function ItemDetailPage() {
 
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     capture="environment"
                     hidden
                     onChange={handlePhotoChange}
@@ -344,6 +355,7 @@ export default function ItemDetailPage() {
                 )}
               </Stack>
             </Box>
+
             <TextField
               label="Naam"
               value={item.name}
@@ -353,6 +365,7 @@ export default function ItemDetailPage() {
                   name: event.target.value,
                 })
               }
+              disabled={saving}
               fullWidth
             />
 
@@ -366,6 +379,7 @@ export default function ItemDetailPage() {
                   category_id: event.target.value,
                 })
               }
+              disabled={saving}
               fullWidth
             >
               {categories.map((category) => (
@@ -385,6 +399,7 @@ export default function ItemDetailPage() {
                   expiry_date: event.target.value,
                 })
               }
+              disabled={saving}
               slotProps={{
                 inputLabel: {
                   shrink: true,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { upload } from "@vercel/blob/client";
@@ -34,26 +34,37 @@ export default function NewItemPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useState(() => {
-    fetch("/api/categories")
-      .then(async (response) => {
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const response = await fetch("/api/categories");
+
         if (!response.ok) {
           throw new Error("Categorieën konden niet geladen worden.");
         }
 
-        return response.json();
-      })
-      .then((data) => {
+        const data = await response.json();
+
         setCategories(data);
-      })
-      .catch((err) => {
+      } catch (err) {
         setError(
           err instanceof Error
             ? err.message
             : "Categorieën konden niet geladen worden.",
         );
-      });
-  });
+      }
+    }
+
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(photoPreview);
+      }
+    };
+  }, [photoPreview]);
 
   function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -62,7 +73,18 @@ export default function NewItemPage() {
       return;
     }
 
+    if (!file.type.startsWith("image/")) {
+      setError("Selecteer een geldige afbeelding.");
+      return;
+    }
+
+    setError("");
     setPhoto(file);
+
+    if (photoPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(photoPreview);
+    }
+
     setPhotoPreview(URL.createObjectURL(file));
   }
 
@@ -201,12 +223,14 @@ export default function NewItemPage() {
               variant="outlined"
               startIcon={<CameraAltOutlinedIcon />}
               fullWidth
+              disabled={loading}
               sx={{
                 minHeight: 52,
                 textTransform: "none",
               }}
             >
               {photo ? "Foto wijzigen" : "Foto toevoegen"}
+
               <input
                 type="file"
                 hidden
