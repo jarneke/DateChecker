@@ -1,51 +1,41 @@
-import {
-    handleUpload,
-    type HandleUploadBody,
-} from "@vercel/blob/client";
-import { NextResponse } from "next/server";
+import { handleUpload } from "@vercel/blob/client";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
-export async function POST(
-    request: Request,
-): Promise<NextResponse> {
-    const body = (await request.json()) as HandleUploadBody;
-
+export async function POST(request: NextRequest) {
     try {
-        const jsonResponse = await handleUpload({
-            body,
+        const body = await request.json();
+
+        const itemId = body?.itemId;
+
+        if (!itemId) {
+            return NextResponse.json(
+                { error: "itemId is required" },
+                { status: 400 }
+            );
+        }
+
+        const itemResult = await sql`
+      SELECT id
+      FROM items
+      WHERE id = ${itemId}
+      LIMIT 1
+    `;
+
+        if (itemResult.length === 0) {
+            return NextResponse.json(
+                { error: "Item not found" },
+                { status: 404 }
+            );
+        }
+
+        const response = await handleUpload({
             request,
-
-            onBeforeGenerateToken: async (
-                pathname,
-                clientPayload,
-            ) => {
-                let payload: { itemId?: string } = {};
-
-                try {
-                    payload = clientPayload
-                        ? JSON.parse(clientPayload)
-                        : {};
-                } catch {
-                    throw new Error("Invalid client payload.");
-                }
-
-                const itemId = payload.itemId;
-
-                if (!itemId) {
-                    throw new Error("Item ID is required.");
-                }
-
-                const item = await sql`
-          SELECT id
-          FROM items
-          WHERE id = ${itemId}
-          LIMIT 1
-        `;
-
-                if (item.length === 0) {
-                    throw new Error("Item not found.");
-                }
-
+            body: {
+                ...body,
+                clientPayload: JSON.stringify({ itemId }),
+            },
+            onBeforeGenerateToken: async () => {
                 return {
                     allowedContentTypes: [
                         "image/jpeg",
@@ -53,59 +43,46 @@ export async function POST(
                         "image/webp",
                     ],
                     addRandomSuffix: true,
-                    tokenPayload: JSON.stringify({
-                        itemId,
-                    }),
                 };
             },
-
-            onUploadCompleted: async ({
-                blob,
-                tokenPayload,
-            }) => {
-                let payload: { itemId?: string } = {};
-
+            onUploadCompleted: async ({ blob, tokenPayload }) => {
                 try {
-                    payload = tokenPayload
-                        ? JSON.parse(tokenPayload)
-                        : {};
-                } catch {
-                    throw new Error("Invalid token payload.");
-                }
+                    const payload = JSON.parse(tokenPayload || "{}");
+                    const uploadedItemId = payload.itemId;
 
-                const itemId = payload.itemId;
+                    if (!uploadedItemId) {
+                        throw new Error("Missing itemId in upload token");
+                    }
 
-                if (!itemId) {
-                    throw new Error("Item ID is missing.");
-                }
+                    await sql`
+            UPDATE items
+SET
+photo_url = ${blob.url},
+updated_at = NOW()
+            WHERE id = ${uploadedItemId}
+`;
+                } catch (error) {
+                    console.error(
+                        "Failed to update item after upload:",
+                        error
+                    );
 
-                const result = await sql`
-          UPDATE items
-          SET
-            photo_url = ${blob.url},
-            updated_at = NOW()
-          WHERE id = ${itemId}
-          RETURNING id
-        `;
-
-                if (result.length === 0) {
-                    throw new Error("Item not found.");
+                    throw error;
                 }
             },
         });
 
-        return NextResponse.json(jsonResponse);
+        return NextResponse.json(response);
     } catch (error) {
         console.error("POST /api/upload error:", error);
 
         return NextResponse.json(
             {
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : "Upload failed.",
+                error: "Upload failed",
             },
-            { status: 400 },
+            {
+                status: 500,
+            }
         );
     }
 }
