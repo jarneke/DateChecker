@@ -1,101 +1,94 @@
-import { del } from "@vercel/blob";
-import {
-    handleUpload,
-    type HandleUploadBody,
-} from "@vercel/blob/client";
+import { del, put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
-export async function POST(
-    request: Request,
-): Promise<NextResponse> {
+export async function POST(request: Request): Promise<NextResponse> {
     try {
-        const body = (await request.json()) as HandleUploadBody;
+        const formData = await request.formData();
 
-        const jsonResponse = await handleUpload({
-            body,
-            request,
+        const file = formData.get("file");
+        const itemId = formData.get("itemId");
 
-            onBeforeGenerateToken: async (
-                _pathname,
-                clientPayload,
-            ) => {
-                let payload: { itemId?: string } = {};
+        if (!(file instanceof File)) {
+            return NextResponse.json(
+                {
+                    error: "Image file is required.",
+                },
+                { status: 400 },
+            );
+        }
 
-                try {
-                    payload = clientPayload
-                        ? JSON.parse(clientPayload)
-                        : {};
-                } catch {
-                    throw new Error("Invalid client payload.");
-                }
+        if (typeof itemId !== "string" || !itemId) {
+            return NextResponse.json(
+                {
+                    error: "Item ID is required.",
+                },
+                { status: 400 },
+            );
+        }
 
-                const itemId = payload.itemId;
+        const item = await sql`
+  SELECT id
+  FROM items
+  WHERE id = ${itemId}
+  LIMIT 1
+`;
 
-                if (!itemId) {
-                    throw new Error("Item ID is required.");
-                }
+        if (item.length === 0) {
+            return NextResponse.json(
+                {
+                    error: "Item not found.",
+                },
+                { status: 404 },
+            );
+        }
 
-                const item = await sql`
-          SELECT id
-          FROM items
-          WHERE id = ${itemId}
-          LIMIT 1
-        `;
+        const allowedTypes = [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+        ];
 
-                if (item.length === 0) {
-                    throw new Error("Item not found.");
-                }
+        if (!allowedTypes.includes(file.type)) {
+            return NextResponse.json(
+                {
+                    error: "Only JPEG, PNG and WebP images are allowed.",
+                },
+                { status: 400 },
+            );
+        }
 
-                return {
-                    allowedContentTypes: [
-                        "image/jpeg",
-                        "image/png",
-                        "image/webp",
-                    ],
-                    addRandomSuffix: true,
-                    tokenPayload: JSON.stringify({
-                        itemId,
-                    }),
-                };
-            },
-
-            onUploadCompleted: async ({
-                blob,
-                tokenPayload,
-            }) => {
-                let payload: { itemId?: string } = {};
-
-                try {
-                    payload = tokenPayload
-                        ? JSON.parse(tokenPayload)
-                        : {};
-                } catch {
-                    throw new Error("Invalid token payload.");
-                }
-
-                const itemId = payload.itemId;
-
-                if (!itemId) {
-                    throw new Error("Item ID is missing.");
-                }
-
-                const result = await sql`
-          UPDATE items
-          SET
-            photo_url = ${blob.url},
-            updated_at = NOW()
-          WHERE id = ${itemId}
-          RETURNING id
-        `;
-
-                if (result.length === 0) {
-                    throw new Error("Item not found.");
-                }
-            },
+        const blob = await put(file.name, file, {
+            access: "public",
+            addRandomSuffix: true,
+            contentType: file.type,
         });
 
-        return NextResponse.json(jsonResponse);
+        const result = await sql`
+  UPDATE items
+  SET
+    photo_url = ${blob.url},
+    updated_at = NOW()
+  WHERE id = ${itemId}
+  RETURNING id
+`;
+
+        if (result.length === 0) {
+            await del(blob.url);
+
+            return NextResponse.json(
+                {
+                    error: "Item not found.",
+                },
+                { status: 404 },
+            );
+        }
+
+        return NextResponse.json({
+            success: true,
+            url: blob.url,
+        });
+
     } catch (error) {
         console.error("POST /api/upload error:", error);
 
@@ -106,14 +99,13 @@ export async function POST(
                         ? error.message
                         : "Upload failed.",
             },
-            { status: 400 },
+            { status: 500 },
         );
+
     }
 }
 
-export async function DELETE(
-    request: Request,
-): Promise<NextResponse> {
+export async function DELETE(request: Request): Promise<NextResponse> {
     try {
         const body = await request.json();
         const url = body?.url;
@@ -132,6 +124,7 @@ export async function DELETE(
         return NextResponse.json({
             success: true,
         });
+
     } catch (error) {
         console.error("DELETE /api/upload error:", error);
 
@@ -144,5 +137,6 @@ export async function DELETE(
             },
             { status: 400 },
         );
+
     }
 }

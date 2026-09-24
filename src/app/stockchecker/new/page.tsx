@@ -1,6 +1,5 @@
 "use client";
 
-import { upload } from "@vercel/blob/client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -86,6 +85,19 @@ export default function NewItemPage() {
     setPhotoPreview(URL.createObjectURL(file));
   };
 
+  const uploadPhotoInBackground = (file: File, itemId: string) => {
+    const formData = new FormData();
+
+    formData.append("file", file);
+    formData.append("itemId", itemId);
+
+    const queued = navigator.sendBeacon("/api/upload", formData);
+
+    if (!queued) {
+      console.error("Photo upload could not be queued.");
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -121,17 +133,7 @@ export default function NewItemPage() {
       const itemId = itemData.id;
 
       if (photo && itemId) {
-        const photoToUpload = photo;
-
-        void upload(photoToUpload.name, photoToUpload, {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-          clientPayload: JSON.stringify({
-            itemId,
-          }),
-        }).catch((uploadError) => {
-          console.error("Failed to upload item photo:", uploadError);
-        });
+        uploadPhotoInBackground(photo, itemId);
       }
 
       router.push("/stockchecker");
