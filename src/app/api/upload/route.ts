@@ -1,71 +1,111 @@
-import { del, put } from "@vercel/blob";
+import {
+    handleUpload,
+    type HandleUploadBody,
+} from "@vercel/blob/client";
 import { NextResponse } from "next/server";
+import { sql } from "@/lib/db";
 
-export async function POST(request: Request) {
+export async function POST(
+    request: Request,
+): Promise<NextResponse> {
+    const body = (await request.json()) as HandleUploadBody;
+
     try {
-        const formData = await request.formData();
-        const file = formData.get("file");
+        const jsonResponse = await handleUpload({
+            body,
+            request,
 
-        if (!(file instanceof File)) {
-            return NextResponse.json(
-                { error: "Geen foto ontvangen." },
-                { status: 400 },
-            );
-        }
+            onBeforeGenerateToken: async (
+                pathname,
+                clientPayload,
+            ) => {
+                let payload: { itemId?: string } = {};
 
-        if (!file.type.startsWith("image/")) {
-            return NextResponse.json(
-                { error: "Het bestand moet een afbeelding zijn." },
-                { status: 400 },
-            );
-        }
+                try {
+                    payload = clientPayload
+                        ? JSON.parse(clientPayload)
+                        : {};
+                } catch {
+                    throw new Error("Invalid client payload.");
+                }
 
-        const extension = file.name.split(".").pop() || "jpg";
+                const itemId = payload.itemId;
 
-        const blob = await put(
-            `items/${crypto.randomUUID()}.${extension}`,
-            file,
-            {
-                access: "public",
+                if (!itemId) {
+                    throw new Error("Item ID is required.");
+                }
+
+                const item = await sql`
+          SELECT id
+          FROM items
+          WHERE id = ${itemId}
+          LIMIT 1
+        `;
+
+                if (item.length === 0) {
+                    throw new Error("Item not found.");
+                }
+
+                return {
+                    allowedContentTypes: [
+                        "image/jpeg",
+                        "image/png",
+                        "image/webp",
+                    ],
+                    addRandomSuffix: true,
+                    tokenPayload: JSON.stringify({
+                        itemId,
+                    }),
+                };
             },
-        );
 
-        return NextResponse.json({
-            url: blob.url,
+            onUploadCompleted: async ({
+                blob,
+                tokenPayload,
+            }) => {
+                let payload: { itemId?: string } = {};
+
+                try {
+                    payload = tokenPayload
+                        ? JSON.parse(tokenPayload)
+                        : {};
+                } catch {
+                    throw new Error("Invalid token payload.");
+                }
+
+                const itemId = payload.itemId;
+
+                if (!itemId) {
+                    throw new Error("Item ID is missing.");
+                }
+
+                const result = await sql`
+          UPDATE items
+          SET
+            photo_url = ${blob.url},
+            updated_at = NOW()
+          WHERE id = ${itemId}
+          RETURNING id
+        `;
+
+                if (result.length === 0) {
+                    throw new Error("Item not found.");
+                }
+            },
         });
+
+        return NextResponse.json(jsonResponse);
     } catch (error) {
-        console.error("Blob upload error:", error);
+        console.error("POST /api/upload error:", error);
 
         return NextResponse.json(
-            { error: "Foto kon niet geüpload worden." },
-            { status: 500 },
-        );
-    }
-}
-
-export async function DELETE(request: Request) {
-    try {
-        const body = await request.json();
-        const url = body.url;
-
-        if (!url || typeof url !== "string") {
-            return NextResponse.json(
-                { error: "Geen foto URL ontvangen." },
-                { status: 400 },
-            );
-        }
-
-        await del(url);
-
-        return NextResponse.json({
-            success: true,
-        });
-    } catch (error) {
-        console.error("Blob delete error:", error);
-
-        return NextResponse.json(
-            { error: "Foto kon niet verwijderd worden." },
-            { status: 500 },
+            {
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Upload failed.",
+            },
+            { status: 400 },
         );
     }
 }

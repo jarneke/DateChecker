@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -85,6 +86,18 @@ export default function NewItemPage() {
     setPhotoPreview(URL.createObjectURL(file));
   };
 
+  const uploadPhotoInBackground = (itemId: string, file: File) => {
+    void upload(`items/${itemId}/${file.name}`, file, {
+      access: "public",
+      handleUploadUrl: "/api/upload",
+      clientPayload: JSON.stringify({
+        itemId,
+      }),
+    }).catch((error) => {
+      console.error("Background photo upload failed:", error);
+    });
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -97,27 +110,6 @@ export default function NewItemPage() {
     setError("");
 
     try {
-      let photoUrl: string | null = null;
-
-      if (photo) {
-        const formData = new FormData();
-        formData.append("file", photo);
-
-        const uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          const data = await uploadResponse.json().catch(() => null);
-
-          throw new Error(data?.error || "Foto kon niet geüpload worden.");
-        }
-
-        const uploadData = await uploadResponse.json();
-        photoUrl = uploadData.url;
-      }
-
       const response = await fetch("/api/items", {
         method: "POST",
         headers: {
@@ -125,7 +117,7 @@ export default function NewItemPage() {
         },
         body: JSON.stringify({
           name: name.trim(),
-          photo_url: photoUrl,
+          photo_url: null,
           expiry_date: expiryDate,
           category_id: categoryId,
           sticker_30_percent: checkType === "daily",
@@ -138,6 +130,12 @@ export default function NewItemPage() {
         throw new Error(data?.error || "Item kon niet toegevoegd worden.");
       }
 
+      const item = await response.json();
+
+      if (photo) {
+        uploadPhotoInBackground(item.id, photo);
+      }
+
       router.push("/stockchecker");
     } catch (error) {
       setError(
@@ -145,7 +143,6 @@ export default function NewItemPage() {
           ? error.message
           : "Item kon niet toegevoegd worden.",
       );
-    } finally {
       setLoading(false);
     }
   };
@@ -187,6 +184,7 @@ export default function NewItemPage() {
               fullWidth
             >
               {photo ? "Andere foto nemen" : "Foto nemen"}
+
               <input
                 type="file"
                 accept="image/*"
@@ -209,6 +207,7 @@ export default function NewItemPage() {
                 }}
               />
             )}
+
             <TextField
               label="Naam"
               value={name}
