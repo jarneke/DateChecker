@@ -24,78 +24,78 @@ export async function GET(request: NextRequest) {
     const searchPattern = `%${search.toLowerCase()}%`;
 
     const itemsResult = await sql`
-            SELECT
-                i.id,
-                i.name,
-                i.photo_url,
-                i.expiry_date,
-                i.sticker_30_percent,
-                i.category_id,
-                c.name AS category_name
-            FROM items i
-            LEFT JOIN categories c
-                ON c.id = i.category_id
-            WHERE
-                (
-                    ${search === ""}
-                    OR LOWER(i.name) LIKE ${searchPattern}
-                )
-                AND (
-                    ${control !== "30"}
-                    OR i.sticker_30_percent = true
-                )
-                AND (
-                    ${control !== "month"}
-                    OR i.sticker_30_percent = false
-                )
-                AND (
-                    ${exactDate === ""}
-                    OR i.expiry_date = ${exactDate}::date
-                )
-                AND (
-                    ${fromDate === ""}
-                    OR i.expiry_date >= ${fromDate}::date
-                )
-                AND (
-                    ${toDate === ""}
-                    OR i.expiry_date <= ${toDate}::date
-                )
-            ORDER BY
-                i.expiry_date ASC,
-                i.name ASC
-            LIMIT ${PAGE_SIZE}
-            OFFSET ${offset}
-        `;
+      SELECT
+        i.id,
+        i.name,
+        i.photo_url,
+        i.expiry_date,
+        i.sticker_30_percent,
+        i.category_id,
+        c.name AS category_name
+      FROM items i
+      LEFT JOIN categories c
+        ON c.id = i.category_id
+      WHERE
+        (
+          ${search === ""}
+          OR LOWER(i.name) LIKE ${searchPattern}
+        )
+        AND (
+          ${control !== "30"}
+          OR i.sticker_30_percent = true
+        )
+        AND (
+          ${control !== "month"}
+          OR i.sticker_30_percent = false
+        )
+        AND (
+          ${exactDate === ""}
+          OR i.expiry_date = NULLIF(${exactDate}, '')::date
+        )
+        AND (
+          ${fromDate === ""}
+          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
+        )
+        AND (
+          ${toDate === ""}
+          OR i.expiry_date <= NULLIF(${toDate}, '')::date
+        )
+      ORDER BY
+        i.expiry_date ASC,
+        i.name ASC
+      LIMIT ${PAGE_SIZE}
+      OFFSET ${offset}
+    `;
 
     const countResult = await sql`
-            SELECT COUNT(*)::int AS total
-            FROM items i
-            WHERE
-                (
-                    ${search === ""}
-                    OR LOWER(i.name) LIKE ${searchPattern}
-                )
-                AND (
-                    ${control !== "30"}
-                    OR i.sticker_30_percent = true
-                )
-                AND (
-                    ${control !== "month"}
-                    OR i.sticker_30_percent = false
-                )
-                AND (
-                    ${exactDate === ""}
-                    OR i.expiry_date = ${exactDate}::date
-                )
-                AND (
-                    ${fromDate === ""}
-                    OR i.expiry_date >= ${fromDate}::date
-                )
-                AND (
-                    ${toDate === ""}
-                    OR i.expiry_date <= ${toDate}::date
-                )
-        `;
+      SELECT COUNT(*)::int AS total
+      FROM items i
+      WHERE
+        (
+          ${search === ""}
+          OR LOWER(i.name) LIKE ${searchPattern}
+        )
+        AND (
+          ${control !== "30"}
+          OR i.sticker_30_percent = true
+        )
+        AND (
+          ${control !== "month"}
+          OR i.sticker_30_percent = false
+        )
+        AND (
+          ${exactDate === ""}
+          OR i.expiry_date = NULLIF(${exactDate}, '')::date
+        )
+        AND (
+          ${fromDate === ""}
+          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
+        )
+        AND (
+          ${toDate === ""}
+          OR i.expiry_date <= NULLIF(${toDate}, '')::date
+        )
+    `;
 
     const total = countResult[0]?.total ?? 0;
 
@@ -147,36 +147,40 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await sql`
-            INSERT INTO items (
-                name,
-                photo_url,
-                expiry_date,
-                category_id,
-                sticker_30_percent
-            )
-            VALUES (
-                ${name.trim()},
-                ${photo_url || null},
-                ${expiry_date},
-                ${category_id},
-                ${sticker_30_percent ?? false}
-            )
-            RETURNING
-                id,
-                name,
-                photo_url,
-                expiry_date,
-                sticker_30_percent,
-                category_id;
-        `;
+      INSERT INTO items (
+        name,
+        photo_url,
+        expiry_date,
+        category_id,
+        sticker_30_percent
+      )
+      VALUES (
+        ${name.trim()},
+        ${photo_url || null},
+        ${expiry_date},
+        ${category_id},
+        ${sticker_30_percent ?? false}
+      )
+      RETURNING
+        id,
+        name,
+        photo_url,
+        expiry_date,
+        sticker_30_percent,
+        category_id;
+    `;
 
     return NextResponse.json(result[0], { status: 201 });
   } catch (error) {
     console.error("Failed to create item:", error);
 
     return NextResponse.json(
-      { error: "Failed to create item" },
-      { status: 500 }
+      {
+        error: "Failed to create item",
+      },
+      {
+        status: 500,
+      }
     );
   }
 }
