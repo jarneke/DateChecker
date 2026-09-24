@@ -146,138 +146,138 @@ export default function NewItemPage() {
   }
 
   return (
-    <Container maxWidth="sm" sx={{ py: 4 }}>
-      <Stack spacing={3}>
-        <Box>
-          <Button
-            component={Link}
-            href="/stockchecker"
-            startIcon={<ArrowBackOutlinedIcon />}
-            sx={{
-              color: "text.secondary",
-              textTransform: "none",
-              mb: 2,
-            }}
-          >
-            Terug
-          </Button>
+    <Container maxWidth="md">
+      <Box sx={{ py: 4 }}>
+        <Button
+          component={Link}
+          href="/stockchecker"
+          startIcon={<ArrowBackOutlinedIcon />}
+          sx={{ mb: 3 }}
+        >
+          Terug
+        </Button>
 
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-            Nieuw item
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Voeg een product toe aan de voorraadcontrole.
-          </Typography>
-        </Box>
+        <Typography variant="h4" sx={{ mb: 3 }}>
+          Nieuw item
+        </Typography>
 
         <Box
           component="form"
           onSubmit={handleSubmit}
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
+          className="StyledBox color-invert"
         >
-          <TextField
-            label="Naam"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            required
-            fullWidth
-          />
+          <Stack spacing={3}>
+            {error && <Typography color="error">{error}</Typography>}
 
-          <TextField
-            select
-            label="Categorie"
-            value={categoryId}
-            onChange={(event) => setCategoryId(event.target.value)}
-            required
-            fullWidth
-          >
-            {categories.map((category) => (
-              <MenuItem key={category.id} value={category.id}>
-                {category.name}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            label="Vervaldatum"
-            type="date"
-            value={expiryDate}
-            onChange={(event) => setExpiryDate(event.target.value)}
-            required
-            fullWidth
-            slotProps={{
-              inputLabel: {
-                shrink: true,
-              },
-            }}
-          />
-
-          <Box>
-            <Button
-              component="label"
-              variant="outlined"
-              startIcon={<CameraAltOutlinedIcon />}
+            <TextField
+              label="Naam"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
               fullWidth
-              disabled={loading}
-              sx={{
-                minHeight: 52,
-                textTransform: "none",
-              }}
+              required
+            />
+
+            <TextField
+              select
+              label="Categorie"
+              value={categoryId}
+              onChange={(event) => setCategoryId(event.target.value)}
+              fullWidth
+              required
             >
-              {photo ? "Foto wijzigen" : "Foto toevoegen"}
+              {categories.map((category) => (
+                <MenuItem key={category.id} value={category.id}>
+                  {category.name}
+                </MenuItem>
+              ))}
+            </TextField>
 
-              <input
-                type="file"
-                hidden
-                accept="image/jpeg,image/png,image/webp"
-                capture="environment"
-                onChange={handlePhotoChange}
-              />
+            <TextField
+              label="Vervaldatum"
+              type="date"
+              value={expiryDate}
+              onChange={(event) => setExpiryDate(event.target.value)}
+              slotProps={{
+                inputLabel: {
+                  shrink: true,
+                },
+              }}
+              fullWidth
+              required
+            />
+
+            <Box>
+              <Stack spacing={2}>
+                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                  Productfoto
+                </Typography>
+
+                {photoPreview && (
+                  <Box
+                    component="img"
+                    src={photoPreview}
+                    alt={name || "Productfoto"}
+                    sx={{
+                      width: "100%",
+                      maxHeight: 300,
+                      objectFit: "contain",
+                      borderRadius: 2,
+                    }}
+                  />
+                )}
+
+                <Button
+                  component="label"
+                  variant="outlined"
+                  size="large"
+                  startIcon={<CameraAltOutlinedIcon />}
+                  fullWidth
+                  disabled={loading}
+                >
+                  {photoPreview ? "Andere foto nemen" : "Foto nemen"}
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    hidden
+                    onChange={handlePhotoChange}
+                  />
+                </Button>
+
+                {photoPreview && (
+                  <Button
+                    variant="text"
+                    color="error"
+                    onClick={() => {
+                      setPhoto(null);
+
+                      if (photoPreview.startsWith("blob:")) {
+                        URL.revokeObjectURL(photoPreview);
+                      }
+
+                      setPhotoPreview("");
+                    }}
+                    disabled={loading}
+                  >
+                    Foto verwijderen
+                  </Button>
+                )}
+              </Stack>
+            </Box>
+
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              startIcon={<AddOutlinedIcon />}
+              disabled={loading}
+            >
+              {loading ? "Aanmaken..." : "Item toevoegen"}
             </Button>
-
-            {photoPreview && (
-              <Box
-                component="img"
-                src={photoPreview}
-                alt="Voorbeeld van gekozen foto"
-                sx={{
-                  display: "block",
-                  width: "100%",
-                  maxHeight: 300,
-                  objectFit: "contain",
-                  borderRadius: 2,
-                  mt: 2,
-                }}
-              />
-            )}
-          </Box>
-
-          {error && (
-            <Typography color="error" variant="body2">
-              {error}
-            </Typography>
-          )}
-
-          <Button
-            type="submit"
-            variant="contained"
-            size="large"
-            disabled={loading}
-            startIcon={<AddOutlinedIcon />}
-            sx={{
-              minHeight: 52,
-              textTransform: "none",
-            }}
-          >
-            {loading ? "Bezig met opslaan..." : "Item toevoegen"}
-          </Button>
+          </Stack>
         </Box>
-      </Stack>
+      </Box>
     </Container>
   );
 }

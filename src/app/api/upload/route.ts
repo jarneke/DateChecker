@@ -37,11 +37,11 @@ export async function POST(
                 }
 
                 const item = await sql`
-      SELECT id
-      FROM items
-      WHERE id = ${itemId}
-      LIMIT 1
-    `;
+          SELECT id
+          FROM items
+          WHERE id = ${itemId}
+          LIMIT 1
+        `;
 
                 if (item.length === 0) {
                     throw new Error("Item not found.");
@@ -81,13 +81,13 @@ export async function POST(
                 }
 
                 const result = await sql`
-      UPDATE items
-      SET
-        photo_url = ${blob.url},
-        updated_at = NOW()
-      WHERE id = ${itemId}
-      RETURNING id
-    `;
+          UPDATE items
+          SET
+            photo_url = ${blob.url},
+            updated_at = NOW()
+          WHERE id = ${itemId}
+          RETURNING id
+        `;
 
                 if (result.length === 0) {
                     throw new Error("Item not found.");
@@ -96,7 +96,6 @@ export async function POST(
         });
 
         return NextResponse.json(jsonResponse);
-
     } catch (error) {
         console.error("POST /api/upload error:", error);
 
@@ -109,7 +108,6 @@ export async function POST(
             },
             { status: 400 },
         );
-
     }
 }
 
@@ -134,7 +132,6 @@ export async function DELETE(
         return NextResponse.json({
             success: true,
         });
-
     } catch (error) {
         console.error("DELETE /api/upload error:", error);
 
@@ -147,6 +144,5 @@ export async function DELETE(
             },
             { status: 400 },
         );
-
     }
 }
