@@ -400,6 +400,7 @@ export default function StockCheckerPage() {
               </Box>
 
               <Button
+                className="StyledButton3"
                 variant="outlined"
                 onClick={clearFilters}
                 disabled={!filtersActive}
@@ -554,6 +555,7 @@ export default function StockCheckerPage() {
                   }}
                 >
                   <Button
+                    className="StyledButton3"
                     variant="outlined"
                     size="small"
                     disabled={page === 1}
@@ -574,6 +576,7 @@ export default function StockCheckerPage() {
                       </Typography>
                     ) : (
                       <Button
+                        className="StyledButton3"
                         key={pageNumber}
                         variant={pageNumber === page ? "contained" : "outlined"}
                         size="small"
@@ -585,6 +588,7 @@ export default function StockCheckerPage() {
                   )}
 
                   <Button
+                    className="StyledButton3"
                     variant="outlined"
                     size="small"
                     disabled={page === totalPages}

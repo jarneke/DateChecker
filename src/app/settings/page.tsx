@@ -97,6 +97,7 @@ export default function SettingsPage() {
       >
         <Stack spacing={4}>
           <Button
+            className="StyledButton3"
             component={Link}
             href="/"
             startIcon={<ArrowBackIcon />}
@@ -144,6 +145,7 @@ export default function SettingsPage() {
                 />
 
                 <Button
+                  className="StyledButton1"
                   variant="contained"
                   size="large"
                   startIcon={<SaveIcon />}
