@@ -212,7 +212,7 @@ export default function StockCheckerPage() {
   function getPageNumbers() {
     const pages: (number | "...")[] = [];
 
-    if (totalPages <= 7) {
+    if (totalPages <= 5) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
@@ -222,7 +222,7 @@ export default function StockCheckerPage() {
 
     pages.push(1);
 
-    if (page > 4) {
+    if (page > 3) {
       pages.push("...");
     }
 
@@ -233,7 +233,7 @@ export default function StockCheckerPage() {
       pages.push(i);
     }
 
-    if (page < totalPages - 3) {
+    if (page < totalPages - 2) {
       pages.push("...");
     }
 
@@ -595,10 +595,14 @@ export default function StockCheckerPage() {
               {totalPages > 1 && (
                 <Stack
                   direction="row"
-                  spacing={1}
+                  spacing={{
+                    xs: 0.25,
+                    sm: 1,
+                  }}
                   sx={{
                     pt: 2,
-                    flexWrap: "wrap",
+                    width: "100%",
+                    flexWrap: "nowrap",
                     justifyContent: "center",
                     alignItems: "center",
                   }}
@@ -609,6 +613,22 @@ export default function StockCheckerPage() {
                     size="small"
                     disabled={page === 1}
                     onClick={() => goToPage(page - 1)}
+                    sx={{
+                      flexShrink: 1,
+                      minWidth: {
+                        xs: 48,
+                        sm: 64,
+                      },
+                      px: {
+                        xs: 0.75,
+                        sm: 1.5,
+                      },
+                      fontSize: {
+                        xs: "0.7rem",
+                        sm: "0.875rem",
+                      },
+                      whiteSpace: "nowrap",
+                    }}
                   >
                     Vorige
                   </Button>
@@ -618,7 +638,15 @@ export default function StockCheckerPage() {
                       <Typography
                         key={`ellipsis-${index}`}
                         sx={{
-                          px: 1,
+                          px: {
+                            xs: 0.25,
+                            sm: 1,
+                          },
+                          fontSize: {
+                            xs: "0.8rem",
+                            sm: "1rem",
+                          },
+                          flexShrink: 1,
                         }}
                       >
                         ...
@@ -634,6 +662,22 @@ export default function StockCheckerPage() {
                         variant={pageNumber === page ? "contained" : "outlined"}
                         size="small"
                         onClick={() => goToPage(pageNumber)}
+                        sx={{
+                          flexShrink: 1,
+                          minWidth: {
+                            xs: 30,
+                            sm: 40,
+                          },
+                          width: {
+                            xs: 30,
+                            sm: 40,
+                          },
+                          px: 0,
+                          fontSize: {
+                            xs: "0.7rem",
+                            sm: "0.875rem",
+                          },
+                        }}
                       >
                         {pageNumber}
                       </Button>
@@ -646,6 +690,22 @@ export default function StockCheckerPage() {
                     size="small"
                     disabled={page === totalPages}
                     onClick={() => goToPage(page + 1)}
+                    sx={{
+                      flexShrink: 1,
+                      minWidth: {
+                        xs: 52,
+                        sm: 72,
+                      },
+                      px: {
+                        xs: 0.75,
+                        sm: 1.5,
+                      },
+                      fontSize: {
+                        xs: "0.7rem",
+                        sm: "0.875rem",
+                      },
+                      whiteSpace: "nowrap",
+                    }}
                   >
                     Volgende
                   </Button>
