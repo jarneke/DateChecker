@@ -3,16 +3,16 @@ import { sql } from "@/lib/db";
 
 const PAGE_SIZE = 10;
 
-const SORT_OPTIONS = {
-  name_asc: "name_asc",
-  name_desc: "name_desc",
-  expiry_asc: "expiry_asc",
-  expiry_desc: "expiry_desc",
-  category_asc: "category_asc",
-  category_desc: "category_desc",
-} as const;
+const VALID_SORT_OPTIONS = [
+  "name_asc",
+  "name_desc",
+  "expiry_asc",
+  "expiry_desc",
+  "category_asc",
+  "category_desc",
+] as const;
 
-type SortOption = keyof typeof SORT_OPTIONS;
+type SortOption = (typeof VALID_SORT_OPTIONS)[number];
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,41 +30,14 @@ export async function GET(request: NextRequest) {
     const toDate = searchParams.get("toDate")?.trim() ?? "";
 
     const sortParam = searchParams.get("sort") ?? "name_asc";
-    const sort: SortOption =
-      sortParam in SORT_OPTIONS
-        ? (sortParam as SortOption)
-        : "name_asc";
+
+    const sort: SortOption = VALID_SORT_OPTIONS.includes(
+      sortParam as SortOption
+    )
+      ? (sortParam as SortOption)
+      : "name_asc";
 
     const offset = (page - 1) * PAGE_SIZE;
-
-    let orderBy;
-
-    switch (sort) {
-      case "name_desc":
-        orderBy = sql`i.name DESC`;
-        break;
-
-      case "expiry_asc":
-        orderBy = sql`i.expiry_date ASC, i.name ASC`;
-        break;
-
-      case "expiry_desc":
-        orderBy = sql`i.expiry_date DESC, i.name ASC`;
-        break;
-
-      case "category_asc":
-        orderBy = sql`c.name ASC, i.name ASC`;
-        break;
-
-      case "category_desc":
-        orderBy = sql`c.name DESC, i.name ASC`;
-        break;
-
-      case "name_asc":
-      default:
-        orderBy = sql`i.name ASC`;
-        break;
-    }
 
     const items = await sql`
       SELECT
@@ -90,22 +63,53 @@ export async function GET(request: NextRequest) {
         )
         AND (
           ${control} = ''
-          OR (${control} = '30' AND i.sticker_30_percent = true)
-          OR (${control} = 'month' AND i.sticker_30_percent = false)
+          OR (
+            ${control} = '30'
+            AND i.sticker_30_percent = true
+          )
+          OR (
+            ${control} = 'month'
+            AND i.sticker_30_percent = false
+          )
         )
         AND (
           ${exactDate} = ''
-          OR i.expiry_date = ${exactDate}::date
+          OR i.expiry_date = NULLIF(${exactDate}, '')::date
         )
         AND (
           ${fromDate} = ''
-          OR i.expiry_date >= ${fromDate}::date
+          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
         )
         AND (
           ${toDate} = ''
-          OR i.expiry_date <= ${toDate}::date
+          OR i.expiry_date <= NULLIF(${toDate}, '')::date
         )
-      ORDER BY ${orderBy}
+      ORDER BY
+        CASE
+          WHEN ${sort} = 'name_asc' THEN i.name
+        END ASC,
+
+        CASE
+          WHEN ${sort} = 'name_desc' THEN i.name
+        END DESC,
+
+        CASE
+          WHEN ${sort} = 'expiry_asc' THEN i.expiry_date
+        END ASC,
+
+        CASE
+          WHEN ${sort} = 'expiry_desc' THEN i.expiry_date
+        END DESC,
+
+        CASE
+          WHEN ${sort} = 'category_asc' THEN c.name
+        END ASC,
+
+        CASE
+          WHEN ${sort} = 'category_desc' THEN c.name
+        END DESC,
+
+        i.name ASC
       LIMIT ${PAGE_SIZE}
       OFFSET ${offset}
     `;
@@ -125,20 +129,26 @@ export async function GET(request: NextRequest) {
         )
         AND (
           ${control} = ''
-          OR (${control} = '30' AND i.sticker_30_percent = true)
-          OR (${control} = 'month' AND i.sticker_30_percent = false)
+          OR (
+            ${control} = '30'
+            AND i.sticker_30_percent = true
+          )
+          OR (
+            ${control} = 'month'
+            AND i.sticker_30_percent = false
+          )
         )
         AND (
           ${exactDate} = ''
-          OR i.expiry_date = ${exactDate}::date
+          OR i.expiry_date = NULLIF(${exactDate}, '')::date
         )
         AND (
           ${fromDate} = ''
-          OR i.expiry_date >= ${fromDate}::date
+          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
         )
         AND (
           ${toDate} = ''
-          OR i.expiry_date <= ${toDate}::date
+          OR i.expiry_date <= NULLIF(${toDate}, '')::date
         )
     `;
 
