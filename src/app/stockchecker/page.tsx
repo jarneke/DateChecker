@@ -18,6 +18,7 @@ import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 type Item = {
   id: string;
@@ -460,17 +461,18 @@ export default function StockCheckerPage() {
                   }}
                 >
                   {item.photo_url ? (
-                    <Box
-                      component="img"
+                    <Image
                       src={item.photo_url}
                       alt={item.name}
+                      width={100}
+                      height={100}
                       loading="lazy"
-                      decoding="async"
-                      sx={{
+                      sizes="100px"
+                      style={{
                         width: 100,
                         height: 100,
                         objectFit: "cover",
-                        borderRadius: 2,
+                        borderRadius: "8px",
                         flexShrink: 0,
                       }}
                     />
