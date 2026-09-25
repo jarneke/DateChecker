@@ -1,127 +1,80 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
 
-    const pageParam = Number(searchParams.get("page") || "1");
+    const pageParam = Number(searchParams.get("page") ?? "1");
+    const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
 
-    const page =
-      Number.isFinite(pageParam) && pageParam > 0
-        ? Math.floor(pageParam)
-        : 1;
-
-    const search = searchParams.get("search")?.trim() || "";
-    const control = searchParams.get("control") || "all";
-    const exactDate = searchParams.get("exactDate") || "";
-    const fromDate = searchParams.get("fromDate") || "";
-    const toDate = searchParams.get("toDate") || "";
+    const search = searchParams.get("search")?.trim() ?? "";
+    const category = searchParams.get("category")?.trim() ?? "";
 
     const offset = (page - 1) * PAGE_SIZE;
-    const searchPattern = `%${search.toLowerCase()}%`;
 
-    const itemsResult = await sql`
-      SELECT
-        i.id,
-        i.name,
-        i.photo_url,
-        i.expiry_date,
-        i.sticker_30_percent,
-        i.category_id,
-        c.name AS category_name
-      FROM items i
-      LEFT JOIN categories c
-        ON c.id = i.category_id
-      WHERE
-        (
-          ${search === ""}
-          OR LOWER(i.name) LIKE ${searchPattern}
-        )
-        AND (
-          ${control !== "30"}
-          OR i.sticker_30_percent = true
-        )
-        AND (
-          ${control !== "month"}
-          OR i.sticker_30_percent = false
-        )
-        AND (
-          ${exactDate === ""}
-          OR i.expiry_date = NULLIF(${exactDate}, '')::date
-        )
-        AND (
-          ${fromDate === ""}
-          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
-        )
-        AND (
-          ${toDate === ""}
-          OR i.expiry_date <= NULLIF(${toDate}, '')::date
-        )
-      ORDER BY
-        i.expiry_date ASC,
-        i.name ASC
-      LIMIT ${PAGE_SIZE}
-      OFFSET ${offset}
-    `;
+    const items = await sql`
+  SELECT
+    i.id,
+    i.name,
+    i.photo_url,
+    i.category_id,
+    c.name AS category_name,
+    i.expiry_date,
+    i.sticker_30_percent,
+    i.created_at,
+    i.updated_at
+  FROM items i
+  INNER JOIN categories c ON c.id = i.category_id
+  WHERE
+    (
+      ${search} = ''
+      OR i.name ILIKE ${"%" + search + "%"}
+    )
+    AND (
+      ${category} = ''
+      OR c.name = ${category}
+    )
+  ORDER BY i.name ASC
+  LIMIT ${PAGE_SIZE}
+  OFFSET ${offset}
+`;
 
     const countResult = await sql`
-      SELECT COUNT(*)::int AS total
-      FROM items i
-      WHERE
-        (
-          ${search === ""}
-          OR LOWER(i.name) LIKE ${searchPattern}
-        )
-        AND (
-          ${control !== "30"}
-          OR i.sticker_30_percent = true
-        )
-        AND (
-          ${control !== "month"}
-          OR i.sticker_30_percent = false
-        )
-        AND (
-          ${exactDate === ""}
-          OR i.expiry_date = NULLIF(${exactDate}, '')::date
-        )
-        AND (
-          ${fromDate === ""}
-          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
-        )
-        AND (
-          ${toDate === ""}
-          OR i.expiry_date <= NULLIF(${toDate}, '')::date
-        )
-    `;
+  SELECT COUNT(*)::int AS total
+  FROM items i
+  INNER JOIN categories c ON c.id = i.category_id
+  WHERE
+    (
+      ${search} = ''
+      OR i.name ILIKE ${"%" + search + "%"}
+    )
+    AND (
+      ${category} = ''
+      OR c.name = ${category}
+    )
+`;
 
     const total = countResult[0]?.total ?? 0;
 
-    const totalPages = Math.max(
-      1,
-      Math.ceil(total / PAGE_SIZE)
-    );
-
     return NextResponse.json({
-      items: itemsResult,
-      total,
+      items,
       page,
       pageSize: PAGE_SIZE,
-      totalPages,
+      total,
+      totalPages: Math.ceil(total / PAGE_SIZE),
     });
+
   } catch (error) {
-    console.error("GET /api/items error:", error);
+    console.error("Failed to fetch items:", error);
 
     return NextResponse.json(
-      {
-        error: "Items konden niet geladen worden.",
-      },
-      {
-        status: 500,
-      }
+      { error: "Failed to fetch items" },
+      { status: 500 }
     );
+
   }
 }
 
@@ -129,58 +82,99 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const {
-      name,
-      photo_url,
-      expiry_date,
-      category_id,
-      sticker_30_percent,
-    } = body;
+    const name =
+      typeof body.name === "string"
+        ? body.name.trim().toUpperCase()
+        : "";
 
-    if (!name || !expiry_date || !category_id) {
+    const photoUrl =
+      typeof body.photo_url === "string" && body.photo_url.trim() !== ""
+        ? body.photo_url.trim()
+        : null;
+
+    const expiryDate =
+      typeof body.expiry_date === "string"
+        ? body.expiry_date
+        : "";
+
+    const categoryId =
+      typeof body.category_id === "string"
+        ? body.category_id.trim()
+        : "";
+
+    const sticker30Percent =
+      typeof body.sticker_30_percent === "boolean"
+        ? body.sticker_30_percent
+        : false;
+
+    if (!name) {
       return NextResponse.json(
-        {
-          error: "name, expiry_date and category_id are required",
-        },
+        { error: "Name is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!expiryDate) {
+      return NextResponse.json(
+        { error: "Expiry date is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!categoryId) {
+      return NextResponse.json(
+        { error: "Category is required" },
         { status: 400 }
       );
     }
 
     const result = await sql`
-      INSERT INTO items (
-        name,
-        photo_url,
-        expiry_date,
-        category_id,
-        sticker_30_percent
-      )
-      VALUES (
-        ${name.trim()},
-        ${photo_url || null},
-        ${expiry_date},
-        ${category_id},
-        ${sticker_30_percent ?? false}
-      )
-      RETURNING
-        id,
-        name,
-        photo_url,
-        expiry_date,
-        sticker_30_percent,
-        category_id;
-    `;
+  INSERT INTO items (
+    name,
+    photo_url,
+    expiry_date,
+    category_id,
+    sticker_30_percent
+  )
+  VALUES (
+    ${name},
+    ${photoUrl},
+    ${expiryDate},
+    ${categoryId},
+    ${sticker30Percent}
+  )
+  RETURNING
+    id,
+    name,
+    photo_url,
+    expiry_date,
+    category_id,
+    sticker_30_percent,
+    created_at,
+    updated_at
+`;
 
     return NextResponse.json(result[0], { status: 201 });
-  } catch (error) {
+
+  } catch (error: unknown) {
     console.error("Failed to create item:", error);
 
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "23505"
+    ) {
+      return NextResponse.json(
+        { error: "Een item met deze naam bestaat al." },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
-      {
-        error: "Failed to create item",
-      },
-      {
-        status: 500,
-      }
+      { error: "Item kon niet toegevoegd worden." },
+      { status: 500 }
     );
+
   }
 }
