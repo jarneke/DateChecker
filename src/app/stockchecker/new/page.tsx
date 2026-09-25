@@ -23,7 +23,7 @@ function compressImage(file: File): Promise<File> {
     const objectUrl = URL.createObjectURL(file);
     image.onload = () => {
       URL.revokeObjectURL(objectUrl);
-      const maxSize = 1600;
+      const maxSize = 800;
       let width = image.naturalWidth;
       let height = image.naturalHeight;
       if (width > maxSize || height > maxSize) {

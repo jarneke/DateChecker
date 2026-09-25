@@ -464,6 +464,8 @@ export default function StockCheckerPage() {
                       component="img"
                       src={item.photo_url}
                       alt={item.name}
+                      loading="lazy"
+                      decoding="async"
                       sx={{
                         width: 100,
                         height: 100,
