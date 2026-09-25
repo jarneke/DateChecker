@@ -41,7 +41,7 @@ type ItemsResponse = {
   totalPages: number;
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 export default function StockCheckerPage() {
   const [items, setItems] = useState<Item[]>([]);
@@ -580,7 +580,11 @@ export default function StockCheckerPage() {
                       </Typography>
                     ) : (
                       <Button
-                        className="StyledButton3"
+                        className={
+                          pageNumber === page
+                            ? "StyledButton1"
+                            : "StyledButton3"
+                        }
                         key={pageNumber}
                         variant={pageNumber === page ? "contained" : "outlined"}
                         size="small"
