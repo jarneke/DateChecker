@@ -33,6 +33,14 @@ type Item = {
 type ControlFilter = "all" | "30" | "month";
 type DateFilterMode = "exact" | "range";
 
+type SortOption =
+  | "name_asc"
+  | "name_desc"
+  | "expiry_asc"
+  | "expiry_desc"
+  | "category_asc"
+  | "category_desc";
+
 type ItemsResponse = {
   items: Item[];
   total: number;
@@ -51,6 +59,8 @@ export default function StockCheckerPage() {
   const [search, setSearch] = useState("");
   const [controlFilter, setControlFilter] = useState<ControlFilter>("all");
 
+  const [sort, setSort] = useState<SortOption>("name_asc");
+
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("exact");
 
   const [exactDate, setExactDate] = useState("");
@@ -63,7 +73,15 @@ export default function StockCheckerPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, controlFilter, exactDate, fromDate, toDate, dateFilterMode]);
+  }, [
+    search,
+    controlFilter,
+    sort,
+    exactDate,
+    fromDate,
+    toDate,
+    dateFilterMode,
+  ]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -75,6 +93,7 @@ export default function StockCheckerPage() {
     page,
     search,
     controlFilter,
+    sort,
     exactDate,
     fromDate,
     toDate,
@@ -89,6 +108,7 @@ export default function StockCheckerPage() {
       const params = new URLSearchParams();
 
       params.set("page", String(page));
+      params.set("sort", sort);
 
       if (search.trim()) {
         params.set("search", search.trim());
@@ -144,12 +164,6 @@ export default function StockCheckerPage() {
     }
   }
 
-  function getDateString(date: string) {
-    return new Date(date).toLocaleDateString("en-CA", {
-      timeZone: "Europe/Brussels",
-    });
-  }
-
   function formatDate(date: string) {
     return new Date(date).toLocaleDateString("nl-BE", {
       day: "2-digit",
@@ -162,6 +176,7 @@ export default function StockCheckerPage() {
   function clearFilters() {
     setSearch("");
     setControlFilter("all");
+    setSort("name_asc");
     setDateFilterMode("exact");
     setExactDate("");
     setFromDate("");
@@ -172,11 +187,13 @@ export default function StockCheckerPage() {
   const filtersActive =
     search !== "" ||
     controlFilter !== "all" ||
+    sort !== "name_asc" ||
     exactDate !== "" ||
     fromDate !== "" ||
     toDate !== "";
 
   const firstItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+
   const lastItem = Math.min(page * PAGE_SIZE, total);
 
   function goToPage(newPage: number) {
@@ -296,6 +313,34 @@ export default function StockCheckerPage() {
                   <MenuItem value="30">Dagelijkse controle</MenuItem>
 
                   <MenuItem value="month">Maandelijkse controle</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel>Sorteren</InputLabel>
+
+                <Select
+                  value={sort}
+                  label="Sorteren"
+                  onChange={(event) =>
+                    setSort(event.target.value as SortOption)
+                  }
+                >
+                  <MenuItem value="name_asc">Naam A-Z</MenuItem>
+
+                  <MenuItem value="name_desc">Naam Z-A</MenuItem>
+
+                  <MenuItem value="expiry_asc">
+                    Vervaldatum: vroeg → laat
+                  </MenuItem>
+
+                  <MenuItem value="expiry_desc">
+                    Vervaldatum: laat → vroeg
+                  </MenuItem>
+
+                  <MenuItem value="category_asc">Categorie A-Z</MenuItem>
+
+                  <MenuItem value="category_desc">Categorie Z-A</MenuItem>
                 </Select>
               </FormControl>
 
