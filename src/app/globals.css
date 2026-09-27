@@ -16,6 +16,7 @@ body {
 }
 
 /* Global MUI Switch styling */
+
 .MuiSwitch-switchBase {
   color: #100f0e !important;
 }
@@ -31,6 +32,7 @@ body {
 .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
   background-color: #c1b4a7 !important;
 }
+
 /* Global MUI focus and selection styling */
 
 .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
@@ -104,14 +106,66 @@ body {
   background-color: rgba(193, 180, 167, 0.18) !important;
 }
 
+/* Dark buttons */
+
 .StyledButton1 {
   background-color: #100f0e !important;
   color: #fff2dd !important;
   border-color: #100f0e !important;
 }
 
+.StyledButton1:hover {
+  background-color: #24211f !important;
+  border-color: #24211f !important;
+}
+
+.StyledButton1:active {
+  background-color: #36322f !important;
+  border-color: #36322f !important;
+}
+
+.StyledButton1:focus-visible {
+  outline: 2px solid #c1b4a7 !important;
+  outline-offset: 2px;
+}
+
+.StyledButton1:disabled,
+.StyledButton1.Mui-disabled {
+  background-color: #36322f !important;
+  color: #716b65 !important;
+  border-color: #36322f !important;
+  cursor: not-allowed;
+  opacity: 1 !important;
+}
+
+/* Light buttons */
+
 .StyledButton3 {
   background-color: #fff2dd !important;
   color: #100f0e !important;
   border-color: #100f0e !important;
+}
+
+.StyledButton3:hover {
+  background-color: #e6d8c5 !important;
+  border-color: #100f0e !important;
+}
+
+.StyledButton3:active {
+  background-color: #cfc0ad !important;
+  border-color: #100f0e !important;
+}
+
+.StyledButton3:focus-visible {
+  outline: 2px solid #c1b4a7 !important;
+  outline-offset: 2px;
+}
+
+.StyledButton3:disabled,
+.StyledButton3.Mui-disabled {
+  background-color: #716b65 !important;
+  color: #36322f !important;
+  border-color: #716b65 !important;
+  cursor: not-allowed;
+  opacity: 1 !important;
 }

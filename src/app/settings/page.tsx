@@ -413,17 +413,23 @@ export default function SettingsPage() {
                           borderRadius: 1.5,
                           border: "1px solid",
                           borderColor:
-                            draggedIndex === index ? "primary.main" : "divider",
-                          backgroundColor: "background.paper",
-                          cursor: "grab",
+                            draggedIndex === index ? "#c1b4a7" : "#716b65",
+                          backgroundColor: "#100f0e",
+                          color: "#fff2dd",
+                          cursor: draggedIndex === index ? "grabbing" : "grab",
                           opacity: draggedIndex === index ? 0.5 : 1,
                           userSelect: "none",
-                          transition: "border-color 0.15s, opacity 0.15s",
+                          transition:
+                            "border-color 0.15s, opacity 0.15s, background-color 0.15s",
+                          "&:hover": {
+                            borderColor: "#a89d92",
+                            backgroundColor: "#24211f",
+                          },
                         }}
                       >
                         <DragIndicatorIcon
                           sx={{
-                            color: "text.secondary",
+                            color: "#716b65",
                             flexShrink: 0,
                           }}
                         />
@@ -432,38 +438,89 @@ export default function SettingsPage() {
                           sx={{
                             flex: 1,
                             fontWeight: 500,
+                            color: "#fff2dd",
                           }}
                         >
                           {category.name}
                         </Typography>
 
                         {category.item_count > 0 && (
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
+                          <Box
                             sx={{
-                              whiteSpace: "nowrap",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.75,
                             }}
                           >
-                            {category.item_count}{" "}
-                            {category.item_count === 1 ? "item" : "items"}
-                          </Typography>
+                            <Typography
+                              sx={{
+                                fontWeight: 800,
+                                color: "#100f0e",
+                                backgroundColor: "#fff2dd",
+                                borderRadius: "50%",
+                                width: 22,
+                                height: 22,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "0.9rem",
+                              }}
+                            >
+                              !
+                            </Typography>
+
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: "#a89d92",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {category.item_count}{" "}
+                              {category.item_count === 1 ? "item" : "items"}
+                            </Typography>
+
+                            <Typography
+                              sx={{
+                                fontWeight: 800,
+                                color: "#100f0e",
+                                backgroundColor: "#fff2dd",
+                                borderRadius: "50%",
+                                width: 22,
+                                height: 22,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "0.9rem",
+                              }}
+                            >
+                              !
+                            </Typography>
+                          </Box>
                         )}
 
-                        <IconButton
-                          color="error"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleDeleteCategory(index);
-                          }}
-                          onMouseDown={(event) => {
-                            event.stopPropagation();
-                          }}
-                          aria-label={`Verwijder ${category.name}`}
-                          size="small"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
+                        {category.item_count === 0 && (
+                          <IconButton
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeleteCategory(index);
+                            }}
+                            onMouseDown={(event) => {
+                              event.stopPropagation();
+                            }}
+                            aria-label={`Verwijder ${category.name}`}
+                            size="small"
+                            sx={{
+                              color: "#716b65",
+                              "&:hover": {
+                                color: "#fff2dd",
+                                backgroundColor: "rgba(255, 242, 221, 0.08)",
+                              },
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        )}
                       </Box>
                     ))}
 
