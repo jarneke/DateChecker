@@ -339,14 +339,14 @@ export default function SettingsPage() {
                     p: 2,
                     borderRadius: 2,
                     border: "1px solid",
-                    borderColor: "warning.main",
-                    backgroundColor: "warning.light",
+                    borderColor: "error.main",
+                    backgroundColor: "error.light",
                   }}
                 >
                   <Typography
                     sx={{
                       fontWeight: 600,
-                      color: "warning.dark",
+                      color: "error.contrast",
                     }}
                   >
                     Je hebt niet-opgeslagen wijzigingen.
