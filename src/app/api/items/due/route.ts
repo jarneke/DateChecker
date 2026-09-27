@@ -4,25 +4,26 @@ import { sql } from "@/lib/db";
 export async function GET() {
   try {
     const items = await sql`
-            SELECT
-                i.id,
-                i.name,
-                i.photo_url,
-                i.expiry_date,
-                i.sticker_30_percent,
-                i.category_id,
-                c.name AS category_name
-            FROM items i
-            INNER JOIN categories c
-                ON c.id = i.category_id
-            WHERE i.sticker_30_percent = TRUE
-              AND i.expiry_date = (
-                  CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels'
-              )::date
-            ORDER BY
-                i.expiry_date DESC,
-                i.name ASC;
-        `;
+      SELECT
+        i.id,
+        i.name,
+        i.photo_url,
+        i.expiry_date,
+        i.sticker_30_percent,
+        i.category_id,
+        c.name AS category_name
+      FROM items i
+      INNER JOIN categories c
+        ON c.id = i.category_id
+      WHERE i.sticker_30_percent = TRUE
+        AND i.expiry_date = (
+          CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels'
+        )::date
+      ORDER BY
+        c.sort_order ASC,
+        i.expiry_date ASC,
+        i.name ASC;
+    `;
 
     return NextResponse.json(items);
   } catch (error) {
