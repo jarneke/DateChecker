@@ -66,6 +66,27 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const categoryResult = await sql`
+            SELECT id
+            FROM categories
+            WHERE name = 'ONBEKEND'
+            LIMIT 1
+        `;
+
+        if (categoryResult.length === 0) {
+            return NextResponse.json(
+                {
+                    error:
+                        'Categorie "ONBEKEND" bestaat niet. Maak deze categorie eerst aan.',
+                },
+                {
+                    status: 500,
+                },
+            );
+        }
+
+        const categoryId = categoryResult[0].id;
+
         const inserted: { id: string; name: string }[] = [];
         const skippedNames: string[] = [];
 
@@ -75,13 +96,15 @@ export async function POST(request: NextRequest) {
                     name,
                     photo_url,
                     expiry_date,
-                    sticker_30_percent
+                    sticker_30_percent,
+                    category_id
                 )
                 VALUES (
                     ${item.name},
                     ${item.photo_url},
                     ${PAST_EXPIRY_DATE}::date,
-                    false
+                    false,
+                    ${categoryId}
                 )
                 ON CONFLICT (name) DO NOTHING
                 RETURNING id, name
