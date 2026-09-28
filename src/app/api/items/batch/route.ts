@@ -66,35 +66,36 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const inserted = await sql`
-      INSERT INTO items (
-        name,
-        photo_url,
-        expiry_date,
-        sticker_30_percent
-      )
-      SELECT
-        item.name,
-        item.photo_url,
-        ${PAST_EXPIRY_DATE}::date,
-        false
-      FROM jsonb_to_recordset(
-        ${JSON.stringify(items)}::jsonb
-      ) AS item(
-        name text,
-        photo_url text
-      )
-      ON CONFLICT (name) DO NOTHING
-      RETURNING id, name
-    `;
+        const inserted: { id: string; name: string }[] = [];
+        const skippedNames: string[] = [];
 
-        const insertedNames = new Set(
-            inserted.map((item) => item.name),
-        );
+        for (const item of items) {
+            const result = await sql`
+                INSERT INTO items (
+                    name,
+                    photo_url,
+                    expiry_date,
+                    sticker_30_percent
+                )
+                VALUES (
+                    ${item.name},
+                    ${item.photo_url},
+                    ${PAST_EXPIRY_DATE}::date,
+                    false
+                )
+                ON CONFLICT (name) DO NOTHING
+                RETURNING id, name
+            `;
 
-        const skippedNames = items
-            .map((item) => item.name)
-            .filter((name) => !insertedNames.has(name));
+            if (result.length > 0) {
+                inserted.push({
+                    id: result[0].id,
+                    name: result[0].name,
+                });
+            } else {
+                skippedNames.push(item.name);
+            }
+        }
 
         return NextResponse.json({
             inserted,
@@ -107,7 +108,10 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json(
             {
-                error: "Items konden niet in bulk toegevoegd worden.",
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Items konden niet in bulk toegevoegd worden.",
             },
             {
                 status: 500,
