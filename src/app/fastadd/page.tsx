@@ -414,7 +414,7 @@ export default function FastAddPage() {
 
   async function deleteUploadedPhoto(url: string) {
     try {
-      await fetch("/api/upload", {
+      const response = await fetch("/api/github-upload", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -423,9 +423,71 @@ export default function FastAddPage() {
           url,
         }),
       });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+
+        console.error(
+          "Failed to clean up uploaded photo:",
+          data?.error || response.statusText,
+        );
+      }
     } catch (error) {
       console.error("Failed to clean up uploaded photo:", error);
     }
+  }
+
+  async function uploadPhotos(
+    photoItems: FastAddItem[],
+  ): Promise<Map<string, string>> {
+    if (photoItems.length === 0) {
+      return new Map();
+    }
+
+    const formData = new FormData();
+
+    for (const item of photoItems) {
+      if (!item.photo) {
+        continue;
+      }
+
+      formData.append("files", item.photo, item.photoName || `${item.id}.webp`);
+    }
+
+    const response = await fetch("/api/github-upload", {
+      method: "PUT",
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        data?.error || "Foto's konden niet naar GitHub geüpload worden.",
+      );
+    }
+
+    if (!Array.isArray(data?.images)) {
+      throw new Error("GitHub gaf geen foto's terug.");
+    }
+
+    if (data.images.length !== photoItems.length) {
+      throw new Error("Niet alle foto's zijn naar GitHub geüpload.");
+    }
+
+    const photoUrls = new Map<string, string>();
+
+    photoItems.forEach((item, index) => {
+      const uploadedImage = data.images[index];
+
+      if (!uploadedImage?.url) {
+        throw new Error("GitHub gaf geen geldige foto-URL terug.");
+      }
+
+      photoUrls.set(item.id, uploadedImage.url);
+    });
+
+    return photoUrls;
   }
 
   async function handleUploadCurrentList() {
@@ -442,43 +504,18 @@ export default function FastAddPage() {
     const uploadedPhotoUrls: string[] = [];
 
     try {
-      const payload = await Promise.all(
-        items.map(async (item) => {
-          let photoUrl: string | null = null;
+      const itemsWithPhotos = items.filter((item) => item.photo);
 
-          if (item.photo) {
-            const formData = new FormData();
+      const photoUrls = await uploadPhotos(itemsWithPhotos);
 
-            formData.append(
-              "file",
-              item.photo,
-              item.photoName || `${item.id}.webp`,
-            );
+      for (const url of photoUrls.values()) {
+        uploadedPhotoUrls.push(url);
+      }
 
-            const response = await fetch("/api/upload/fastadd", {
-              method: "POST",
-              body: formData,
-            });
-
-            const data = await response.json().catch(() => null);
-
-            if (!response.ok) {
-              throw new Error(
-                data?.error ||
-                  `Foto voor ${item.name} kon niet geüpload worden.`,
-              );
-            }
-
-            photoUrl = data.url;
-            uploadedPhotoUrls.push(photoUrl!);
-          }
-
-          return {
-            name: item.name,
-            photo_url: photoUrl,
-          };
-        }),
-      );
+      const payload = items.map((item) => ({
+        name: item.name,
+        photo_url: photoUrls.get(item.id) || null,
+      }));
 
       const response = await fetch("/api/items/batch", {
         method: "POST",
@@ -500,11 +537,23 @@ export default function FastAddPage() {
 
       const skippedNames = new Set<string>(data?.skippedNames || []);
 
+      const skippedPhotoUrls = payload
+        .filter((item) => skippedNames.has(item.name) && item.photo_url)
+        .map((item) => item.photo_url!);
+
       await Promise.all(
-        payload
-          .filter((item) => skippedNames.has(item.name) && item.photo_url)
-          .map((item) => deleteUploadedPhoto(item.photo_url!)),
+        skippedPhotoUrls.map((url) => deleteUploadedPhoto(url)),
       );
+
+      const skippedPhotoUrlSet = new Set(skippedPhotoUrls);
+
+      for (const url of skippedPhotoUrls) {
+        const index = uploadedPhotoUrls.indexOf(url);
+
+        if (index !== -1) {
+          uploadedPhotoUrls.splice(index, 1);
+        }
+      }
 
       await clearStoredItems();
 
@@ -521,6 +570,8 @@ export default function FastAddPage() {
       setStatus(
         `${insertedCount} item(s) toegevoegd.${skippedCount > 0 ? ` ${skippedCount} bestonden al en zijn overgeslagen.` : ""}`,
       );
+
+      void skippedPhotoUrlSet;
 
       window.location.href = "/check?type=overdue";
     } catch (error) {

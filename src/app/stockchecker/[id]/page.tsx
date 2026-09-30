@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { upload } from "@vercel/blob/client";
 import {
   Box,
   Button,
@@ -31,6 +30,74 @@ type Item = {
   sticker_30_percent: boolean;
   category_name: string | null;
 };
+
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      const maxSize = 800;
+
+      let width = image.naturalWidth;
+      let height = image.naturalHeight;
+
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height / width) * maxSize);
+          width = maxSize;
+        } else {
+          width = Math.round((width / height) * maxSize);
+          height = maxSize;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        reject(new Error("Afbeelding kon niet verwerkt worden."));
+        return;
+      }
+
+      context.drawImage(image, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Afbeelding kon niet gecomprimeerd worden."));
+            return;
+          }
+
+          const compressedFile = new File(
+            [blob],
+            `${file.name.replace(/\.[^/.]+$/, "")}.webp`,
+            {
+              type: "image/webp",
+              lastModified: Date.now(),
+            },
+          );
+
+          resolve(compressedFile);
+        },
+        "image/webp",
+        0.8,
+      );
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Afbeelding kon niet gelezen worden."));
+    };
+
+    image.src = objectUrl;
+  });
+}
 
 export default function ItemDetailPage() {
   const { id } = useParams();
@@ -135,43 +202,27 @@ export default function ItemDetailPage() {
       let photoUrl = removePhoto ? null : oldPhotoUrl;
 
       if (photo) {
-        const uploadedBlob = await upload(photo.name, photo, {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-          clientPayload: JSON.stringify({
-            itemId: item.id,
-          }),
+        const compressedPhoto = await compressImage(photo);
+
+        const formData = new FormData();
+        formData.append("file", compressedPhoto);
+
+        const uploadResponse = await fetch("/api/github-upload", {
+          method: "POST",
+          body: formData,
         });
 
-        photoUrl = uploadedBlob.url;
+        const uploadData = await uploadResponse.json();
 
-        if (oldPhotoUrl && oldPhotoUrl !== photoUrl) {
-          await fetch("/api/upload", {
-            method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              url: oldPhotoUrl,
-            }),
-          });
+        if (!uploadResponse.ok) {
+          throw new Error(
+            uploadData?.details ||
+              uploadData?.error ||
+              "Foto kon niet geüpload worden.",
+          );
         }
-      } else if (removePhoto && oldPhotoUrl) {
-        const deleteResponse = await fetch("/api/upload", {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            url: oldPhotoUrl,
-          }),
-        });
 
-        if (!deleteResponse.ok) {
-          const data = await deleteResponse.json().catch(() => null);
-
-          throw new Error(data?.error || "Foto kon niet verwijderd worden.");
-        }
+        photoUrl = uploadData.url;
       }
 
       const response = await fetch(`/api/items/${id}`, {
@@ -422,7 +473,6 @@ export default function ItemDetailPage() {
               fullWidth
             >
               <MenuItem value="daily">Dagelijkse check</MenuItem>
-
               <MenuItem value="monthly">Maandelijkse check</MenuItem>
             </TextField>
 

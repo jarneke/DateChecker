@@ -1,6 +1,5 @@
 "use client";
 
-import { upload } from "@vercel/blob/client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -160,15 +159,40 @@ export default function NewItemPage() {
     setError("");
 
     let itemId: string | null = null;
-    let photoUrl: string | null = null;
 
     try {
+      let photoUrl: string | null = null;
+
+      if (photo) {
+        const compressedPhoto = await compressImage(photo);
+
+        const formData = new FormData();
+        formData.append("file", compressedPhoto);
+
+        const uploadResponse = await fetch("/api/github-upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadData = await uploadResponse.json();
+
+        if (!uploadResponse.ok) {
+          throw new Error(
+            uploadData?.details ||
+              uploadData?.error ||
+              "Foto kon niet geüpload worden.",
+          );
+        }
+
+        photoUrl = uploadData.url;
+      }
+
       const response = await fetch("/api/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          photo_url: null,
+          photo_url: photoUrl,
           expiry_date: expiryDate,
           category_id: categoryId,
           sticker_30_percent: checkType === "daily",
@@ -183,49 +207,9 @@ export default function NewItemPage() {
 
       itemId = itemData.id;
 
-      if (photo && itemId) {
-        const compressedPhoto = await compressImage(photo);
-
-        const blob = await upload(compressedPhoto.name, compressedPhoto, {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-          clientPayload: JSON.stringify({ itemId }),
-        });
-
-        photoUrl = blob.url;
-
-        const photoResponse = await fetch(`/api/items/${itemId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            photo_url: photoUrl,
-          }),
-        });
-
-        if (!photoResponse.ok) {
-          const data = await photoResponse.json().catch(() => null);
-
-          throw new Error(
-            data?.error || "Foto kon niet aan het item gekoppeld worden.",
-          );
-        }
-      }
-
       router.push("/stockchecker");
     } catch (error) {
       console.error("Failed to create item:", error);
-
-      if (photoUrl) {
-        try {
-          await fetch("/api/upload", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: photoUrl }),
-          });
-        } catch (deleteError) {
-          console.error("Failed to clean up uploaded photo:", deleteError);
-        }
-      }
 
       if (itemId) {
         try {
@@ -378,7 +362,6 @@ export default function NewItemPage() {
               fullWidth
             >
               <MenuItem value="daily">Dagelijkse check</MenuItem>
-
               <MenuItem value="monthly">Maandelijkse check</MenuItem>
             </TextField>
 

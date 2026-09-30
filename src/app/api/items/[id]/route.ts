@@ -1,4 +1,3 @@
-import { del } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
@@ -6,9 +5,81 @@ type Params = {
     params: Promise<{ id: string }>;
 };
 
+async function deleteGitHubImage(photoUrl: string) {
+    const token = process.env.GITHUB_TOKEN;
+    const owner = process.env.GITHUB_OWNER;
+    const repo = process.env.GITHUB_REPO;
+
+    if (!token || !owner || !repo) {
+        throw new Error("GitHub environment variables are missing");
+    }
+
+    const url = new URL(photoUrl);
+
+    if (url.hostname !== "raw.githubusercontent.com") {
+        throw new Error("Invalid GitHub image URL");
+    }
+
+    const pathParts = url.pathname.split("/").filter(Boolean);
+
+    if (pathParts.length < 4) {
+        throw new Error("Invalid GitHub image path");
+    }
+
+    const [, , branch, ...fileParts] = pathParts;
+    const path = fileParts.join("/");
+
+    const fileResponse = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        },
+    );
+
+    if (fileResponse.status === 404) {
+        return;
+    }
+
+    if (!fileResponse.ok) {
+        throw new Error(
+            `Failed to find GitHub image: ${await fileResponse.text()}`,
+        );
+    }
+
+    const fileData = await fileResponse.json();
+
+    const deleteResponse = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                message: `Delete image ${path}`,
+                sha: fileData.sha,
+                branch,
+            }),
+        },
+    );
+
+    if (!deleteResponse.ok) {
+        throw new Error(
+            `Failed to delete GitHub image: ${await deleteResponse.text()}`,
+        );
+    }
+}
+
 export async function GET(
     _request: NextRequest,
-    { params }: Params
+    { params }: Params,
 ) {
     try {
         const { id } = await params;
@@ -33,7 +104,7 @@ export async function GET(
         if (result.length === 0) {
             return NextResponse.json(
                 { error: "Item not found" },
-                { status: 404 }
+                { status: 404 },
             );
         }
 
@@ -43,14 +114,14 @@ export async function GET(
 
         return NextResponse.json(
             { error: "Failed to fetch item" },
-            { status: 500 }
+            { status: 500 },
         );
     }
 }
 
 export async function PATCH(
     request: NextRequest,
-    { params }: Params
+    { params }: Params,
 ) {
     try {
         const { id } = await params;
@@ -74,7 +145,7 @@ export async function PATCH(
         if (currentItem.length === 0) {
             return NextResponse.json(
                 { error: "Item not found" },
-                { status: 404 }
+                { status: 404 },
             );
         }
 
@@ -84,7 +155,11 @@ export async function PATCH(
             UPDATE items
             SET
                 name = COALESCE(${name ?? null}, name),
-                photo_url = COALESCE(${photo_url ?? null}, photo_url),
+                photo_url = CASE
+                    WHEN ${photo_url !== undefined}
+                    THEN ${photo_url}
+                    ELSE photo_url
+                END,
                 category_id = COALESCE(${category_id ?? null}, category_id),
                 expiry_date = COALESCE(
                     ${expiry_date ?? null}::date,
@@ -107,6 +182,13 @@ export async function PATCH(
                 updated_at
         `;
 
+        if (result.length === 0) {
+            return NextResponse.json(
+                { error: "Item not found" },
+                { status: 404 },
+            );
+        }
+
         const newPhotoUrl = result[0].photo_url;
 
         if (
@@ -115,11 +197,11 @@ export async function PATCH(
             typeof oldPhotoUrl === "string"
         ) {
             try {
-                await del(oldPhotoUrl);
-            } catch (blobError) {
+                await deleteGitHubImage(oldPhotoUrl);
+            } catch (githubError) {
                 console.error(
-                    "Failed to delete old item photo blob:",
-                    blobError
+                    "Failed to delete old GitHub item photo:",
+                    githubError,
                 );
             }
         }
@@ -130,14 +212,14 @@ export async function PATCH(
 
         return NextResponse.json(
             { error: "Failed to update item" },
-            { status: 500 }
+            { status: 500 },
         );
     }
 }
 
 export async function DELETE(
     _request: NextRequest,
-    { params }: Params
+    { params }: Params,
 ) {
     try {
         const { id } = await params;
@@ -152,7 +234,7 @@ export async function DELETE(
         if (item.length === 0) {
             return NextResponse.json(
                 { error: "Item not found" },
-                { status: 404 }
+                { status: 404 },
             );
         }
 
@@ -160,16 +242,16 @@ export async function DELETE(
 
         if (photoUrl && typeof photoUrl === "string") {
             try {
-                await del(photoUrl);
-            } catch (blobError) {
+                await deleteGitHubImage(photoUrl);
+            } catch (githubError) {
                 console.error(
-                    "Failed to delete item photo blob:",
-                    blobError
+                    "Failed to delete item photo from GitHub:",
+                    githubError,
                 );
 
                 return NextResponse.json(
                     { error: "Foto kon niet verwijderd worden." },
-                    { status: 500 }
+                    { status: 500 },
                 );
             }
         }
@@ -183,7 +265,7 @@ export async function DELETE(
         if (result.length === 0) {
             return NextResponse.json(
                 { error: "Item not found" },
-                { status: 404 }
+                { status: 404 },
             );
         }
 
@@ -196,7 +278,7 @@ export async function DELETE(
 
         return NextResponse.json(
             { error: "Failed to delete item" },
-            { status: 500 }
+            { status: 500 },
         );
     }
 }
