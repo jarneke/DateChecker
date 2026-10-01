@@ -16,6 +16,22 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useEffect, useState } from "react";
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type Category = {
   id?: string;
@@ -23,6 +39,167 @@ type Category = {
   sort_order: number;
   item_count: number;
 };
+
+type SortableCategoryProps = {
+  category: Category;
+  index: number;
+  onDelete: (index: number) => void;
+};
+
+function SortableCategory({
+  category,
+  index,
+  onDelete,
+}: SortableCategoryProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: category.id ?? `new-${index}`,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <Box
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        px: 1.5,
+        py: 1.25,
+        borderRadius: 1.5,
+        border: "1px solid",
+        borderColor: isDragging ? "#c1b4a7" : "#716b65",
+        backgroundColor: "#100f0e",
+        color: "#fff2dd",
+        cursor: isDragging ? "grabbing" : "grab",
+        opacity: isDragging ? 0.5 : 1,
+        userSelect: "none",
+        touchAction: "none",
+        transition: "border-color 0.15s, opacity 0.15s, background-color 0.15s",
+        "&:hover": {
+          borderColor: "#a89d92",
+          backgroundColor: "#24211f",
+        },
+      }}
+    >
+      <Box
+        {...listeners}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          cursor: isDragging ? "grabbing" : "grab",
+          touchAction: "none",
+        }}
+      >
+        <DragIndicatorIcon
+          sx={{
+            color: "#716b65",
+            flexShrink: 0,
+          }}
+        />
+      </Box>
+
+      <Typography
+        sx={{
+          flex: 1,
+          fontWeight: 500,
+          color: "#fff2dd",
+        }}
+      >
+        {category.name}
+      </Typography>
+
+      {category.item_count > 0 && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.75,
+          }}
+        >
+          <Typography
+            sx={{
+              fontWeight: 800,
+              color: "#100f0e",
+              backgroundColor: "#fff2dd",
+              borderRadius: "50%",
+              width: 22,
+              height: 22,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "0.9rem",
+            }}
+          >
+            !
+          </Typography>
+
+          <Typography
+            variant="body2"
+            sx={{
+              color: "#a89d92",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {category.item_count} {category.item_count === 1 ? "item" : "items"}
+          </Typography>
+
+          <Typography
+            sx={{
+              fontWeight: 800,
+              color: "#100f0e",
+              backgroundColor: "#fff2dd",
+              borderRadius: "50%",
+              width: 22,
+              height: 22,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "0.9rem",
+            }}
+          >
+            !
+          </Typography>
+        </Box>
+      )}
+
+      {category.item_count === 0 && (
+        <IconButton
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete(index);
+          }}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+          }}
+          aria-label={`Verwijder ${category.name}`}
+          size="small"
+          sx={{
+            color: "#716b65",
+            "&:hover": {
+              color: "#fff2dd",
+              backgroundColor: "rgba(255, 242, 221, 0.08)",
+            },
+          }}
+        >
+          <DeleteIcon />
+        </IconButton>
+      )}
+    </Box>
+  );
+}
 
 export default function SettingsPage() {
   const [daysBeforeEnd, setDaysBeforeEnd] = useState("");
@@ -35,7 +212,19 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
+      },
+    }),
+  );
 
   useEffect(() => {
     async function loadSettings() {
@@ -166,25 +355,27 @@ export default function SettingsPage() {
     markAsChanged();
   }
 
-  function handleDragStart(index: number) {
-    setDraggedIndex(index);
-  }
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
 
-  function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-  }
-
-  function handleDrop(targetIndex: number) {
-    if (draggedIndex === null || draggedIndex === targetIndex) {
-      setDraggedIndex(null);
+    if (!over || active.id === over.id) {
       return;
     }
 
     setCategories((current) => {
-      const updated = [...current];
-      const [draggedCategory] = updated.splice(draggedIndex, 1);
+      const oldIndex = current.findIndex(
+        (category, index) => (category.id ?? `new-${index}`) === active.id,
+      );
 
-      updated.splice(targetIndex, 0, draggedCategory);
+      const newIndex = current.findIndex(
+        (category, index) => (category.id ?? `new-${index}`) === over.id,
+      );
+
+      if (oldIndex === -1 || newIndex === -1) {
+        return current;
+      }
+
+      const updated = arrayMove(current, oldIndex, newIndex);
 
       return updated.map((category, index) => ({
         ...category,
@@ -192,12 +383,7 @@ export default function SettingsPage() {
       }));
     });
 
-    setDraggedIndex(null);
     markAsChanged();
-  }
-
-  function handleDragEnd() {
-    setDraggedIndex(null);
   }
 
   async function handleSave() {
@@ -395,174 +581,68 @@ export default function SettingsPage() {
                     </Typography>
                   </Box>
 
-                  <Stack spacing={1}>
-                    {categories.map((category, index) => (
-                      <Box
-                        key={category.id ?? `new-${index}`}
-                        draggable
-                        onDragStart={() => handleDragStart(index)}
-                        onDragOver={handleDragOver}
-                        onDrop={() => handleDrop(index)}
-                        onDragEnd={handleDragEnd}
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          px: 1.5,
-                          py: 1.25,
-                          borderRadius: 1.5,
-                          border: "1px solid",
-                          borderColor:
-                            draggedIndex === index ? "#c1b4a7" : "#716b65",
-                          backgroundColor: "#100f0e",
-                          color: "#fff2dd",
-                          cursor: draggedIndex === index ? "grabbing" : "grab",
-                          opacity: draggedIndex === index ? 0.5 : 1,
-                          userSelect: "none",
-                          transition:
-                            "border-color 0.15s, opacity 0.15s, background-color 0.15s",
-                          "&:hover": {
-                            borderColor: "#a89d92",
-                            backgroundColor: "#24211f",
-                          },
-                        }}
-                      >
-                        <DragIndicatorIcon
-                          sx={{
-                            color: "#716b65",
-                            flexShrink: 0,
-                          }}
-                        />
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={categories.map(
+                        (category, index) => category.id ?? `new-${index}`,
+                      )}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <Stack spacing={1}>
+                        {categories.map((category, index) => (
+                          <SortableCategory
+                            key={category.id ?? `new-${index}`}
+                            category={category}
+                            index={index}
+                            onDelete={handleDeleteCategory}
+                          />
+                        ))}
+                      </Stack>
+                    </SortableContext>
+                  </DndContext>
 
-                        <Typography
-                          sx={{
-                            flex: 1,
-                            fontWeight: 500,
-                            color: "#fff2dd",
-                          }}
-                        >
-                          {category.name}
-                        </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      alignItems: "flex-start",
+                      pt: 1,
+                    }}
+                  >
+                    <TextField
+                      label="Nieuwe categorie"
+                      value={newCategory}
+                      onChange={(event) => {
+                        setNewCategory(event.target.value);
+                        setError(null);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          handleAddCategory();
+                        }
+                      }}
+                      fullWidth
+                    />
 
-                        {category.item_count > 0 && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.75,
-                            }}
-                          >
-                            <Typography
-                              sx={{
-                                fontWeight: 800,
-                                color: "#100f0e",
-                                backgroundColor: "#fff2dd",
-                                borderRadius: "50%",
-                                width: 22,
-                                height: 22,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: "0.9rem",
-                              }}
-                            >
-                              !
-                            </Typography>
-
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color: "#a89d92",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {category.item_count}{" "}
-                              {category.item_count === 1 ? "item" : "items"}
-                            </Typography>
-
-                            <Typography
-                              sx={{
-                                fontWeight: 800,
-                                color: "#100f0e",
-                                backgroundColor: "#fff2dd",
-                                borderRadius: "50%",
-                                width: 22,
-                                height: 22,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: "0.9rem",
-                              }}
-                            >
-                              !
-                            </Typography>
-                          </Box>
-                        )}
-
-                        {category.item_count === 0 && (
-                          <IconButton
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleDeleteCategory(index);
-                            }}
-                            onMouseDown={(event) => {
-                              event.stopPropagation();
-                            }}
-                            aria-label={`Verwijder ${category.name}`}
-                            size="small"
-                            sx={{
-                              color: "#716b65",
-                              "&:hover": {
-                                color: "#fff2dd",
-                                backgroundColor: "rgba(255, 242, 221, 0.08)",
-                              },
-                            }}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        )}
-                      </Box>
-                    ))}
-
-                    <Box
+                    <Button
+                      className="StyledButton3"
+                      variant="outlined"
+                      onClick={handleAddCategory}
+                      startIcon={<AddIcon />}
                       sx={{
-                        display: "flex",
-                        gap: 1,
-                        alignItems: "flex-start",
-                        pt: 1,
+                        minWidth: "auto",
+                        height: 56,
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      <TextField
-                        label="Nieuwe categorie"
-                        value={newCategory}
-                        onChange={(event) => {
-                          setNewCategory(event.target.value);
-                          setError(null);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            handleAddCategory();
-                          }
-                        }}
-                        fullWidth
-                      />
-
-                      <Button
-                        className="StyledButton3"
-                        variant="outlined"
-                        onClick={handleAddCategory}
-                        startIcon={<AddIcon />}
-                        sx={{
-                          minWidth: "auto",
-                          height: 56,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Toevoegen
-                      </Button>
-                    </Box>
-                  </Stack>
+                      Toevoegen
+                    </Button>
+                  </Box>
                 </Stack>
               </Box>
 
