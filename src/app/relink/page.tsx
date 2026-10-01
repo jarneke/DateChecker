@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -30,6 +30,8 @@ export default function RelinkPage() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [linking, setLinking] = useState(false);
   const [error, setError] = useState("");
+
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const currentImage = images[0];
 
@@ -108,6 +110,10 @@ export default function RelinkPage() {
 
       setImages((current) => current.slice(1));
       setSearch("");
+
+      setTimeout(() => {
+        searchRef.current?.focus();
+      }, 0);
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Failed to link image.",
@@ -190,11 +196,13 @@ export default function RelinkPage() {
           </Typography>
 
           <TextField
+            inputRef={searchRef}
             fullWidth
             label="Search product"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             autoComplete="off"
+            autoFocus
           />
 
           <Box sx={{ mt: 2 }}>
