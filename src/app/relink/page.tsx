@@ -23,7 +23,7 @@ type Product = {
 };
 
 export default function RelinkPage() {
-  const [images, setImages] = useState<ImageItem[]>([]);
+  const [image, setImage] = useState<ImageItem | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -33,14 +33,18 @@ export default function RelinkPage() {
 
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const currentImage = images[0];
-
   useEffect(() => {
-    loadImages();
+    loadImage();
     loadProducts();
   }, []);
 
-  async function loadImages() {
+  useEffect(() => {
+    if (!loading && image) {
+      searchRef.current?.focus();
+    }
+  }, [loading, image]);
+
+  async function loadImage() {
     try {
       setLoading(true);
       setError("");
@@ -50,13 +54,14 @@ export default function RelinkPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to load images");
+        throw new Error("Failed to load image");
       }
 
       const data = await response.json();
-      setImages(data.images);
+
+      setImage(data.images?.[0] ?? null);
     } catch {
-      setError("Failed to load images.");
+      setError("Failed to load image.");
     } finally {
       setLoading(false);
     }
@@ -84,7 +89,7 @@ export default function RelinkPage() {
   }
 
   async function linkProduct(product: Product) {
-    if (!currentImage || linking) {
+    if (!image || linking) {
       return;
     }
 
@@ -99,7 +104,7 @@ export default function RelinkPage() {
         },
         body: JSON.stringify({
           productId: product.id,
-          imageUrl: currentImage.url,
+          imageUrl: image.url,
         }),
       });
 
@@ -108,17 +113,11 @@ export default function RelinkPage() {
         throw new Error(data?.error || "Failed to link image");
       }
 
-      setImages((current) => current.slice(1));
-      setSearch("");
-
-      setTimeout(() => {
-        searchRef.current?.focus();
-      }, 0);
+      window.location.reload();
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Failed to link image.",
       );
-    } finally {
       setLinking(false);
     }
   }
@@ -135,7 +134,7 @@ export default function RelinkPage() {
     );
   }
 
-  if (!currentImage) {
+  if (!image) {
     return (
       <Container maxWidth="sm" sx={{ py: 6 }}>
         <Typography variant="h5" gutterBottom sx={{ fontWeight: 700 }}>
@@ -155,10 +154,6 @@ export default function RelinkPage() {
         Relink images
       </Typography>
 
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        {images.length} image{images.length === 1 ? "" : "s"} remaining
-      </Typography>
-
       <Card>
         <Box
           sx={{
@@ -173,7 +168,7 @@ export default function RelinkPage() {
         >
           <Box
             component="img"
-            src={currentImage.url}
+            src={image.url}
             alt=""
             sx={{
               width: "100%",
@@ -192,7 +187,7 @@ export default function RelinkPage() {
               wordBreak: "break-all",
             }}
           >
-            {currentImage.path}
+            {image.path}
           </Typography>
 
           <TextField
