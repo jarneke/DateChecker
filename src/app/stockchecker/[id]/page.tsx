@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Box,
@@ -102,6 +102,9 @@ function compressImage(file: File): Promise<File> {
 export default function ItemDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const returnTo = searchParams.get("returnTo");
 
   const [item, setItem] = useState<Item | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -261,6 +264,11 @@ export default function ItemDetailPage() {
       setRemovePhoto(false);
       setPhotoPreview(photoUrl || "");
 
+      if (returnTo) {
+        router.push(returnTo);
+        return;
+      }
+
       router.refresh();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Opslaan mislukt.");
@@ -339,7 +347,7 @@ export default function ItemDetailPage() {
         <Button
           className="StyledButton3"
           component={Link}
-          href="/stockchecker"
+          href={returnTo || "/stockchecker"}
           startIcon={<ArrowBackOutlined />}
           sx={{ mb: 3 }}
         >
