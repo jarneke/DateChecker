@@ -1,8 +1,50 @@
 @import "tailwindcss";
 
-body {
-  background: #100f0e;
-  color: #fff2dd;
+@theme {
+  --color-app-background: #100f0e;
+  --color-app-foreground: #fff2dd;
+  --color-app-surface: #fff2dd;
+  --color-app-surface-foreground: #100f0e;
+  --color-app-muted: #716b65;
+  --color-app-accent: #c1b4a7;
+}
+
+@layer base {
+  html {
+    min-height: 100%;
+    background: var(--color-app-background);
+  }
+
+  body {
+    min-height: 100%;
+    background: var(--color-app-background);
+    color: var(--color-app-foreground);
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-2xl px-4 py-8 sm:px-6;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold tracking-tight sm:text-3xl;
+  }
+
+  .page-description {
+    @apply mt-2 text-sm text-stone-400 sm:text-base;
+  }
+
+  .surface-card {
+    @apply rounded-lg bg-app-surface p-4 text-app-surface-foreground shadow-sm sm:p-5;
+  }
 }
 
 .StyledBox {

@@ -5,12 +5,12 @@ import { Button, Container, Stack, Typography } from "@mui/material";
 
 export default function AdminPage() {
   return (
-    <Container maxWidth="sm" sx={{ py: 6 }}>
-      <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+    <Container maxWidth="sm" className="py-12">
+      <Typography variant="h4" className="mb-2 font-bold">
         Admin
       </Typography>
 
-      <Typography color="text.secondary" sx={{ mb: 4 }}>
+      <Typography color="text.secondary" className="mb-8">
         Manage the application.
       </Typography>
 

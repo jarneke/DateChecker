@@ -33,7 +33,7 @@ export default function GitHubTestPage() {
   }
 
   return (
-    <main style={{ padding: 40 }}>
+    <main className="p-10">
       <h1>GitHub Upload Test</h1>
 
       <input

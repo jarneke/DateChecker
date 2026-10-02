@@ -50,7 +50,7 @@ export default function ImageLinkerPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="sm" sx={{ py: 6, textAlign: "center" }}>
+      <Container maxWidth="sm" className="py-12 text-center">
         <CircularProgress />
       </Container>
     );
@@ -58,7 +58,7 @@ export default function ImageLinkerPage() {
 
   if (error) {
     return (
-      <Container maxWidth="sm" sx={{ py: 6 }}>
+      <Container maxWidth="sm" className="py-12">
         <Typography color="error">{error}</Typography>
       </Container>
     );
@@ -66,8 +66,8 @@ export default function ImageLinkerPage() {
 
   if (!product) {
     return (
-      <Container maxWidth="sm" sx={{ py: 6 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
+      <Container maxWidth="sm" className="py-12">
+        <Typography variant="h5" className="mb-2 font-bold">
           Image Linker
         </Typography>
 
@@ -77,12 +77,12 @@ export default function ImageLinkerPage() {
   }
 
   return (
-    <Container maxWidth="sm" sx={{ py: 6 }}>
-      <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
+    <Container maxWidth="sm" className="py-12">
+      <Typography variant="h5" className="mb-2 font-bold">
         Image Linker
       </Typography>
 
-      <Typography color="text.secondary" sx={{ mb: 4 }}>
+      <Typography color="text.secondary" className="mb-8">
         Find this product in the store and take a picture of it.
       </Typography>
 
@@ -90,11 +90,7 @@ export default function ImageLinkerPage() {
         <CardContent>
           <Typography
             variant="h4"
-            sx={{
-              fontWeight: 700,
-              mb: 3,
-              wordBreak: "break-word",
-            }}
+            className="mb-6 break-words font-bold"
           >
             {product.name}
           </Typography>

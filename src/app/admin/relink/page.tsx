@@ -128,7 +128,7 @@ export default function RelinkPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="sm" sx={{ py: 6, textAlign: "center" }}>
+      <Container maxWidth="sm" className="py-12 text-center">
         <CircularProgress />
       </Container>
     );
@@ -136,8 +136,8 @@ export default function RelinkPage() {
 
   if (!image) {
     return (
-      <Container maxWidth="sm" sx={{ py: 6 }}>
-        <Typography variant="h5" gutterBottom sx={{ fontWeight: 700 }}>
+      <Container maxWidth="sm" className="py-12">
+        <Typography variant="h5" gutterBottom className="font-bold">
           Relink
         </Typography>
 
@@ -149,32 +149,20 @@ export default function RelinkPage() {
   }
 
   return (
-    <Container maxWidth="sm" sx={{ py: 4 }}>
-      <Typography variant="h5" gutterBottom sx={{ fontWeight: 700 }}>
+    <Container maxWidth="sm" className="py-8">
+      <Typography variant="h5" gutterBottom className="font-bold">
         Relink images
       </Typography>
 
       <Card>
         <Box
-          sx={{
-            width: "100%",
-            aspectRatio: "1 / 1",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "grey.100",
-            overflow: "hidden",
-          }}
+          className="flex aspect-square w-full items-center justify-center overflow-hidden bg-stone-100"
         >
           <Box
             component="img"
             src={image.url}
             alt=""
-            sx={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-            }}
+            className="h-full w-full object-contain"
           />
         </Box>
 
@@ -182,10 +170,7 @@ export default function RelinkPage() {
           <Typography
             variant="body2"
             color="text.secondary"
-            sx={{
-              mb: 2,
-              wordBreak: "break-all",
-            }}
+            className="mb-4 break-all"
           >
             {image.path}
           </Typography>
@@ -200,9 +185,9 @@ export default function RelinkPage() {
             autoFocus
           />
 
-          <Box sx={{ mt: 2 }}>
+          <Box className="mt-4">
             {productsLoading ? (
-              <Box sx={{ textAlign: "center", py: 2 }}>
+              <Box className="py-4 text-center">
                 <CircularProgress size={24} />
               </Box>
             ) : (
@@ -213,11 +198,7 @@ export default function RelinkPage() {
                   variant="outlined"
                   onClick={() => linkProduct(product)}
                   disabled={linking}
-                  sx={{
-                    justifyContent: "flex-start",
-                    mb: 1,
-                    textTransform: "none",
-                  }}
+                  className="mb-2 justify-start normal-case"
                 >
                   {product.name}
                 </Button>
@@ -226,13 +207,13 @@ export default function RelinkPage() {
           </Box>
 
           {linking && (
-            <Box sx={{ mt: 2, textAlign: "center" }}>
+            <Box className="mt-4 text-center">
               <CircularProgress size={24} />
             </Box>
           )}
 
           {error && (
-            <Typography color="error" sx={{ mt: 2 }}>
+            <Typography color="error" className="mt-4">
               {error}
             </Typography>
           )}
