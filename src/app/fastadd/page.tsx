@@ -1,23 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Box,
   Button,
   Container,
   IconButton,
+  MenuItem,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
-import CameraAltOutlined from "@mui/icons-material/CameraAltOutlined";
-import AddOutlined from "@mui/icons-material/AddOutlined";
-import ContentCopyOutlined from "@mui/icons-material/ContentCopyOutlined";
-import DeleteOutlineOutlined from "@mui/icons-material/DeleteOutlineOutlined";
-import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
-import DeleteSweepOutlined from "@mui/icons-material/DeleteSweepOutlined";
+import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
+import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
+import DeleteSweepOutlinedIcon from "@mui/icons-material/DeleteSweepOutlined";
+
+type Category = {
+  id: string;
+  name: string;
+};
+
+type CheckType = "daily" | "monthly";
 
 type StoredFastAddItem = {
   id: string;
@@ -25,6 +32,8 @@ type StoredFastAddItem = {
   photo: Blob | null;
   photoName: string;
   photoType: string;
+  categoryId: string;
+  sticker30Percent: boolean;
   createdAt: number;
 };
 
@@ -38,13 +47,13 @@ const PAST_EXPIRY_DATE = "2020-01-01";
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, 2);
 
     request.onupgradeneeded = () => {
-      const database = request.result;
+      const db = request.result;
 
-      if (!database.objectStoreNames.contains(STORE_NAME)) {
-        database.createObjectStore(STORE_NAME, {
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, {
           keyPath: "id",
         });
       }
@@ -55,211 +64,226 @@ function openDatabase(): Promise<IDBDatabase> {
     };
 
     request.onerror = () => {
-      reject(
-        request.error || new Error("Lokale opslag kon niet geopend worden."),
-      );
+      reject(request.error);
     };
   });
 }
 
 async function getStoredItems(): Promise<StoredFastAddItem[]> {
-  const database = await openDatabase();
+  const db = await openDatabase();
 
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readonly");
-    const request = transaction.objectStore(STORE_NAME).getAll();
+    const transaction = db.transaction(STORE_NAME, "readonly");
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.getAll();
 
     request.onsuccess = () => {
       resolve(
-        (request.result as StoredFastAddItem[]).sort(
-          (a, b) => a.createdAt - b.createdAt,
+        request.result.sort(
+          (a: StoredFastAddItem, b: StoredFastAddItem) =>
+            a.createdAt - b.createdAt,
         ),
       );
     };
 
     request.onerror = () => {
-      reject(
-        request.error || new Error("Lokale items konden niet geladen worden."),
-      );
+      reject(request.error);
     };
   });
 }
 
-async function saveStoredItem(item: StoredFastAddItem) {
-  const database = await openDatabase();
+async function saveStoredItem(item: StoredFastAddItem): Promise<void> {
+  const db = await openDatabase();
 
-  return new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readwrite");
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
 
-    transaction.objectStore(STORE_NAME).put(item);
+    store.put(item);
 
     transaction.oncomplete = () => {
       resolve();
     };
 
     transaction.onerror = () => {
-      reject(
-        transaction.error ||
-          new Error("Item kon niet lokaal opgeslagen worden."),
-      );
+      reject(transaction.error);
     };
   });
 }
 
-async function deleteStoredItem(id: string) {
-  const database = await openDatabase();
+async function deleteStoredItem(id: string): Promise<void> {
+  const db = await openDatabase();
 
-  return new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readwrite");
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
 
-    transaction.objectStore(STORE_NAME).delete(id);
+    store.delete(id);
 
     transaction.oncomplete = () => {
       resolve();
     };
 
     transaction.onerror = () => {
-      reject(
-        transaction.error ||
-          new Error("Item kon niet uit lokale opslag verwijderd worden."),
-      );
+      reject(transaction.error);
     };
   });
 }
 
-async function clearStoredItems() {
-  const database = await openDatabase();
+async function clearStoredItems(): Promise<void> {
+  const db = await openDatabase();
 
-  return new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readwrite");
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
 
-    transaction.objectStore(STORE_NAME).clear();
+    store.clear();
 
     transaction.oncomplete = () => {
       resolve();
     };
 
     transaction.onerror = () => {
-      reject(
-        transaction.error ||
-          new Error("Lokale items konden niet gewist worden."),
-      );
+      reject(transaction.error);
     };
   });
 }
 
-function compressImage(file: File): Promise<File> {
-  return new Promise((resolve) => {
-    const image = new Image();
-    const objectUrl = URL.createObjectURL(file);
+async function compressImage(file: File): Promise<Blob> {
+  const image = new Image();
+  const objectUrl = URL.createObjectURL(file);
 
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () =>
+        reject(new Error("Afbeelding kon niet geladen worden."));
+      image.src = objectUrl;
+    });
 
-      const maxSize = 1280;
+    const maxSize = 1280;
+    const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
 
-      let width = image.naturalWidth;
-      let height = image.naturalHeight;
+    const canvas = document.createElement("canvas");
 
-      if (width > maxSize || height > maxSize) {
-        if (width > height) {
-          height = Math.round((height / width) * maxSize);
-          width = maxSize;
-        } else {
-          width = Math.round((width / height) * maxSize);
-          height = maxSize;
-        }
-      }
+    canvas.width = Math.round(image.width * scale);
+    canvas.height = Math.round(image.height * scale);
 
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
+    const context = canvas.getContext("2d");
 
-      const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("Afbeelding kon niet verwerkt worden.");
+    }
 
-      if (!context) {
-        resolve(file);
-        return;
-      }
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-      context.drawImage(image, 0, 0, width, height);
-
+    return await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
         (blob) => {
-          if (!blob || blob.size >= file.size) {
-            resolve(file);
-            return;
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error("Afbeelding kon niet gecomprimeerd worden."));
           }
-
-          resolve(
-            new File([blob], `${file.name.replace(/\.[^/.]+$/, "")}.webp`, {
-              type: "image/webp",
-              lastModified: Date.now(),
-            }),
-          );
         },
         "image/webp",
         0.75,
       );
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(file);
-    };
-
-    image.src = objectUrl;
-  });
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 export default function FastAddPage() {
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [selectedCheckType, setSelectedCheckType] =
+    useState<CheckType>("daily");
+
   const [items, setItems] = useState<FastAddItem[]>([]);
+
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
+
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
-  const [copied, setCopied] = useState(false);
-
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  const itemsRef = useRef<FastAddItem[]>([]);
 
   useEffect(() => {
-    itemsRef.current = items;
-  }, [items]);
+    let cancelled = false;
 
-  useEffect(() => {
     async function load() {
       try {
-        const storedItems = await getStoredItems();
+        const [categoriesResponse, storedItems] = await Promise.all([
+          fetch("/api/categories"),
+          getStoredItems(),
+        ]);
 
-        setItems(
-          storedItems.map((item) => ({
+        if (!categoriesResponse.ok) {
+          throw new Error("Categorieën konden niet geladen worden.");
+        }
+
+        const loadedCategories =
+          (await categoriesResponse.json()) as Category[];
+
+        if (cancelled) {
+          return;
+        }
+
+        setCategories(loadedCategories);
+
+        if (loadedCategories.length > 0) {
+          setSelectedCategoryId(loadedCategories[0].id);
+        }
+
+        const restoredItems: FastAddItem[] = storedItems
+          .filter(
+            (item) =>
+              typeof item.categoryId === "string" &&
+              typeof item.sticker30Percent === "boolean",
+          )
+          .map((item) => ({
             ...item,
             previewUrl: item.photo ? URL.createObjectURL(item.photo) : "",
-          })),
-        );
-      } catch (error) {
-        console.error(error);
-        setError("Lokale items konden niet geladen worden.");
+          }));
+
+        setItems(restoredItems);
+      } catch (loadError) {
+        console.error(loadError);
+
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Gegevens konden niet geladen worden.",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     load();
 
     return () => {
-      for (const item of itemsRef.current) {
-        if (item.previewUrl) {
-          URL.revokeObjectURL(item.previewUrl);
-        }
-      }
+      cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      nameInputRef.current?.focus();
+    }
+  }, [loading]);
 
   useEffect(() => {
     return () => {
@@ -269,12 +293,7 @@ export default function FastAddPage() {
     };
   }, [photoPreview]);
 
-  const names = useMemo(
-    () => items.map((item) => item.name).join("\n"),
-    [items],
-  );
-
-  function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
     if (!file) {
@@ -287,7 +306,6 @@ export default function FastAddPage() {
     }
 
     setError("");
-    setStatus("");
 
     if (photoPreview) {
       URL.revokeObjectURL(photoPreview);
@@ -296,56 +314,57 @@ export default function FastAddPage() {
     setPhoto(file);
     setPhotoPreview(URL.createObjectURL(file));
 
-    setTimeout(() => {
+    event.target.value = "";
+  };
+
+  const handleAddItem = async () => {
+    const trimmedName = name.trim().toUpperCase();
+
+    if (!trimmedName) {
+      setError("Geef eerst een productnaam in.");
       nameInputRef.current?.focus();
-    }, 100);
-  }
-
-  async function handleAddItem(event: React.FormEvent) {
-    event.preventDefault();
-
-    const normalizedName = name.trim().toUpperCase();
-
-    if (!normalizedName) {
-      setError("Vul een naam in.");
       return;
     }
 
-    if (items.some((item) => item.name.toUpperCase() === normalizedName)) {
-      setError("Dit item staat al in de huidige lijst.");
+    if (!selectedCategoryId) {
+      setError("Selecteer eerst een categorie.");
       return;
     }
 
-    setAdding(true);
-    setError("");
-    setStatus("");
-    setCopied(false);
+    if (items.some((item) => item.name.toUpperCase() === trimmedName)) {
+      setError("Dit product staat al in de huidige lijst.");
+      nameInputRef.current?.focus();
+      return;
+    }
 
     try {
+      setAdding(true);
+      setError("");
+      setStatus("");
+
       const compressedPhoto = photo ? await compressImage(photo) : null;
 
       const id = crypto.randomUUID();
 
       const storedItem: StoredFastAddItem = {
         id,
-        name: normalizedName,
+        name: trimmedName,
         photo: compressedPhoto,
-        photoName: compressedPhoto?.name || "",
-        photoType: compressedPhoto?.type || "",
+        photoName: photo?.name ?? "",
+        photoType: compressedPhoto?.type ?? "",
+        categoryId: selectedCategoryId,
+        sticker30Percent: selectedCheckType === "daily",
         createdAt: Date.now(),
       };
 
       await saveStoredItem(storedItem);
 
-      setItems((current) => [
-        ...current,
-        {
-          ...storedItem,
-          previewUrl: compressedPhoto
-            ? URL.createObjectURL(compressedPhoto)
-            : "",
-        },
-      ]);
+      const newItem: FastAddItem = {
+        ...storedItem,
+        previewUrl: compressedPhoto ? URL.createObjectURL(compressedPhoto) : "",
+      };
+
+      setItems((current) => [...current, newItem]);
 
       setName("");
 
@@ -356,166 +375,117 @@ export default function FastAddPage() {
       setPhoto(null);
       setPhotoPreview("");
 
-      setTimeout(() => {
-        nameInputRef.current?.focus();
-      }, 100);
-    } catch (error) {
-      console.error(error);
+      nameInputRef.current?.focus();
+    } catch (addError) {
+      console.error(addError);
+
       setError(
-        error instanceof Error
-          ? error.message
-          : "Item kon niet lokaal opgeslagen worden.",
+        addError instanceof Error
+          ? addError.message
+          : "Product kon niet toegevoegd worden.",
       );
     } finally {
       setAdding(false);
     }
-  }
+  };
 
-  async function handleRemoveItem(id: string) {
-    const item = items.find((current) => current.id === id);
-
+  const handleRemoveItem = async (id: string) => {
     try {
+      setError("");
+      setStatus("");
+
       await deleteStoredItem(id);
 
-      if (item?.previewUrl) {
-        URL.revokeObjectURL(item.previewUrl);
-      }
+      setItems((current) => {
+        const item = current.find((entry) => entry.id === id);
 
-      setItems((current) => current.filter((current) => current.id !== id));
+        if (item?.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
 
-      setStatus("");
-      setCopied(false);
-    } catch (error) {
-      console.error(error);
-      setError("Item kon niet verwijderd worden.");
+        return current.filter((entry) => entry.id !== id);
+      });
+    } catch (removeError) {
+      console.error(removeError);
+
+      setError(
+        removeError instanceof Error
+          ? removeError.message
+          : "Product kon niet verwijderd worden.",
+      );
     }
-  }
+  };
 
-  async function handleSendList() {
-    if (!names) {
-      setError("De lijst is nog leeg.");
-      return;
+  const uploadPhotoToGitHub = async (
+    item: FastAddItem,
+  ): Promise<string | null> => {
+    if (!item.photo) {
+      return null;
     }
 
-    setError("");
-    setStatus("");
-    setCopied(false);
+    const formData = new FormData();
 
-    console.log("FASTADD CURRENT LIST:\n" + names);
+    formData.append(
+      "file",
+      new File([item.photo], item.photoName || `${item.id}.webp`, {
+        type: item.photoType || "image/webp",
+      }),
+    );
 
+    formData.append("id", item.id);
+
+    const response = await fetch("/api/github-upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = (await response.json()) as {
+      url?: string;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      throw new Error(data.error || "Foto kon niet geüpload worden.");
+    }
+
+    return data.url ?? null;
+  };
+
+  const deleteGitHubPhoto = async (id: string) => {
     try {
-      await navigator.clipboard.writeText(names);
-      setCopied(true);
-      setStatus("De volledige namenlijst staat op je klembord.");
-    } catch {
-      setStatus("Kopiëren is niet gelukt. Gebruik het tekstvak hieronder.");
-    }
-  }
-
-  async function deleteUploadedPhoto(url: string) {
-    try {
-      const response = await fetch("/api/github-upload", {
+      await fetch("/api/github-upload", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          url,
+          id,
         }),
       });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-
-        console.error(
-          "Failed to clean up uploaded photo:",
-          data?.error || response.statusText,
-        );
-      }
-    } catch (error) {
-      console.error("Failed to clean up uploaded photo:", error);
+    } catch (deleteError) {
+      console.error("Foto kon niet verwijderd worden:", deleteError);
     }
-  }
+  };
 
-  async function uploadPhotos(
-    photoItems: FastAddItem[],
-  ): Promise<Map<string, string>> {
-    if (photoItems.length === 0) {
-      return new Map();
-    }
-
-    const formData = new FormData();
-
-    for (const item of photoItems) {
-      if (!item.photo) {
-        continue;
-      }
-
-      formData.append("files", item.photo, item.photoName || `${item.id}.webp`);
-    }
-
-    const response = await fetch("/api/github-upload", {
-      method: "PUT",
-      body: formData,
-    });
-
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      throw new Error(
-        data?.error || "Foto's konden niet naar GitHub geüpload worden.",
-      );
-    }
-
-    if (!Array.isArray(data?.images)) {
-      throw new Error("GitHub gaf geen foto's terug.");
-    }
-
-    if (data.images.length !== photoItems.length) {
-      throw new Error("Niet alle foto's zijn naar GitHub geüpload.");
-    }
-
-    const photoUrls = new Map<string, string>();
-
-    photoItems.forEach((item, index) => {
-      const uploadedImage = data.images[index];
-
-      if (!uploadedImage?.url) {
-        throw new Error("GitHub gaf geen geldige foto-URL terug.");
-      }
-
-      photoUrls.set(item.id, uploadedImage.url);
-    });
-
-    return photoUrls;
-  }
-
-  async function handleUploadCurrentList() {
+  const handleUploadCurrentList = async () => {
     if (items.length === 0) {
-      setError("De lijst is nog leeg.");
+      setError("Er staan nog geen producten in de lijst.");
       return;
     }
 
-    setUploading(true);
-    setError("");
-    setStatus("");
-    setCopied(false);
-
-    const uploadedPhotoUrls: string[] = [];
-
     try {
-      const itemsWithPhotos = items.filter((item) => item.photo);
+      setUploading(true);
+      setError("");
+      setStatus("Foto's uploaden...");
 
-      const photoUrls = await uploadPhotos(itemsWithPhotos);
+      const uploadedUrls = new Map<string, string | null>();
 
-      for (const url of photoUrls.values()) {
-        uploadedPhotoUrls.push(url);
+      for (const item of items) {
+        const url = await uploadPhotoToGitHub(item);
+        uploadedUrls.set(item.id, url);
       }
 
-      const payload = items.map((item) => ({
-        name: item.name,
-        photo_url: photoUrls.get(item.id) || null,
-      }));
+      setStatus("Producten toevoegen...");
 
       const response = await fetch("/api/items/batch", {
         method: "POST",
@@ -523,176 +493,252 @@ export default function FastAddPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          items: payload,
+          items: items.map((item) => ({
+            name: item.name,
+            photo_url: uploadedUrls.get(item.id) ?? null,
+            category_id: item.categoryId,
+            sticker_30_percent: item.sticker30Percent,
+          })),
         }),
       });
 
-      const data = await response.json().catch(() => null);
+      const data = (await response.json()) as {
+        inserted?: {
+          id: string;
+          name: string;
+        }[];
+        insertedCount?: number;
+        skippedNames?: string[];
+        skippedCount?: number;
+        error?: string;
+      };
 
       if (!response.ok) {
         throw new Error(
-          data?.error || "De items konden niet opgeslagen worden.",
+          data.error || "Producten konden niet toegevoegd worden.",
         );
       }
 
-      const skippedNames = new Set<string>(data?.skippedNames || []);
-
-      const skippedPhotoUrls = payload
-        .filter((item) => skippedNames.has(item.name) && item.photo_url)
-        .map((item) => item.photo_url!);
-
-      await Promise.all(
-        skippedPhotoUrls.map((url) => deleteUploadedPhoto(url)),
+      const insertedNames = new Set(
+        (data.inserted ?? []).map((item) => item.name.toUpperCase()),
       );
 
-      const skippedPhotoUrlSet = new Set(skippedPhotoUrls);
+      const skippedNames = new Set(
+        (data.skippedNames ?? []).map((item) => item.toUpperCase()),
+      );
 
-      for (const url of skippedPhotoUrls) {
-        const index = uploadedPhotoUrls.indexOf(url);
-
-        if (index !== -1) {
-          uploadedPhotoUrls.splice(index, 1);
+      for (const item of items) {
+        if (
+          skippedNames.has(item.name.toUpperCase()) &&
+          uploadedUrls.get(item.id)
+        ) {
+          await deleteGitHubPhoto(item.id);
         }
       }
+
+      const insertedCount = data.insertedCount ?? insertedNames.size;
+      const skippedCount = data.skippedCount ?? skippedNames.size;
 
       await clearStoredItems();
 
-      for (const item of items) {
+      items.forEach((item) => {
         if (item.previewUrl) {
           URL.revokeObjectURL(item.previewUrl);
         }
-      }
-
-      const insertedCount = data?.insertedCount ?? 0;
-      const skippedCount = data?.skippedCount ?? 0;
+      });
 
       setItems([]);
+
       setStatus(
-        `${insertedCount} item(s) toegevoegd.${skippedCount > 0 ? ` ${skippedCount} bestonden al en zijn overgeslagen.` : ""}`,
+        `${insertedCount} product${insertedCount === 1 ? "" : "en"} toegevoegd${
+          skippedCount > 0
+            ? `, ${skippedCount} overgeslagen omdat ze al bestaan.`
+            : "."
+        }`,
       );
-
-      void skippedPhotoUrlSet;
-
-      window.location.href = "/check?type=overdue";
-    } catch (error) {
-      console.error(error);
-
-      await Promise.all(
-        uploadedPhotoUrls.map((url) => deleteUploadedPhoto(url)),
-      );
+    } catch (uploadError) {
+      console.error(uploadError);
 
       setError(
-        error instanceof Error
-          ? error.message
-          : "Upload mislukt. Je lokale lijst is behouden.",
+        uploadError instanceof Error
+          ? uploadError.message
+          : "De lijst kon niet geüpload worden.",
       );
+      setStatus("");
     } finally {
       setUploading(false);
     }
-  }
+  };
 
-  async function handleClearList() {
-    if (items.length === 0) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      "Weet je zeker dat je de volledige lokale lijst wilt wissen?",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
+  const handleClearList = async () => {
     try {
+      setError("");
+      setStatus("");
+
       await clearStoredItems();
 
-      for (const item of items) {
+      items.forEach((item) => {
         if (item.previewUrl) {
           URL.revokeObjectURL(item.previewUrl);
         }
-      }
+      });
 
       setItems([]);
-      setName("");
-      setPhoto(null);
+    } catch (clearError) {
+      console.error(clearError);
 
-      if (photoPreview) {
-        URL.revokeObjectURL(photoPreview);
-      }
-
-      setPhotoPreview("");
-      setError("");
-      setStatus("Lokale lijst gewist.");
-      setCopied(false);
-    } catch (error) {
-      console.error(error);
-      setError("De lokale lijst kon niet gewist worden.");
+      setError(
+        clearError instanceof Error
+          ? clearError.message
+          : "De lijst kon niet gewist worden.",
+      );
     }
-  }
+  };
 
-  if (loading) {
+  const getCategoryName = (categoryId: string) => {
     return (
-      <Container maxWidth="md">
-        <Box sx={{ py: 4 }}>
-          <Typography>Laden...</Typography>
-        </Box>
-      </Container>
+      categories.find((category) => category.id === categoryId)?.name ??
+      "Onbekende categorie"
     );
-  }
+  };
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ minHeight: "100vh", py: 4 }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        py: 4,
+        backgroundColor: "#100f0e",
+        color: "#fff2dd",
+      }}
+    >
+      <Container maxWidth="md">
         <Stack spacing={3}>
-          <Button
-            className="StyledButton3"
-            component={Link}
-            href="/stockchecker"
-            startIcon={<ArrowBackOutlined />}
-            sx={{ alignSelf: "flex-start", color: "inherit" }}
-          >
-            Terug
-          </Button>
-
           <Box>
-            <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-              Fast add
+            <Button
+              component={Link}
+              href="/stockchecker"
+              startIcon={<ArrowBackOutlinedIcon />}
+              className="StyledButton3"
+              sx={{
+                mb: 2,
+              }}
+            >
+              Terug
+            </Button>
+
+            <Typography
+              variant="h4"
+              component="h1"
+              sx={{
+                fontWeight: 700,
+              }}
+            >
+              Snel toevoegen
             </Typography>
 
-            <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
-              Voeg producten lokaal toe zonder de database te gebruiken. Upload
-              alles pas wanneer je klaar bent.
+            <Typography
+              variant="body2"
+              sx={{
+                opacity: 0.7,
+                mt: 0.5,
+              }}
+            >
+              Voeg snel meerdere producten toe voordat je ze naar de voorraad
+              uploadt.
             </Typography>
           </Box>
 
           <Box className="StyledBox color-invert">
-            <Stack component="form" spacing={2} onSubmit={handleAddItem}>
-              <Button
-                className="StyledButton3"
-                component="label"
-                variant="outlined"
-                size="large"
-                startIcon={<CameraAltOutlined />}
+            <Stack spacing={2}>
+              <TextField
+                select
                 fullWidth
+                label="Categorie"
+                value={selectedCategoryId}
+                onChange={(event) => setSelectedCategoryId(event.target.value)}
+                disabled={
+                  loading || categories.length === 0 || adding || uploading
+                }
+              >
+                {categories.map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                fullWidth
+                label="Type controle"
+                value={selectedCheckType}
+                onChange={(event) =>
+                  setSelectedCheckType(event.target.value as CheckType)
+                }
                 disabled={adding || uploading}
               >
-                {photo ? "Andere foto nemen" : "Foto nemen"}
+                <MenuItem value="daily">Dagelijks</MenuItem>
+                <MenuItem value="monthly">Maandelijks</MenuItem>
+              </TextField>
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  hidden
-                  onChange={handlePhotoChange}
-                />
-              </Button>
+              <TextField
+                inputRef={nameInputRef}
+                fullWidth
+                label="Naam"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleAddItem();
+                  }
+                }}
+                disabled={adding || uploading}
+                autoComplete="off"
+              />
+
+              <Stack direction="column" spacing={1.5}>
+                <Button
+                  className="StyledButton3"
+                  component="label"
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<CameraAltOutlinedIcon />}
+                  disabled={adding || uploading}
+                  sx={{
+                    minHeight: 48,
+                  }}
+                >
+                  {photo ? "Foto geselecteerd" : "Foto nemen"}
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoChange}
+                  />
+                </Button>
+
+                <Button
+                  className="StyledButton1"
+                  variant="contained"
+                  fullWidth
+                  startIcon={<AddOutlinedIcon />}
+                  onClick={() => void handleAddItem()}
+                  disabled={adding || uploading || loading}
+                  sx={{
+                    minHeight: 48,
+                  }}
+                >
+                  Toevoegen
+                </Button>
+              </Stack>
 
               {photoPreview && (
                 <Box
                   component="img"
                   src={photoPreview}
-                  alt="Voorbeeld"
+                  alt="Geselecteerde foto"
                   sx={{
                     width: "100%",
                     maxHeight: 280,
@@ -701,68 +747,81 @@ export default function FastAddPage() {
                   }}
                 />
               )}
-
-              <TextField
-                inputRef={nameInputRef}
-                label="Naam"
-                placeholder="Bijvoorbeeld MELK HALF VOL 1L"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                fullWidth
-                autoComplete="off"
-                disabled={adding || uploading}
-              />
-
-              <Button
-                className="StyledButton1"
-                type="submit"
-                variant="contained"
-                size="large"
-                startIcon={<AddOutlined />}
-                disabled={adding || uploading}
-                fullWidth
-              >
-                {adding ? "Toevoegen..." : "Item toevoegen"}
-              </Button>
             </Stack>
           </Box>
 
-          {error && <Typography color="error">{error}</Typography>}
+          {(error || status) && (
+            <Box className="StyledBox color-invert">
+              {error && (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#ffb4ab",
+                  }}
+                >
+                  {error}
+                </Typography>
+              )}
 
-          {status && <Typography color="text.secondary">{status}</Typography>}
+              {status && !error && (
+                <Typography variant="body2">{status}</Typography>
+              )}
+            </Box>
+          )}
 
           <Box className="StyledBox color-invert">
             <Stack spacing={2}>
               <Stack
                 direction="row"
-                spacing={2}
                 sx={{
                   alignItems: "center",
                   justifyContent: "space-between",
                 }}
               >
-                <Typography variant="h6">
-                  Huidige lijst ({items.length})
-                </Typography>
+                <Box>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 700,
+                    }}
+                  >
+                    Huidige lijst ({items.length})
+                  </Typography>
 
-                <Button
-                  variant="text"
-                  color="error"
-                  startIcon={<DeleteSweepOutlined />}
-                  onClick={handleClearList}
-                  disabled={items.length === 0 || uploading}
-                >
-                  Alles wissen
-                </Button>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      opacity: 0.7,
+                      mt: 0.5,
+                    }}
+                  >
+                    Producten die klaarstaan om te uploaden.
+                  </Typography>
+                </Box>
+
+                {items.length > 0 && (
+                  <IconButton
+                    onClick={() => void handleClearList()}
+                    disabled={uploading}
+                    aria-label="Lijst wissen"
+                  >
+                    <DeleteSweepOutlinedIcon />
+                  </IconButton>
+                )}
               </Stack>
 
               {items.length === 0 ? (
-                <Typography color="text.secondary">
-                  Nog geen items toegevoegd.
+                <Typography
+                  variant="body2"
+                  sx={{
+                    opacity: 0.7,
+                  }}
+                >
+                  Nog geen producten toegevoegd.
                 </Typography>
               ) : (
                 <Stack spacing={1.5}>
-                  {items.map((item, index) => (
+                  {items.map((item) => (
                     <Box
                       key={item.id}
                       sx={{
@@ -780,8 +839,8 @@ export default function FastAddPage() {
                           sx={{
                             width: 58,
                             height: 58,
-                            borderRadius: 1.5,
                             objectFit: "cover",
+                            borderRadius: 1.5,
                             flexShrink: 0,
                           }}
                         />
@@ -791,99 +850,98 @@ export default function FastAddPage() {
                             width: 58,
                             height: 58,
                             borderRadius: 1.5,
+                            border: "1px solid rgba(255,255,255,0.15)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            backgroundColor: "action.hover",
                             flexShrink: 0,
                           }}
                         >
-                          <CameraAltOutlined sx={{ opacity: 0.5 }} />
+                          <CameraAltOutlinedIcon
+                            sx={{
+                              opacity: 0.5,
+                            }}
+                          />
                         </Box>
                       )}
 
-                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Box
+                        sx={{
+                          minWidth: 0,
+                          flex: 1,
+                        }}
+                      >
                         <Typography
-                          variant="body2"
+                          variant="body1"
                           sx={{
                             fontWeight: 600,
                             wordBreak: "break-word",
                           }}
                         >
-                          {index + 1}. {item.name}
+                          {item.name}
+                        </Typography>
+
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            opacity: 0.7,
+                          }}
+                        >
+                          {getCategoryName(item.categoryId)} ·{" "}
+                          {item.sticker30Percent ? "Dagelijks" : "Maandelijks"}
                         </Typography>
                       </Box>
 
                       <IconButton
-                        color="error"
-                        onClick={() => handleRemoveItem(item.id)}
+                        onClick={() => void handleRemoveItem(item.id)}
                         disabled={uploading}
+                        aria-label={`${item.name} verwijderen`}
                       >
-                        <DeleteOutlineOutlined />
+                        <DeleteOutlineOutlinedIcon />
                       </IconButton>
                     </Box>
                   ))}
                 </Stack>
               )}
+
+              {items.length > 0 && (
+                <Stack spacing={1}>
+                  <Button
+                    className="StyledButton1"
+                    variant="contained"
+                    fullWidth
+                    startIcon={<CloudUploadOutlinedIcon />}
+                    onClick={() => void handleUploadCurrentList()}
+                    disabled={uploading || adding}
+                    sx={{
+                      minHeight: 48,
+                    }}
+                  >
+                    {uploading
+                      ? "Bezig met uploaden..."
+                      : "Huidige lijst uploaden"}
+                  </Button>
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      opacity: 0.6,
+                      textAlign: "center",
+                    }}
+                  >
+                    Geüploade producten krijgen
+                    {` `}
+                    {PAST_EXPIRY_DATE}
+                    {` `}
+                    als startdatum en kunnen daarna vanuit de voorraad beheerd
+                    worden.
+                  </Typography>
+                </Stack>
+              )}
             </Stack>
           </Box>
-
-          <Box className="StyledBox color-invert">
-            <Stack spacing={2}>
-              <Typography variant="h6">Namenlijst</Typography>
-
-              <Typography variant="body2" color="text.secondary">
-                Deze lijst is exact wat je naar mij kunt sturen om de
-                categorieën automatisch te laten bepalen.
-              </Typography>
-
-              <TextField
-                multiline
-                minRows={6}
-                value={names}
-                fullWidth
-                slotProps={{
-                  input: {
-                    readOnly: true,
-                  },
-                }}
-              />
-
-              <Button
-                className="StyledButton3"
-                variant="outlined"
-                startIcon={<ContentCopyOutlined />}
-                onClick={handleSendList}
-                disabled={items.length === 0 || uploading}
-                fullWidth
-              >
-                {copied ? "Lijst gekopieerd" : "Send current list"}
-              </Button>
-            </Stack>
-          </Box>
-
-          <Button
-            className="StyledButton1"
-            variant="contained"
-            size="large"
-            startIcon={<CloudUploadOutlined />}
-            onClick={handleUploadCurrentList}
-            disabled={items.length === 0 || uploading}
-            fullWidth
-          >
-            {uploading ? "Alles uploaden..." : "Upload current list"}
-          </Button>
-
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ textAlign: "center" }}
-          >
-            Upload gebruikt vervaldatum {PAST_EXPIRY_DATE} zodat alle nieuwe
-            items voorlopig als overdue verschijnen.
-          </Typography>
         </Stack>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 }

@@ -8,6 +8,7 @@ export async function GET() {
             FROM items
             WHERE
                 sticker_30_percent = FALSE
+                AND paused = FALSE
                 AND expiry_date >= DATE_TRUNC('month', CURRENT_DATE)::date
                 AND expiry_date < (
                     DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
@@ -15,13 +16,13 @@ export async function GET() {
         `;
 
     return NextResponse.json({
-      count: result[0].count,
+      count: result[0]?.count ?? 0,
     });
   } catch (error) {
     console.error("Failed to count monthly check items:", error);
 
     return NextResponse.json(
-      { error: "Failed to count monthly check items" },
+      { error: "Aantal items kon niet geladen worden." },
       { status: 500 }
     );
   }

@@ -17,7 +17,9 @@ import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-type CheckType = "sticker" | "overdue" | "monthly";
+type CheckType = "sticker" | "overdue" | "monthly" | "evening";
+
+type DailyStep = "sticker" | "new-stock";
 
 type Item = {
   id: string;
@@ -27,6 +29,8 @@ type Item = {
   sticker_30_percent: boolean;
   category_id: string;
   category_name: string;
+  paused?: boolean;
+  stickered_for_date?: string | null;
 };
 
 const checkConfig: Record<
@@ -66,6 +70,15 @@ const checkConfig: Record<
       "Ga naar het aangegeven product in de winkel en controleer de vervaldatum van de aanwezige producten.",
     icon: <CalendarMonthOutlinedIcon fontSize="large" />,
   },
+  evening: {
+    title: "Avondcontrole",
+    endpoint: "/api/items/evening",
+    emptyDescription:
+      "Alle producten die vandaag gestickerd zijn, zijn gecontroleerd.",
+    instructions:
+      "Ga naar het aangegeven product in de winkel en haal alle producten die hiervoor in aanmerking komen uit de winkel.",
+    icon: <LocalOfferOutlinedIcon fontSize="large" />,
+  },
 };
 
 function CheckContent() {
@@ -76,7 +89,8 @@ function CheckContent() {
   const type: CheckType | null =
     typeParam === "sticker" ||
     typeParam === "overdue" ||
-    typeParam === "monthly"
+    typeParam === "monthly" ||
+    typeParam === "evening"
       ? typeParam
       : null;
 
@@ -87,6 +101,7 @@ function CheckContent() {
 
   const [nextExpiryDate, setNextExpiryDate] = useState("");
   const [showDateInput, setShowDateInput] = useState(false);
+  const [dailyStep, setDailyStep] = useState<DailyStep>("sticker");
 
   const today = new Date();
 
@@ -137,16 +152,79 @@ function CheckContent() {
     loadItems();
   }, [type]);
 
-  function handleNewStock() {
-    setShowDateInput(true);
+  function resetCurrentItem() {
+    setNextExpiryDate("");
+    setShowDateInput(false);
+    setDailyStep("sticker");
+    setError(null);
   }
 
-  function handleSkip() {
+  function handleNextItem() {
     if (!currentItem) return;
 
     setItems((currentItems) =>
       currentItems.filter((item) => item.id !== currentItem.id),
     );
+
+    resetCurrentItem();
+  }
+
+  async function handleEveningNext() {
+    if (!currentItem || saving) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/items/${currentItem.id}/evening`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        throw new Error("Item kon niet verwerkt worden.");
+      }
+
+      handleNextItem();
+    } catch (error) {
+      console.error(error);
+      setError("Het item kon niet verwerkt worden.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDailySticker(shouldSticker: boolean) {
+    if (!currentItem || saving) return;
+
+    if (!shouldSticker) {
+      setDailyStep("new-stock");
+      setError(null);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/items/${currentItem.id}/sticker`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        throw new Error("Item kon niet als gestickerd worden gemarkeerd.");
+      }
+
+      setDailyStep("new-stock");
+    } catch (error) {
+      console.error(error);
+      setError("Het item kon niet als gestickerd worden gemarkeerd.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleNewStock() {
+    setShowDateInput(true);
   }
 
   async function handleChecked() {
@@ -170,18 +248,17 @@ function CheckContent() {
         throw new Error("Item kon niet opgeslagen worden.");
       }
 
-      setItems((currentItems) =>
-        currentItems.filter((item) => item.id !== currentItem.id),
-      );
-
-      setNextExpiryDate("");
-      setShowDateInput(false);
+      handleNextItem();
     } catch (error) {
       console.error(error);
       setError("Het item kon niet opgeslagen worden.");
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleNoNewStock() {
+    handleNextItem();
   }
 
   if (!type) {
@@ -322,6 +399,9 @@ function CheckContent() {
 
   const missedCheck = expiryDateString < todayString;
 
+  const isDaily = type === "sticker";
+  const isEvening = type === "evening";
+
   return (
     <Container maxWidth="sm">
       <Box
@@ -368,36 +448,6 @@ function CheckContent() {
             </Typography>
           </Box>
 
-          <Box
-            className="StyledBox"
-            sx={{
-              bgcolor: "rgba(255, 255, 255, 0.06)",
-            }}
-          >
-            <Stack spacing={1}>
-              <Typography sx={{ fontWeight: 700 }}>
-                Stap 1 — Zoek het product
-              </Typography>
-
-              <Typography color="text.secondary">
-                {config.instructions}
-              </Typography>
-            </Stack>
-          </Box>
-
-          {error && (
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                bgcolor: "error.main",
-                color: "error.contrastText",
-              }}
-            >
-              <Typography>{error}</Typography>
-            </Box>
-          )}
-
           <Box className="StyledBox color-invert">
             <Stack spacing={3}>
               <Stack
@@ -440,61 +490,241 @@ function CheckContent() {
                 />
               )}
 
-              <Box>
-                {missedCheck && (
-                  <Box
-                    sx={{
-                      mb: 1.5,
-                      p: 1.5,
-                      borderRadius: 2,
-                      bgcolor: "error.light",
-                      color: "error.contrastText",
-                    }}
-                  >
+              {!isEvening && (
+                <Box>
+                  {missedCheck && (
+                    <Box
+                      sx={{
+                        mb: 1.5,
+                        p: 1.5,
+                        borderRadius: 2,
+                        bgcolor: "error.light",
+                        color: "error.contrastText",
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: 700 }}>
+                        Vervaldatum verstreken
+                      </Typography>
+
+                      <Typography variant="body2" sx={{ mt: 0.5 }}>
+                        Controleer de facing op producten met vervaldatum{" "}
+                        {new Date(currentItem.expiry_date).toLocaleDateString(
+                          "nl-BE",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            timeZone: "Europe/Brussels",
+                          },
+                        )}
+                        .
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
+              {isEvening ? (
+                <Stack spacing={2}>
+                  <Box>
                     <Typography sx={{ fontWeight: 700 }}>
-                      Vervaldatum verstreken
+                      Stap 2 — Product controleren
                     </Typography>
 
-                    <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      Controleer de facing op producten met vervaldatum{" "}
-                      {new Date(currentItem.expiry_date).toLocaleDateString(
-                        "nl-BE",
-                        {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          timeZone: "Europe/Brussels",
-                        },
-                      )}
-                      .
+                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                      Controleer dit product en haal alle producten die hiervoor
+                      in aanmerking komen uit de winkel.
                     </Typography>
                   </Box>
-                )}
 
-                <Typography color="text.secondary">
-                  Huidige vervaldatum
-                </Typography>
-
-                <Typography
-                  sx={{
-                    fontSize: "1.1rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  {new Date(currentItem.expiry_date).toLocaleDateString(
-                    "nl-BE",
-                    {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      timeZone: "Europe/Brussels",
-                    },
-                  )}
-                </Typography>
-              </Box>
-
-              {!showDateInput ? (
+                  <Button
+                    className="StyledButton1"
+                    variant="contained"
+                    size="large"
+                    startIcon={<CheckIcon />}
+                    onClick={() => void handleEveningNext()}
+                    disabled={saving}
+                    fullWidth
+                  >
+                    {saving ? "Opslaan..." : "Volgend item"}
+                  </Button>
+                </Stack>
+              ) : isDaily ? (
                 <Stack spacing={2}>
+                  {dailyStep === "sticker" && (
+                    <>
+                      <Box>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Stap 1 — Zoek het product
+                        </Typography>
+
+                        <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                          {config.instructions}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Stap 2 — Controleer de stock
+                        </Typography>
+
+                        <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                          Kijk in het rayon naar producten met vervaldatum{" "}
+                          <Box
+                            component="span"
+                            sx={{
+                              fontWeight: 700,
+                            }}
+                          >
+                            {new Date(
+                              currentItem.expiry_date,
+                            ).toLocaleDateString("nl-BE", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              timeZone: "Europe/Brussels",
+                            })}
+                          </Box>{" "}
+                          en sticker deze items indien aanwezig.
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Heb je een sticker moeten plakken?
+                        </Typography>
+
+                        <Stack spacing={2} sx={{ mt: 1.5 }}>
+                          <Button
+                            className="StyledButton1"
+                            variant="contained"
+                            size="large"
+                            onClick={() => void handleDailySticker(true)}
+                            disabled={saving}
+                            fullWidth
+                          >
+                            Ja
+                          </Button>
+
+                          <Button
+                            className="StyledButton3"
+                            variant="outlined"
+                            size="large"
+                            onClick={() => void handleDailySticker(false)}
+                            disabled={saving}
+                            fullWidth
+                          >
+                            Nee
+                          </Button>
+                        </Stack>
+                      </Box>
+                    </>
+                  )}
+
+                  {dailyStep === "new-stock" && !showDateInput && (
+                    <>
+                      <Box>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Stap 3 — Nieuwe stock
+                        </Typography>
+
+                        <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                          Is er nieuwe stock aanwezig met een latere
+                          vervaldatum?
+                        </Typography>
+                      </Box>
+
+                      <Button
+                        className="StyledButton1"
+                        variant="contained"
+                        size="large"
+                        onClick={handleNewStock}
+                        fullWidth
+                      >
+                        Ja, nieuwe stock
+                      </Button>
+
+                      <Button
+                        className="StyledButton3"
+                        variant="outlined"
+                        size="large"
+                        onClick={handleNoNewStock}
+                        fullWidth
+                      >
+                        Nee, geen nieuwe stock
+                      </Button>
+                    </>
+                  )}
+
+                  {dailyStep === "new-stock" && showDateInput && (
+                    <>
+                      <Box>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Stap 4 — Noteer de nieuwe vervaldatum
+                        </Typography>
+
+                        <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                          Vul de eerstvolgende vervaldatum in die je op de
+                          nieuwe stock vindt.
+                        </Typography>
+                      </Box>
+
+                      <TextField
+                        label="Eerstvolgende vervaldatum"
+                        type="date"
+                        value={nextExpiryDate}
+                        onChange={(event) =>
+                          setNextExpiryDate(event.target.value)
+                        }
+                        slotProps={{
+                          inputLabel: {
+                            shrink: true,
+                          },
+                          htmlInput: {
+                            min: todayString,
+                          },
+                        }}
+                        fullWidth
+                      />
+
+                      <Button
+                        className="StyledButton1"
+                        variant="contained"
+                        size="large"
+                        startIcon={<CheckIcon />}
+                        onClick={() => void handleChecked()}
+                        disabled={!nextExpiryDate || saving}
+                        fullWidth
+                      >
+                        {saving ? "Opslaan..." : "Nieuwe datum opslaan"}
+                      </Button>
+
+                      <Button
+                        className="StyledButton3"
+                        variant="outlined"
+                        onClick={() => {
+                          setShowDateInput(false);
+                          setNextExpiryDate("");
+                        }}
+                        disabled={saving}
+                      >
+                        Terug
+                      </Button>
+                    </>
+                  )}
+                </Stack>
+              ) : (
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography sx={{ fontWeight: 700 }}>
+                      Stap 1 — Zoek het product
+                    </Typography>
+
+                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                      {config.instructions}
+                    </Typography>
+                  </Box>
+
                   <Box>
                     <Typography sx={{ fontWeight: 700 }}>
                       Stap 2 — Controleer de stock
@@ -506,100 +736,87 @@ function CheckContent() {
                     </Typography>
                   </Box>
 
-                  <Button
-                    className="StyledButton1"
-                    variant="contained"
-                    size="large"
-                    onClick={handleNewStock}
-                  >
-                    Ja, nieuwe stock
-                  </Button>
+                  {!showDateInput ? (
+                    <>
+                      <Button
+                        className="StyledButton1"
+                        variant="contained"
+                        size="large"
+                        onClick={handleNewStock}
+                        fullWidth
+                      >
+                        Ja, nieuwe stock
+                      </Button>
 
-                  <Box>
-                    <Button
-                      className="StyledButton3"
-                      variant="outlined"
-                      size="large"
-                      onClick={handleSkip}
-                      fullWidth
-                    >
-                      Nee, geen nieuwe stock
-                    </Button>
+                      <Box>
+                        <Button
+                          className="StyledButton3"
+                          variant="outlined"
+                          size="large"
+                          onClick={handleNoNewStock}
+                          fullWidth
+                        >
+                          Nee, geen nieuwe stock
+                        </Button>
 
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        mt: 1,
-                        textAlign: "center",
-                      }}
-                    >
-                      Geen nieuwe stock gevonden? Kies deze optie om verder te
-                      gaan naar het volgende item.
-                    </Typography>
-                  </Box>
-                </Stack>
-              ) : (
-                <Stack spacing={2}>
-                  <Box>
-                    <Typography sx={{ fontWeight: 700 }}>
-                      Stap 3 — Noteer de nieuwe vervaldatum
-                    </Typography>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            mt: 1,
+                            textAlign: "center",
+                          }}
+                        >
+                          Geen nieuwe stock gevonden? Kies deze optie om verder
+                          te gaan naar het volgende item.
+                        </Typography>
+                      </Box>
+                    </>
+                  ) : (
+                    <>
+                      <TextField
+                        label="Eerstvolgende vervaldatum"
+                        type="date"
+                        value={nextExpiryDate}
+                        onChange={(event) =>
+                          setNextExpiryDate(event.target.value)
+                        }
+                        slotProps={{
+                          inputLabel: {
+                            shrink: true,
+                          },
+                          htmlInput: {
+                            min: todayString,
+                          },
+                        }}
+                        fullWidth
+                      />
 
-                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                      Vul de eerstvolgende vervaldatum in die je op de nieuwe
-                      stock vindt.
-                    </Typography>
-                  </Box>
+                      <Button
+                        className="StyledButton1"
+                        variant="contained"
+                        size="large"
+                        startIcon={<CheckIcon />}
+                        onClick={() => void handleChecked()}
+                        disabled={!nextExpiryDate || saving}
+                        fullWidth
+                      >
+                        {saving ? "Opslaan..." : "Gecontroleerd"}
+                      </Button>
 
-                  <TextField
-                    label="Eerstvolgende vervaldatum"
-                    type="date"
-                    value={nextExpiryDate}
-                    onChange={(event) => setNextExpiryDate(event.target.value)}
-                    slotProps={{
-                      inputLabel: {
-                        shrink: true,
-                      },
-                      htmlInput: {
-                        min: todayString,
-                      },
-                    }}
-                    fullWidth
-                  />
-
-                  <Button
-                    className="StyledButton1"
-                    variant="contained"
-                    size="large"
-                    startIcon={<CheckIcon />}
-                    onClick={handleChecked}
-                    disabled={!nextExpiryDate || saving}
-                    fullWidth
-                  >
-                    {saving ? "Opslaan..." : "Gecontroleerd"}
-                  </Button>
-
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ textAlign: "center" }}
-                  >
-                    Na het opslaan wordt dit item als gecontroleerd beschouwd en
-                    ga je verder met het volgende item.
-                  </Typography>
-
-                  <Button
-                    className="StyledButton3"
-                    variant="outlined"
-                    onClick={() => {
-                      setShowDateInput(false);
-                      setNextExpiryDate("");
-                    }}
-                    disabled={saving}
-                  >
-                    Terug
-                  </Button>
+                      <Button
+                        className="StyledButton3"
+                        variant="outlined"
+                        onClick={() => {
+                          setShowDateInput(false);
+                          setNextExpiryDate("");
+                        }}
+                        disabled={saving}
+                      >
+                        Terug
+                      </Button>
+                    </>
+                  )}
                 </Stack>
               )}
             </Stack>

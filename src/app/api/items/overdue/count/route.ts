@@ -8,7 +8,8 @@ export async function GET() {
             FROM items
             WHERE expiry_date < (
                 CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels'
-            )::date;
+            )::date
+              AND paused = FALSE;
         `;
 
         return NextResponse.json({
@@ -18,7 +19,7 @@ export async function GET() {
         console.error("Failed to count overdue items:", error);
 
         return NextResponse.json(
-            { error: "Failed to count overdue items" },
+            { error: "Aantal items kon niet geladen worden." },
             { status: 500 }
         );
     }

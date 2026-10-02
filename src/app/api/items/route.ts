@@ -40,117 +40,119 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * PAGE_SIZE;
 
     const items = await sql`
-      SELECT
-        i.id,
-        i.name,
-        i.photo_url,
-        i.category_id,
-        c.name AS category_name,
-        i.expiry_date,
-        i.sticker_30_percent,
-        i.created_at,
-        i.updated_at
+SELECT
+i.id,
+  i.name,
+  i.photo_url,
+  i.category_id,
+  c.name AS category_name,
+    i.expiry_date,
+    i.sticker_30_percent,
+    i.paused,
+    i.stickered_for_date,
+    i.created_at,
+    i.updated_at
       FROM items i
       INNER JOIN categories c ON c.id = i.category_id
-      WHERE
-        (
-          ${search} = ''
+WHERE
+  (
+    ${search} = ''
           OR i.name ILIKE ${"%" + search + "%"}
-        )
-        AND (
-          ${category} = ''
+  )
+AND(
+  ${category} = ''
           OR c.name = ${category}
-        )
-        AND (
-          ${control} = ''
-          OR (
-            ${control} = '30'
+)
+AND(
+  ${control} = ''
+          OR(
+    ${control} = '30'
             AND i.sticker_30_percent = true
-          )
-          OR (
-            ${control} = 'month'
+  )
+          OR(
+    ${control} = 'month'
             AND i.sticker_30_percent = false
-          )
-        )
-        AND (
-          ${exactDate} = ''
-          OR i.expiry_date = NULLIF(${exactDate}, '')::date
-        )
-        AND (
-          ${fromDate} = ''
-          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
-        )
-        AND (
-          ${toDate} = ''
-          OR i.expiry_date <= NULLIF(${toDate}, '')::date
-        )
+  )
+)
+AND(
+  ${exactDate} = ''
+          OR i.expiry_date = NULLIF(${exactDate}, ''):: date
+)
+AND(
+  ${fromDate} = ''
+          OR i.expiry_date >= NULLIF(${fromDate}, ''):: date
+)
+AND(
+  ${toDate} = ''
+          OR i.expiry_date <= NULLIF(${toDate}, ''):: date
+)
       ORDER BY
-        CASE
+CASE
           WHEN ${sort} = 'name_asc' THEN i.name
         END ASC,
 
-        CASE
+  CASE
           WHEN ${sort} = 'name_desc' THEN i.name
         END DESC,
 
-        CASE
+  CASE
           WHEN ${sort} = 'expiry_asc' THEN i.expiry_date
         END ASC,
 
-        CASE
+  CASE
           WHEN ${sort} = 'expiry_desc' THEN i.expiry_date
         END DESC,
 
-        CASE
+  CASE
           WHEN ${sort} = 'category_asc' THEN c.name
         END ASC,
 
-        CASE
+  CASE
           WHEN ${sort} = 'category_desc' THEN c.name
         END DESC,
 
-        i.name ASC
+  i.name ASC
       LIMIT ${PAGE_SIZE}
       OFFSET ${offset}
-    `;
+`;
 
     const countResult = await sql`
       SELECT COUNT(*)::int AS total
       FROM items i
       INNER JOIN categories c ON c.id = i.category_id
-      WHERE
-        (
-          ${search} = ''
+WHERE
+  (
+    ${search} = ''
           OR i.name ILIKE ${"%" + search + "%"}
-        )
-        AND (
-          ${category} = ''
+  )
+AND(
+  ${category} = ''
           OR c.name = ${category}
-        )
-        AND (
-          ${control} = ''
-          OR (
-            ${control} = '30'
+)
+AND(
+  ${control} = ''
+          OR(
+    ${control} = '30'
             AND i.sticker_30_percent = true
-          )
-          OR (
-            ${control} = 'month'
+  )
+          OR(
+    ${control} = 'month'
             AND i.sticker_30_percent = false
-          )
-        )
-        AND (
-          ${exactDate} = ''
-          OR i.expiry_date = NULLIF(${exactDate}, '')::date
-        )
-        AND (
-          ${fromDate} = ''
-          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
-        )
-        AND (
-          ${toDate} = ''
-          OR i.expiry_date <= NULLIF(${toDate}, '')::date
-        )
-    `;
+  )
+)
+AND(
+  ${exactDate} = ''
+          OR i.expiry_date = NULLIF(${exactDate}, ''):: date
+)
+AND(
+  ${fromDate} = ''
+          OR i.expiry_date >= NULLIF(${fromDate}, ''):: date
+)
+AND(
+  ${toDate} = ''
+          OR i.expiry_date <= NULLIF(${toDate}, ''):: date
+)
+  `;
 
     const total = countResult[0]?.total ?? 0;
 
@@ -200,6 +202,11 @@ export async function POST(request: NextRequest) {
         ? body.sticker_30_percent
         : false;
 
+    const paused =
+      typeof body.paused === "boolean"
+        ? body.paused
+        : false;
+
     if (!name) {
       return NextResponse.json(
         { error: "Name is required" },
@@ -222,29 +229,33 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await sql`
-      INSERT INTO items (
-        name,
-        photo_url,
-        expiry_date,
-        category_id,
-        sticker_30_percent
-      )
-      VALUES (
-        ${name},
-        ${photoUrl},
-        ${expiryDate},
-        ${categoryId},
-        ${sticker30Percent}
-      )
-      RETURNING
-        id,
-        name,
-        photo_url,
-        expiry_date,
-        category_id,
-        sticker_30_percent,
-        created_at,
-        updated_at
+      INSERT INTO items(
+    name,
+    photo_url,
+    expiry_date,
+    category_id,
+    sticker_30_percent,
+    paused
+  )
+VALUES(
+  ${name},
+  ${photoUrl},
+  ${expiryDate},
+  ${categoryId},
+  ${sticker30Percent},
+  ${paused}
+)
+RETURNING
+id,
+  name,
+  photo_url,
+  expiry_date,
+  category_id,
+  sticker_30_percent,
+  paused,
+  stickered_for_date,
+  created_at,
+  updated_at
     `;
 
     return NextResponse.json(result[0], { status: 201 });

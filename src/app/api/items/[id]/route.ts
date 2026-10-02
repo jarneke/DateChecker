@@ -92,6 +92,8 @@ export async function GET(
                 i.category_id,
                 i.expiry_date::text AS expiry_date,
                 i.sticker_30_percent,
+                i.paused,
+                i.stickered_for_date::text AS stickered_for_date,
                 i.created_at,
                 i.updated_at,
                 c.name AS category_name
@@ -133,6 +135,7 @@ export async function PATCH(
             category_id,
             expiry_date,
             sticker_30_percent,
+            paused,
         } = body;
 
         const currentItem = await sql`
@@ -169,6 +172,10 @@ export async function PATCH(
                     ${sticker_30_percent ?? null},
                     sticker_30_percent
                 ),
+                paused = COALESCE(
+                    ${paused ?? null},
+                    paused
+                ),
                 updated_at = NOW()
             WHERE id = ${id}
             RETURNING
@@ -178,6 +185,8 @@ export async function PATCH(
                 category_id,
                 expiry_date::text AS expiry_date,
                 sticker_30_percent,
+                paused,
+                stickered_for_date::text AS stickered_for_date,
                 created_at,
                 updated_at
         `;

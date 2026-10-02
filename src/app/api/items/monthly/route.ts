@@ -11,12 +11,15 @@ export async function GET() {
         i.expiry_date,
         i.sticker_30_percent,
         i.category_id,
+        i.paused,
+        i.stickered_for_date,
         c.name AS category_name
       FROM items i
       INNER JOIN categories c
         ON c.id = i.category_id
       WHERE
         i.sticker_30_percent = FALSE
+        AND i.paused = FALSE
         AND i.expiry_date >= DATE_TRUNC('month', CURRENT_DATE)::date
         AND i.expiry_date < (
           DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'

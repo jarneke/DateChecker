@@ -6,9 +6,13 @@ import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined
 import UpdateIcon from "@mui/icons-material/Update";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import NightlightOutlinedIcon from "@mui/icons-material/NightlightOutlined";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { useEffect, useState } from "react";
+
+type SettingsResponse = {
+  monthCheckDaysBeforeEnd: number;
+};
 
 export default function HomePage() {
   const [itemsToSticker, setItemsToSticker] = useState<number | null>(null);
@@ -16,42 +20,70 @@ export default function HomePage() {
   const [itemsToMonthlyCheck, setItemsToMonthlyCheck] = useState<number | null>(
     null,
   );
+  const [monthCheckDaysBeforeEnd, setMonthCheckDaysBeforeEnd] = useState<
+    number | null
+  >(null);
 
   useEffect(() => {
     async function loadCounts() {
       try {
-        const [stickerRes, overdueRes, monthlyRes] = await Promise.all([
-          fetch("/api/items/due/count", {
-            cache: "no-store",
-          }),
-          fetch("/api/items/overdue/count", {
-            cache: "no-store",
-          }),
-          fetch("/api/items/monthly/count", {
-            cache: "no-store",
-          }),
-        ]);
+        const [stickerRes, overdueRes, monthlyRes, settingsRes] =
+          await Promise.all([
+            fetch("/api/items/due/count", {
+              cache: "no-store",
+            }),
+            fetch("/api/items/overdue/count", {
+              cache: "no-store",
+            }),
+            fetch("/api/items/monthly/count", {
+              cache: "no-store",
+            }),
+            fetch("/api/settings", {
+              cache: "no-store",
+            }),
+          ]);
 
-        if (!stickerRes.ok || !overdueRes.ok || !monthlyRes.ok) {
-          throw new Error("Aantallen konden niet geladen worden.");
+        if (
+          !stickerRes.ok ||
+          !overdueRes.ok ||
+          !monthlyRes.ok ||
+          !settingsRes.ok
+        ) {
+          throw new Error("Gegevens konden niet geladen worden.");
         }
 
         const stickerData = await stickerRes.json();
         const overdueData = await overdueRes.json();
         const monthlyData = await monthlyRes.json();
+        const settingsData: SettingsResponse = await settingsRes.json();
 
         setItemsToSticker(stickerData.count ?? 0);
         setItemsOverdue(overdueData.count ?? 0);
         setItemsToMonthlyCheck(monthlyData.count ?? 0);
+        setMonthCheckDaysBeforeEnd(settingsData.monthCheckDaysBeforeEnd);
       } catch (error) {
         console.error(error);
         setItemsToSticker(null);
+        setItemsOverdue(null);
         setItemsToMonthlyCheck(null);
+        setMonthCheckDaysBeforeEnd(null);
       }
     }
 
     loadCounts();
   }, []);
+
+  const today = new Date();
+
+  const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+  const daysUntilMonthEnd = Math.ceil(
+    (lastDayOfMonth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  const monthlyCheckActive =
+    monthCheckDaysBeforeEnd !== null &&
+    daysUntilMonthEnd <= monthCheckDaysBeforeEnd;
 
   return (
     <Container maxWidth="sm">
@@ -103,17 +135,17 @@ export default function HomePage() {
                       fontWeight: 700,
                     }}
                   >
-                    Te Controlleren
+                    Te controleren
                   </Typography>
 
                   <Typography color="text.secondary">
                     {itemsOverdue === null
                       ? "Aantal items wordt geladen..."
                       : itemsOverdue === 0
-                        ? "Geen items over duur"
+                        ? "Geen items over datum"
                         : `${itemsOverdue} ${
                             itemsOverdue === 1 ? "item" : "items"
-                          } over duur`}
+                          } te controleren`}
                   </Typography>
                 </Box>
               </Stack>
@@ -126,6 +158,7 @@ export default function HomePage() {
                   variant="contained"
                   size="large"
                   endIcon={<ArrowForwardIcon />}
+                  fullWidth
                 >
                   Start
                 </Button>
@@ -151,7 +184,7 @@ export default function HomePage() {
                       fontWeight: 700,
                     }}
                   >
-                    Dagelijkse Controle
+                    Dagelijkse controle
                   </Typography>
 
                   <Typography color="text.secondary">
@@ -205,28 +238,83 @@ export default function HomePage() {
 
                   <Typography color="text.secondary">
                     {itemsToMonthlyCheck === null
-                      ? "Aantal items wordt geladen..."
+                      ? "Items worden geladen..."
                       : itemsToMonthlyCheck === 0
-                        ? "Geen items te controleren"
+                        ? "Geen items die deze maand vervallen"
                         : `${itemsToMonthlyCheck} ${
                             itemsToMonthlyCheck === 1 ? "item" : "items"
-                          } te controleren`}
+                          } vervallen deze maand`}
                   </Typography>
                 </Box>
               </Stack>
-              {itemsToMonthlyCheck !== null && itemsToMonthlyCheck > 0 && (
-                <Button
-                  className="StyledButton1"
-                  component={Link}
-                  href="/check?type=monthly"
-                  variant="contained"
-                  size="large"
-                  endIcon={<ArrowForwardIcon />}
-                  fullWidth
-                >
-                  Start
-                </Button>
-              )}
+
+              {itemsToMonthlyCheck !== null &&
+                itemsToMonthlyCheck > 0 &&
+                (monthlyCheckActive ? (
+                  <Button
+                    className="StyledButton1"
+                    component={Link}
+                    href="/check?type=monthly"
+                    variant="contained"
+                    size="large"
+                    endIcon={<ArrowForwardIcon />}
+                    fullWidth
+                  >
+                    Start
+                  </Button>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      textAlign: "center",
+                    }}
+                  >
+                    Beschikbaar vanaf de laatste {monthCheckDaysBeforeEnd} dagen
+                    van de maand.
+                  </Typography>
+                ))}
+            </Stack>
+          </Box>
+
+          <Box className="StyledBox color-invert">
+            <Stack spacing={2}>
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{
+                  alignItems: "center",
+                }}
+              >
+                <NightlightOutlinedIcon fontSize="large" />
+
+                <Box>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 700,
+                    }}
+                  >
+                    Avondcontrole
+                  </Typography>
+
+                  <Typography color="text.secondary">
+                    Controleer de producten die vandaag gestickerd zijn.
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Button
+                className="StyledButton1"
+                component={Link}
+                href="/check?type=evening"
+                variant="contained"
+                size="large"
+                endIcon={<ArrowForwardIcon />}
+                fullWidth
+              >
+                Start
+              </Button>
             </Stack>
           </Box>
 
@@ -242,18 +330,6 @@ export default function HomePage() {
             >
               Stock Checker
             </Button>
-
-            {/* <Button
-              className="StyledButton3"
-              component={Link}
-              href="/settings"
-              variant="outlined"
-              size="large"
-              startIcon={<SettingsOutlinedIcon />}
-              fullWidth
-            >
-              Instellingen
-            </Button>*/}
           </Stack>
         </Stack>
       </Box>

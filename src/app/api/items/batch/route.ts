@@ -6,6 +6,8 @@ const PAST_EXPIRY_DATE = "2020-01-01";
 type BatchItem = {
     name: string;
     photo_url?: string | null;
+    category_id: string;
+    sticker_30_percent: boolean;
 };
 
 export async function POST(request: NextRequest) {
@@ -45,11 +47,24 @@ export async function POST(request: NextRequest) {
                 return result;
             }
 
+            if (
+                typeof item.category_id !== "string" ||
+                !item.category_id
+            ) {
+                return result;
+            }
+
+            if (typeof item.sticker_30_percent !== "boolean") {
+                return result;
+            }
+
             seenNames.add(name);
 
             result.push({
                 name,
                 photo_url: item.photo_url || null,
+                category_id: item.category_id,
+                sticker_30_percent: item.sticker_30_percent,
             });
 
             return result;
@@ -58,7 +73,7 @@ export async function POST(request: NextRequest) {
         if (items.length === 0) {
             return NextResponse.json(
                 {
-                    error: "Geen geldige itemnamen ontvangen.",
+                    error: "Geen geldige items ontvangen.",
                 },
                 {
                     status: 400,
@@ -66,26 +81,34 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const categoryResult = await sql`
+        const categoryIds = [
+            ...new Set(items.map((item) => item.category_id)),
+        ];
+
+        const categories = await sql`
             SELECT id
             FROM categories
-            WHERE name = 'ONBEKEND'
-            LIMIT 1
+            WHERE id = ANY(${categoryIds}::uuid[])
         `;
 
-        if (categoryResult.length === 0) {
+        const validCategoryIds = new Set(
+            categories.map((category) => category.id),
+        );
+
+        const invalidCategory = items.find(
+            (item) => !validCategoryIds.has(item.category_id),
+        );
+
+        if (invalidCategory) {
             return NextResponse.json(
                 {
-                    error:
-                        'Categorie "ONBEKEND" bestaat niet. Maak deze categorie eerst aan.',
+                    error: "Een of meerdere geselecteerde categorieën bestaan niet.",
                 },
                 {
-                    status: 500,
+                    status: 400,
                 },
             );
         }
-
-        const categoryId = categoryResult[0].id;
 
         const inserted: { id: string; name: string }[] = [];
         const skippedNames: string[] = [];
@@ -97,14 +120,18 @@ export async function POST(request: NextRequest) {
                     photo_url,
                     expiry_date,
                     sticker_30_percent,
-                    category_id
+                    category_id,
+                    paused,
+                    stickered_for_date
                 )
                 VALUES (
                     ${item.name},
                     ${item.photo_url},
                     ${PAST_EXPIRY_DATE}::date,
+                    ${item.sticker_30_percent},
+                    ${item.category_id},
                     false,
-                    ${categoryId}
+                    NULL
                 )
                 ON CONFLICT (name) DO NOTHING
                 RETURNING id, name

@@ -11,11 +11,14 @@ export async function GET() {
         i.expiry_date,
         i.sticker_30_percent,
         i.category_id,
+        i.paused,
+        i.stickered_for_date,
         c.name AS category_name
       FROM items i
       INNER JOIN categories c
         ON c.id = i.category_id
       WHERE i.sticker_30_percent = TRUE
+        AND i.paused = FALSE
         AND i.expiry_date = (
           CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels'
         )::date

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
 export async function GET() {
-    try {
-        const result = await sql`
+  try {
+    const result = await sql`
       SELECT
         i.id,
         i.name,
@@ -12,6 +12,8 @@ export async function GET() {
         c.name AS category_name,
         i.expiry_date,
         i.sticker_30_percent,
+        i.paused,
+        i.stickered_for_date,
         i.created_at,
         i.updated_at
       FROM items i
@@ -20,19 +22,20 @@ export async function GET() {
       WHERE i.expiry_date < (
         CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels'
       )::date
+        AND i.paused = FALSE
       ORDER BY
         c.sort_order ASC,
         i.expiry_date ASC,
         i.name ASC;
     `;
 
-        return NextResponse.json(result);
-    } catch (error) {
-        console.error("Failed to fetch overdue items:", error);
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("Failed to fetch overdue items:", error);
 
-        return NextResponse.json(
-            { error: "Failed to fetch overdue items" },
-            { status: 500 }
-        );
-    }
+    return NextResponse.json(
+      { error: "Failed to fetch overdue items" },
+      { status: 500 }
+    );
+  }
 }

@@ -7,6 +7,7 @@ export async function GET() {
             SELECT COUNT(*)::int AS count
             FROM items
             WHERE sticker_30_percent = TRUE
+              AND paused = FALSE
               AND expiry_date = (
                   CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels'
               )::date;
