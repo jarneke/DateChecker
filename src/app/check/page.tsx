@@ -5,6 +5,9 @@ import {
   Box,
   Button,
   Container,
+  IconButton,
+  Menu,
+  MenuItem,
   Stack,
   TextField,
   Typography,
@@ -14,6 +17,8 @@ import CheckIcon from "@mui/icons-material/Check";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -85,6 +90,7 @@ function CheckContent() {
   const searchParams = useSearchParams();
 
   const typeParam = searchParams.get("type");
+  const refreshToken = searchParams.get("refresh");
 
   const type: CheckType | null =
     typeParam === "sticker" ||
@@ -98,6 +104,8 @@ function CheckContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [itemMenuAnchor, setItemMenuAnchor] =
+    useState<HTMLButtonElement | null>(null);
 
   const [nextExpiryDate, setNextExpiryDate] = useState("");
   const [showDateInput, setShowDateInput] = useState(false);
@@ -150,7 +158,7 @@ function CheckContent() {
     }
 
     loadItems();
-  }, [type]);
+  }, [type, refreshToken]);
 
   function resetCurrentItem() {
     setNextExpiryDate("");
@@ -448,7 +456,31 @@ function CheckContent() {
             </Typography>
           </Box>
 
-          <Box className="StyledBox color-invert">
+          <Box className="StyledBox color-invert relative">
+            <IconButton
+              aria-label="Itemopties"
+              aria-haspopup="menu"
+              aria-expanded={Boolean(itemMenuAnchor)}
+              onClick={(event) => setItemMenuAnchor(event.currentTarget)}
+              className="absolute right-2 top-2"
+              size="small"
+            >
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              anchorEl={itemMenuAnchor}
+              open={Boolean(itemMenuAnchor)}
+              onClose={() => setItemMenuAnchor(null)}
+            >
+              <MenuItem
+                component={Link}
+                href={`/stockchecker/${currentItem.id}?returnTo=${encodeURIComponent(`/check?type=${type}&refresh=${Date.now()}`)}`}
+                onClick={() => setItemMenuAnchor(null)}
+              >
+                <EditOutlinedIcon fontSize="small" className="mr-2" />
+                Item bewerken
+              </MenuItem>
+            </Menu>
             <Stack spacing={3}>
               <Stack
                 direction="row"
@@ -459,7 +491,7 @@ function CheckContent() {
               >
                 {config.icon}
 
-                <Box>
+                <Box className="min-w-0 pr-8">
                   <Typography
                     variant="h5"
                     component="h2"
