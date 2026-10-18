@@ -1,0 +1,225 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.category {
+  --category-color: var(--dc-accent);
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid
+    color-mix(in srgb, var(--category-color) 45%, var(--dc-border));
+  border-radius: var(--dc-radius-md);
+  background: color-mix(
+    in srgb,
+    var(--category-color) 12%,
+    var(--dc-background)
+  );
+  color: var(--dc-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.category:hover {
+  border-color: var(--category-color);
+  background: color-mix(
+    in srgb,
+    var(--category-color) 20%,
+    var(--dc-background)
+  );
+}
+
+.category:active {
+  border-color: var(--category-color);
+  background: color-mix(
+    in srgb,
+    var(--category-color) 25%,
+    var(--dc-background)
+  );
+}
+
+.category[aria-pressed="true"] {
+  border-color: var(--category-color);
+  background: color-mix(
+    in srgb,
+    var(--category-color) 22%,
+    var(--dc-background)
+  );
+}
+
+.categoryTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  color: color-mix(in srgb, var(--category-color) 75%, white);
+}
+
+.count {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: 30px;
+  min-height: 28px;
+  padding: 3px 8px;
+  border-radius: var(--dc-radius-sm);
+  background: color-mix(
+    in srgb,
+    var(--category-color) 24%,
+    var(--dc-background)
+  );
+  color: color-mix(in srgb, var(--category-color) 65%, white);
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.name {
+  color: var(--dc-text);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  color: var(--dc-text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.all {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--dc-radius-sm);
+  background: color-mix(
+    in srgb,
+    var(--category-color) 20%,
+    var(--dc-background)
+  );
+  color: var(--category-color);
+}
+
+.details {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.arrow {
+  flex-shrink: 0;
+  color: var(--category-color);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 16px 0;
+  color: var(--dc-text-secondary);
+  font-size: 12px;
+}
+
+.error {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(var(--dc-danger-rgb), 0.25);
+  border-radius: var(--dc-radius-sm);
+  background: rgba(var(--dc-danger-rgb), 0.06);
+}
+
+.error p {
+  margin: 0 0 10px;
+  color: var(--dc-danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-sm);
+  background: var(--dc-surface);
+  color: var(--dc-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.retry:hover:not(:disabled) {
+  background: var(--dc-surface-hover);
+}
+
+.retry:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.category:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--category-color) 65%, white);
+  outline-offset: 3px;
+}
+
+.retry:focus-visible {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 360px) {
+  .grid {
+    gap: 8px;
+  }
+
+  .category {
+    padding: 12px;
+  }
+
+  .all {
+    gap: 8px;
+  }
+
+  .all .arrow {
+    display: none;
+  }
+
+  .name {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category {
+    transition: none;
+  }
+}
