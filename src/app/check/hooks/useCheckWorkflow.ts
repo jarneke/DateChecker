@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -61,10 +60,7 @@ export function useCheckWorkflow() {
 
     const todayString = getToday();
 
-    const progressKey = type
-        ? getProgressKey(type, categoryId)
-        : "";
-
+    const progressKey = type ? getProgressKey(type, categoryId) : "";
     const dailyStepKey = getDailyStepKey();
 
     const currentItem = items[0] ?? null;
@@ -77,7 +73,10 @@ export function useCheckWorkflow() {
             : 0;
 
     const selectedCategory = useMemo(
-        () => categories.find((category) => category.id === categoryId),
+        () =>
+            categoryId === "all"
+                ? { id: "all", name: "Alle categorieën" }
+                : categories.find((category) => category.id === categoryId),
         [categories, categoryId],
     );
 
@@ -462,11 +461,8 @@ export function useCheckWorkflow() {
             return;
         }
 
-        const dx =
-            event.touches[0].clientX - touchStart.current.x;
-
-        const dy =
-            event.touches[0].clientY - touchStart.current.y;
+        const dx = event.touches[0].clientX - touchStart.current.x;
+        const dy = event.touches[0].clientY - touchStart.current.y;
 
         if (Math.abs(dx) > Math.abs(dy) * 1.5) {
             setSwipeOffset(Math.max(-110, Math.min(110, dx)));
@@ -482,11 +478,8 @@ export function useCheckWorkflow() {
             return;
         }
 
-        const dx =
-            event.changedTouches[0].clientX - touchStart.current.x;
-
-        const dy =
-            event.changedTouches[0].clientY - touchStart.current.y;
+        const dx = event.changedTouches[0].clientX - touchStart.current.x;
+        const dy = event.changedTouches[0].clientY - touchStart.current.y;
 
         touchStart.current = null;
         setSwipeOffset(0);

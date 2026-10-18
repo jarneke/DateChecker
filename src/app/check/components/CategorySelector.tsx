@@ -62,8 +62,8 @@ export default function CategorySelector({
           </h2>
 
           <p className={styles.categoryDescription}>
-            Selecteer de categorie waarvan je de nieuwe levering wilt
-            controleren.
+            Selecteer een categorie of kies alle categorieën om de volledige
+            nieuwe levering te controleren.
           </p>
 
           <div className={styles.categoryField}>
@@ -80,6 +80,7 @@ export default function CategorySelector({
                 disabled={loading}
               >
                 <option value="">Selecteer een categorie</option>
+                <option value="all">Alle categorieën</option>
 
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>

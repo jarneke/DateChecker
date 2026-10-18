@@ -98,7 +98,11 @@ function CheckContent() {
     return (
       <CheckStates
         state="completed"
-        description={config.emptyDescription}
+        description={
+          isStock && categoryId === "all"
+            ? "Alle producten uit alle categorieën zijn bekeken."
+            : config.emptyDescription
+        }
         isStock={isStock}
         onChangeCategory={() => changeCategory("")}
       />
