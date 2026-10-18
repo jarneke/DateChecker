@@ -143,11 +143,13 @@
 }
 
 .productCard {
+  box-sizing: border-box;
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+  width: 100%;
   padding: 18px;
   border: 1px solid var(--dc-border);
   border-radius: var(--dc-radius-lg);
@@ -270,7 +272,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: clamp(110px, 22dvh, 175px);
+  height: clamp(140px, 26dvh, 210px);
   overflow: hidden;
   border: 1px solid var(--dc-border-soft);
   border-radius: var(--dc-radius-md);
@@ -407,9 +409,10 @@
 /* Date input */
 
 .dateField {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
   margin-top: 2px;
@@ -422,14 +425,15 @@
 }
 
 .dateInput {
+  -webkit-appearance: none;
+  appearance: none;
   box-sizing: border-box;
   display: block;
-  width: 100%;
-  min-width: 0;
+  width: 0;
+  min-width: 100%;
   max-width: 100%;
-  min-inline-size: 0;
-  min-height: 46px;
-  padding: 9px 12px;
+  height: 50px;
+  padding: 10px 12px;
   border: 1px solid var(--dc-border);
   border-radius: var(--dc-radius-sm);
   outline: none;
@@ -443,6 +447,11 @@
 .dateInput::-webkit-date-and-time-value {
   min-width: 0;
   text-align: left;
+}
+
+.dateInput::-webkit-datetime-edit {
+  min-width: 0;
+  padding: 0;
 }
 
 .dateInput:focus {
@@ -888,7 +897,7 @@
   }
 
   .productImageContainer {
-    height: clamp(95px, 18dvh, 130px);
+    height: clamp(110px, 21dvh, 155px);
   }
 
   .productContent,
