@@ -1,6 +1,7 @@
 .page {
+  box-sizing: border-box;
   min-height: 100dvh;
-  padding: 20px 16px;
+  padding: 12px 14px;
   background: var(--dc-background);
   color: var(--dc-text);
   font-family: var(--dc-font);
@@ -12,29 +13,29 @@
   flex-direction: column;
   width: 100%;
   max-width: 520px;
-  min-height: calc(100dvh - 40px);
+  min-height: calc(100dvh - 24px);
   margin: 0 auto;
 }
 
 /* Header */
 
 .header {
-  margin-bottom: 22px;
+  flex-shrink: 0;
+  margin-bottom: 12px;
 }
 
 .headerTop {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .backButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--dc-border);
   border-radius: var(--dc-radius-md);
   background: var(--dc-surface-raised);
@@ -54,16 +55,16 @@
 
 .pageTitle {
   margin: 0;
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 800;
-  letter-spacing: -0.6px;
-  line-height: 1.3;
+  letter-spacing: -0.5px;
+  line-height: 1.25;
 }
 
 .pageSubtitle {
-  margin: 5px 0 0;
+  margin: 3px 0 0;
   color: var(--dc-text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -73,15 +74,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   flex-shrink: 0;
-  padding: 10px 12px;
+  min-height: 40px;
+  padding: 8px 10px;
   border: 1px solid var(--dc-border);
   border-radius: var(--dc-radius-sm);
   background: var(--dc-surface-raised);
   color: var(--dc-text);
   font: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -98,11 +100,11 @@
 /* Progress */
 
 .progressSection {
-  margin-top: 20px;
+  margin-top: 12px;
 }
 
 .progressTrack {
-  height: 6px;
+  height: 4px;
   overflow: hidden;
   border-radius: 99px;
   background: var(--dc-border);
@@ -118,10 +120,10 @@
 .progressLabels {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 8px;
+  gap: 10px;
+  margin-top: 5px;
   color: var(--dc-text-subtle);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .progressLabels strong {
@@ -130,13 +132,22 @@
 
 /* Product card */
 
+.checkBody {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: 36px;
+  touch-action: pan-y;
+}
+
 .productCard {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   min-width: 0;
-  padding: 21px;
+  padding: 14px;
   border: 1px solid var(--dc-border);
   border-radius: var(--dc-radius-lg);
   background: var(--dc-surface);
@@ -145,17 +156,16 @@
 .productHeader {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 9px;
 }
 
 .productIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
-  border-radius: var(--dc-radius-md);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--dc-radius-sm);
   background: rgba(var(--dc-accent-rgb), 0.1);
   color: var(--dc-accent);
 }
@@ -167,27 +177,27 @@
 
 .productEyebrow {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
   color: var(--dc-text-subtle);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
   text-transform: uppercase;
 }
 
 .productName {
   margin: 0;
   color: var(--dc-text);
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 800;
-  line-height: 1.3;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .productCategory {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   color: var(--dc-text-secondary);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 /* Product menu */
@@ -198,9 +208,8 @@
 }
 
 .productMenuButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   width: 36px;
   height: 36px;
   border: 0;
@@ -259,7 +268,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 180px;
+  height: clamp(90px, 20dvh, 150px);
   overflow: hidden;
   border: 1px solid var(--dc-border-soft);
   border-radius: var(--dc-radius-md);
@@ -278,20 +287,20 @@
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   color: var(--dc-text-subtle);
-  font-size: 12px;
+  font-size: 11px;
 }
 
-/* Expired warning */
+/* Warnings */
 
 .expiredWarning {
   display: flex;
   align-items: flex-start;
-  gap: 11px;
-  padding: 14px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid rgba(var(--dc-danger-rgb), 0.25);
-  border-radius: var(--dc-radius-md);
+  border-radius: var(--dc-radius-sm);
   background: rgba(var(--dc-danger-rgb), 0.09);
   color: var(--dc-danger);
 }
@@ -303,64 +312,77 @@
 .expiredWarning div {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   min-width: 0;
 }
 
 .expiredWarning strong {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .expiredWarning span {
   color: var(--dc-text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.checkError {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(var(--dc-danger-rgb), 0.25);
+  border-radius: var(--dc-radius-sm);
+  background: rgba(var(--dc-danger-rgb), 0.08);
+  color: var(--dc-danger);
   font-size: 12px;
+  line-height: 1.4;
 }
 
-/* Question content */
+/* Questions */
 
-.productContent {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
+.productContent,
 .questionSection {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 9px;
 }
 
 .stepBadge {
   align-self: flex-start;
-  padding: 6px 11px;
+  padding: 4px 9px;
   border: 1px solid rgba(var(--dc-accent-rgb), 0.3);
   border-radius: 99px;
   background: rgba(var(--dc-accent-rgb), 0.07);
   color: var(--dc-accent);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 750;
 }
 
 .questionHeading {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: var(--dc-accent);
+}
+
+.questionHeading > svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
 }
 
 .questionHeading h3 {
   margin: 0;
   color: var(--dc-text);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .questionDescription {
   margin: 0;
   color: var(--dc-text-secondary);
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .highlightDate {
@@ -370,9 +392,9 @@
 }
 
 .questionPrompt {
-  margin: 6px 0 0;
+  margin: 2px 0 0;
   color: var(--dc-text);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 750;
 }
 
@@ -381,29 +403,29 @@
 .dateField {
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  margin-top: 4px;
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .dateField label {
   color: var(--dc-text);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .dateInput {
   box-sizing: border-box;
   width: 100%;
-  min-height: 53px;
-  padding: 12px 14px;
+  min-height: 46px;
+  padding: 9px 12px;
   border: 1px solid var(--dc-border);
-  border-radius: var(--dc-radius-md);
+  border-radius: var(--dc-radius-sm);
   outline: none;
   background: var(--dc-background);
   color: var(--dc-text);
   color-scheme: dark;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .dateInput:focus {
@@ -415,22 +437,40 @@
   opacity: 0.5;
 }
 
-/* Sticky action buttons */
+/* Sticky buttons with a transparent fade above */
 
 .actionsContainer {
   position: sticky;
   bottom: 0;
   z-index: 5;
+  isolation: isolate;
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 0 max(10px, env(safe-area-inset-bottom));
+  gap: 8px;
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
   background: var(--dc-background);
+}
+
+.actionsContainer::before {
+  content: "";
+  position: absolute;
+  top: -36px;
+  right: 0;
+  left: 0;
+  height: 36px;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--dc-background) 0%, transparent) 0%,
+    color-mix(in srgb, var(--dc-background) 55%, transparent) 55%,
+    var(--dc-background) 100%
+  );
+  pointer-events: none;
 }
 
 .actionRow {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .primaryAction,
@@ -439,12 +479,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 13px 15px;
+  gap: 8px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 12px;
   border-radius: var(--dc-radius-md);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
   transition:
@@ -476,7 +517,7 @@
 
 .backAction {
   width: 100%;
-  min-height: 45px;
+  min-height: 44px;
   border: 1px solid var(--dc-border);
   background: transparent;
   color: var(--dc-text-secondary);
@@ -513,7 +554,7 @@
   justify-content: center;
   width: 100%;
   max-width: 420px;
-  min-height: calc(100dvh - 80px);
+  min-height: calc(100dvh - 40px);
   margin: 0 auto;
   text-align: center;
 }
@@ -521,13 +562,12 @@
 .stateIcon,
 .completedIcon,
 .errorStateIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 76px;
-  height: 76px;
-  margin-bottom: 23px;
-  border-radius: var(--dc-radius-xl);
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 18px;
+  border-radius: var(--dc-radius-lg);
 }
 
 .stateIcon {
@@ -546,50 +586,51 @@
 }
 
 .completedLabel {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: var(--dc-accent);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 1.1px;
+  letter-spacing: 1px;
   text-transform: uppercase;
 }
 
 .stateTitle {
   margin: 0;
   color: var(--dc-text);
-  font-size: 28px;
+  font-size: 25px;
   font-weight: 850;
   letter-spacing: -0.7px;
 }
 
 .stateDescription {
   max-width: 330px;
-  margin: 13px 0 0;
+  margin: 10px 0 0;
   color: var(--dc-text-secondary);
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .stateActions {
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 9px;
   width: 100%;
-  margin-top: 32px;
+  margin-top: 24px;
 }
 
 .statePrimaryButton,
 .stateSecondaryButton {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  min-height: 53px;
-  padding: 13px 16px;
+  min-height: 48px;
+  padding: 10px 14px;
   border-radius: var(--dc-radius-md);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   text-decoration: none;
   cursor: pointer;
@@ -636,57 +677,56 @@
 .categoryCard {
   display: flex;
   flex-direction: column;
-  padding: 25px;
+  padding: 20px;
   border: 1px solid var(--dc-border);
   border-radius: var(--dc-radius-lg);
   background: var(--dc-surface);
 }
 
 .categoryIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 62px;
-  height: 62px;
-  margin-bottom: 23px;
-  border-radius: var(--dc-radius-lg);
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  margin-bottom: 16px;
+  border-radius: var(--dc-radius-md);
   background: rgba(var(--dc-accent-rgb), 0.1);
   color: var(--dc-accent);
 }
 
 .categoryEyebrow {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: var(--dc-accent);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
   text-transform: uppercase;
 }
 
 .categoryTitle {
   margin: 0;
   color: var(--dc-text);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .categoryDescription {
-  margin: 13px 0 25px;
+  margin: 10px 0 18px;
   color: var(--dc-text-secondary);
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .categoryField {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .categoryField label {
   color: var(--dc-text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -697,8 +737,8 @@
 .categorySelect {
   box-sizing: border-box;
   width: 100%;
-  min-height: 55px;
-  padding: 12px 43px;
+  min-height: 48px;
+  padding: 10px 40px;
   appearance: none;
   border: 1px solid var(--dc-border);
   border-radius: var(--dc-radius-md);
@@ -707,7 +747,7 @@
   color: var(--dc-text);
   color-scheme: dark;
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
 }
 
@@ -731,47 +771,26 @@
 }
 
 .categorySelectIcon {
-  left: 14px;
+  left: 12px;
 }
 
 .categoryChevron {
-  right: 14px;
+  right: 12px;
 }
 
 .categoryLoading {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin: 15px 0 0;
+  gap: 8px;
+  margin: 12px 0 0;
   color: var(--dc-accent);
   font-size: 12px;
 }
 
 .categoryError {
-  margin: 15px 0 0;
+  margin: 12px 0 0;
   color: var(--dc-danger);
   font-size: 12px;
-}
-
-/* Check page layout */
-
-.checkBody {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  touch-action: pan-y;
-}
-
-.checkError {
-  margin: 0;
-  padding: 12px 14px;
-  border: 1px solid rgba(var(--dc-danger-rgb), 0.25);
-  border-radius: var(--dc-radius-sm);
-  background: rgba(var(--dc-danger-rgb), 0.08);
-  color: var(--dc-danger);
-  font-size: 13px;
-  line-height: 1.5;
 }
 
 /* Swipe instructions */
@@ -780,11 +799,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin-top: 10px;
-  padding-top: 12px;
+  gap: 7px;
+  margin-top: 2px;
+  padding-top: 4px;
   color: var(--dc-text-subtle);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -811,53 +830,60 @@
   outline-offset: 3px;
 }
 
-/* Mobile */
+/* Narrow screens */
 
 @media (max-width: 420px) {
   .page {
-    padding: 16px 12px;
+    padding: 10px 12px;
   }
 
   .container {
-    min-height: calc(100dvh - 32px);
+    min-height: calc(100dvh - 20px);
   }
 
   .pageTitle {
-    font-size: 18px;
-  }
-
-  .productCard {
-    padding: 17px;
-  }
-
-  .productName {
-    font-size: 18px;
-  }
-
-  .productImageContainer {
-    height: 150px;
+    font-size: 17px;
   }
 
   .categoryButton span {
     display: none;
   }
 
+  .productCard {
+    padding: 12px;
+  }
+
   .categoryCard {
-    padding: 21px;
-  }
-
-  .categoryTitle {
-    font-size: 20px;
-  }
-
-  .stateTitle {
-    font-size: 25px;
+    padding: 17px;
   }
 }
 
-@media (min-width: 640px) {
+/* Short screens */
+
+@media (max-height: 700px) {
+  .header {
+    margin-bottom: 9px;
+  }
+
+  .progressSection {
+    margin-top: 9px;
+  }
+
+  .productCard {
+    gap: 9px;
+  }
+
   .productImageContainer {
-    height: 220px;
+    height: clamp(75px, 16dvh, 110px);
+  }
+
+  .productContent,
+  .questionSection {
+    gap: 7px;
+  }
+
+  .actionsContainer {
+    padding-top: 8px;
   }
 }
 
