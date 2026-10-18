@@ -48,6 +48,9 @@
 }
 
 .card {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
   margin-bottom: 17px;
   padding: 19px;
   background: var(--dc-surface);
@@ -85,6 +88,8 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* Product photo */
 
 .photoContent {
   display: grid;
@@ -177,10 +182,14 @@
   display: none;
 }
 
+/* Fields */
+
 .fields {
   display: flex;
   flex-direction: column;
   gap: 19px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .field {
@@ -188,6 +197,7 @@
   flex-direction: column;
   gap: 9px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .field label {
@@ -196,11 +206,19 @@
   font-weight: 650;
 }
 
+.field small {
+  color: var(--dc-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .field input,
 .field select {
   box-sizing: border-box;
+  display: block;
   width: 100%;
   min-width: 0;
+  max-width: 100%;
   height: 49px;
   padding: 0 14px;
   border: 1px solid var(--dc-border);
@@ -209,7 +227,7 @@
   color: var(--dc-text);
   color-scheme: dark;
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
 }
 
@@ -229,10 +247,12 @@
   cursor: not-allowed;
 }
 
-.selectWrapper,
-.dateWrapper {
+/* Category */
+
+.selectWrapper {
   position: relative;
   min-width: 0;
+  max-width: 100%;
 }
 
 .selectWrapper select {
@@ -266,8 +286,41 @@
   pointer-events: none;
 }
 
-.dateWrapper input {
-  padding-left: 43px;
+/* Date input — including iPhone width fix */
+
+.dateWrapper {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dateWrapper input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  display: block;
+  width: 0;
+  min-width: 100%;
+  max-width: 100%;
+  height: 49px;
+  padding: 10px 14px 10px 43px;
+}
+
+.dateWrapper input::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+
+.dateWrapper input::-webkit-datetime-edit {
+  min-width: 0;
+  padding: 0;
+}
+
+.dateWrapper input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
 }
 
 .dateIcon {
@@ -280,9 +333,7 @@
   pointer-events: none;
 }
 
-.dateWrapper input::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-}
+/* Control settings */
 
 .toggleRow {
   position: relative;
@@ -363,6 +414,8 @@
   outline-offset: 3px;
 }
 
+/* Save */
+
 .saveButton {
   display: flex;
   align-items: center;
@@ -389,6 +442,8 @@
   opacity: 0.65;
   cursor: not-allowed;
 }
+
+/* Delete */
 
 .deleteSection {
   margin-top: 20px;
@@ -489,6 +544,8 @@
   cursor: not-allowed;
 }
 
+/* Messages */
+
 .errorMessage,
 .successMessage {
   margin-bottom: 17px;
@@ -536,6 +593,8 @@
   font-size: 13px;
 }
 
+/* Keyboard focus */
+
 .backLink:focus-visible,
 .photoChangeButton:focus-visible,
 .photoRemoveButton:focus-visible,
@@ -557,6 +616,8 @@
   }
 }
 
+/* Larger screens */
+
 @media (min-width: 600px) {
   .container {
     padding: 35px 24px 65px;
@@ -576,6 +637,8 @@
     font-size: 14px;
   }
 }
+
+/* Narrow screens */
 
 @media (max-width: 360px) {
   .container {
@@ -601,6 +664,8 @@
     padding: 12px;
   }
 }
+
+/* Reduced motion */
 
 @media (prefers-reduced-motion: reduce) {
   .spinner {
