@@ -1,62 +1,88 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Box,
-  Button,
-  Container,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  Switch,
-  TextField,
-  Typography,
-} from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SearchIcon from "@mui/icons-material/Search";
-import { useEffect, useState } from "react";
-import Image from "next/image";
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Package,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 
-type Item = {
-  id: string;
-  name: string;
-  photo_url: string | null;
-  expiry_date: string;
-  sticker_30_percent: boolean;
-  category_id: string;
-  category_name: string | null;
-};
+import ProductCard, {
+  type StockItem,
+} from "@/components/stockchecker/ProductCard";
 
-type ControlFilter = "all" | "30" | "month";
-type DateFilterMode = "exact" | "range";
+import StockFilters, {
+  type ControlFilter,
+  type DateFilterMode,
+  type SortOption,
+} from "@/components/stockchecker/StockFilters";
 
-type SortOption =
-  | "name_asc"
-  | "name_desc"
-  | "expiry_asc"
-  | "expiry_desc"
-  | "category_asc"
-  | "category_desc";
+import styles from "./page.module.css";
 
 type ItemsResponse = {
-  items: Item[];
+  items: StockItem[];
   total: number;
   page: number;
   pageSize: number;
   totalPages: number;
 };
 
+type Category = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 const PAGE_SIZE = 10;
 
+function getPageNumbers(page: number, totalPages: number) {
+  const pages: (number | "...")[] = [];
+
+  if (totalPages <= 5) {
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(i);
+    }
+
+    return pages;
+  }
+
+  pages.push(1);
+
+  if (page > 3) {
+    pages.push("...");
+  }
+
+  const start = Math.max(2, page - 1);
+  const end = Math.min(totalPages - 1, page + 1);
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+
+  if (page < totalPages - 2) {
+    pages.push("...");
+  }
+
+  pages.push(totalPages);
+
+  return pages;
+}
+
 export default function StockCheckerPage() {
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState("");
+
   const [controlFilter, setControlFilter] = useState<ControlFilter>("all");
 
   const [sort, setSort] = useState<SortOption>("name_asc");
@@ -71,110 +97,142 @@ export default function StockCheckerPage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Categories
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const response = await fetch("/api/settings", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Categorieën konden niet geladen worden.");
+        }
+
+        const data = await response.json();
+
+        setCategories(Array.isArray(data.categories) ? data.categories : []);
+      } catch (err) {
+        console.error("Failed to load categories:", err);
+      }
+    }
+
+    loadCategories();
+  }, []);
+
+  // Reset pagination when filters change
+
   useEffect(() => {
     setPage(1);
   }, [
     search,
+    categoryFilter,
     controlFilter,
     sort,
+    dateFilterMode,
     exactDate,
     fromDate,
     toDate,
-    dateFilterMode,
   ]);
 
+  // Fetch products
+
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      loadItems();
+    const controller = new AbortController();
+
+    const timeout = window.setTimeout(async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const params = new URLSearchParams();
+
+        params.set("page", String(page));
+        params.set("sort", sort);
+
+        if (search.trim()) {
+          params.set("search", search.trim());
+        }
+
+        if (categoryFilter) {
+          params.set("category", categoryFilter);
+        }
+
+        if (controlFilter !== "all") {
+          params.set("control", controlFilter);
+        }
+
+        if (dateFilterMode === "exact") {
+          if (exactDate) {
+            params.set("exactDate", exactDate);
+          }
+        } else {
+          if (fromDate) {
+            params.set("fromDate", fromDate);
+          }
+
+          if (toDate) {
+            params.set("toDate", toDate);
+          }
+        }
+
+        const response = await fetch(`/api/items?${params.toString()}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Producten konden niet geladen worden.");
+        }
+
+        const data: ItemsResponse = await response.json();
+
+        if (!Array.isArray(data.items)) {
+          throw new Error("Ongeldige data ontvangen.");
+        }
+
+        if (controller.signal.aborted) return;
+
+        setItems(data.items);
+        setTotal(data.total);
+        setTotalPages(Math.max(1, data.totalPages));
+      } catch (err) {
+        if (controller.signal.aborted) return;
+
+        console.error(err);
+
+        setError("Producten konden niet geladen worden.");
+
+        setItems([]);
+        setTotal(0);
+        setTotalPages(1);
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
     }, 300);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [
     page,
     search,
+    categoryFilter,
     controlFilter,
     sort,
+    dateFilterMode,
     exactDate,
     fromDate,
     toDate,
-    dateFilterMode,
   ]);
-
-  async function loadItems() {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const params = new URLSearchParams();
-
-      params.set("page", String(page));
-      params.set("sort", sort);
-
-      if (search.trim()) {
-        params.set("search", search.trim());
-      }
-
-      if (controlFilter !== "all") {
-        params.set("control", controlFilter);
-      }
-
-      if (dateFilterMode === "exact") {
-        if (exactDate) {
-          params.set("exactDate", exactDate);
-        }
-      } else {
-        if (fromDate) {
-          params.set("fromDate", fromDate);
-        }
-
-        if (toDate) {
-          params.set("toDate", toDate);
-        }
-      }
-
-      const response = await fetch(`/api/items?${params.toString()}`, {
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        console.error("API /items error:", errorText);
-
-        throw new Error("Items konden niet geladen worden.");
-      }
-
-      const data: ItemsResponse = await response.json();
-
-      if (!Array.isArray(data.items)) {
-        throw new Error("Ongeldige data ontvangen.");
-      }
-
-      setItems(data.items);
-      setTotal(data.total);
-      setTotalPages(data.totalPages);
-    } catch (error) {
-      console.error(error);
-      setError("Items konden niet geladen worden.");
-      setItems([]);
-      setTotal(0);
-      setTotalPages(1);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function formatDate(date: string) {
-    return new Date(date).toLocaleDateString("nl-BE", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      timeZone: "Europe/Brussels",
-    });
-  }
 
   function clearFilters() {
     setSearch("");
+    setCategoryFilter("");
     setControlFilter("all");
     setSort("name_asc");
     setDateFilterMode("exact");
@@ -184,24 +242,12 @@ export default function StockCheckerPage() {
     setPage(1);
   }
 
-  const filtersActive =
-    search !== "" ||
-    controlFilter !== "all" ||
-    sort !== "name_asc" ||
-    exactDate !== "" ||
-    fromDate !== "" ||
-    toDate !== "";
-
-  const firstItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-
-  const lastItem = Math.min(page * PAGE_SIZE, total);
-
-  function goToPage(newPage: number) {
-    if (newPage < 1 || newPage > totalPages || newPage === page) {
+  function goToPage(nextPage: number) {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === page) {
       return;
     }
 
-    setPage(newPage);
+    setPage(nextPage);
 
     window.scrollTo({
       top: 0,
@@ -209,512 +255,229 @@ export default function StockCheckerPage() {
     });
   }
 
-  function getPageNumbers() {
-    const pages: (number | "...")[] = [];
+  const firstItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
 
-    if (totalPages <= 5) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
+  const lastItem = Math.min(page * PAGE_SIZE, total);
 
-      return pages;
-    }
-
-    pages.push(1);
-
-    if (page > 3) {
-      pages.push("...");
-    }
-
-    const start = Math.max(2, page - 1);
-    const end = Math.min(totalPages - 1, page + 1);
-
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
-
-    if (page < totalPages - 2) {
-      pages.push("...");
-    }
-
-    pages.push(totalPages);
-
-    return pages;
-  }
+  const pageNumbers = getPageNumbers(page, totalPages);
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ minHeight: "100vh", py: 4 }}>
-        <Stack spacing={4}>
-          <Stack
-            spacing={3}
-            direction="row"
-            sx={{
-              justifyContent: "space-between",
-            }}
+    <main className={styles.page}>
+      <div className={styles.container}>
+        {/* Header */}
+
+        <header className={styles.header}>
+          <Link
+            href="/"
+            className={styles.backButton}
+            aria-label="Terug naar hoofdpagina"
           >
-            <Button
-              className="StyledButton3"
-              component={Link}
-              href="/"
-              startIcon={<ArrowBackIcon />}
+            <ArrowLeft size={21} />
+          </Link>
+
+          <div className={styles.headerText}>
+            <h1>
+              Stock<span>checker</span>
+            </h1>
+
+            <p>
+              {loading
+                ? "Producten laden..."
+                : `${total} ${total === 1 ? "product" : "producten"}`}
+            </p>
+          </div>
+
+          <Link
+            href="/stockchecker/new"
+            className={styles.addButton}
+            aria-label="Nieuw product toevoegen"
+          >
+            <Plus size={23} strokeWidth={2.3} />
+          </Link>
+        </header>
+
+        {/* Search */}
+
+        <div className={styles.searchBox}>
+          <Search size={20} className={styles.searchIcon} />
+
+          <input
+            type="search"
+            placeholder="Zoek op naam..."
+            aria-label="Zoek product"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+
+          {search && (
+            <button
+              type="button"
+              className={styles.clearSearch}
+              onClick={() => setSearch("")}
+              aria-label="Zoekterm wissen"
             >
-              Terug
-            </Button>
+              <X size={18} />
+            </button>
+          )}
+        </div>
 
-            <Button
-              className="StyledButton3"
-              component={Link}
-              href="/stockchecker/new"
-              variant="contained"
-              startIcon={<AddIcon />}
-            >
-              Nieuw item
-            </Button>
-          </Stack>
+        {/* Filters */}
 
-          <Box>
-            <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-              Stock checker
-            </Typography>
+        <StockFilters
+          categories={categories}
+          categoryFilter={categoryFilter}
+          onCategoryFilterChange={setCategoryFilter}
+          controlFilter={controlFilter}
+          onControlFilterChange={setControlFilter}
+          sort={sort}
+          onSortChange={setSort}
+          dateFilterMode={dateFilterMode}
+          onDateFilterModeChange={setDateFilterMode}
+          exactDate={exactDate}
+          onExactDateChange={setExactDate}
+          fromDate={fromDate}
+          onFromDateChange={setFromDate}
+          toDate={toDate}
+          onToDateChange={setToDate}
+          onClearFilters={clearFilters}
+        />
 
-            <Typography color="text.secondary" sx={{ mt: 1 }}>
-              Zoek en controleer producten en hun vervaldatums.
-            </Typography>
-          </Box>
+        {/* Products */}
 
-          <Box className="StyledBox color-invert">
-            <Stack spacing={2}>
-              <TextField
-                label="Zoek product"
-                placeholder="Bijvoorbeeld melk..."
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                fullWidth
-                slotProps={{
-                  input: {
-                    startAdornment: <SearchIcon sx={{ mr: 1 }} />,
-                  },
-                }}
-              />
+        <section className={styles.results}>
+          <div className={styles.resultsHeader}>
+            <div className={styles.resultsTitle}>
+              <Package size={19} />
 
-              <FormControl fullWidth>
-                <InputLabel>Controle</InputLabel>
+              <h2>
+                {loading
+                  ? "Producten laden..."
+                  : `${total} ${total === 1 ? "product" : "producten"}`}
+              </h2>
+            </div>
 
-                <Select
-                  value={controlFilter}
-                  label="Controle"
-                  onChange={(event) =>
-                    setControlFilter(event.target.value as ControlFilter)
-                  }
-                >
-                  <MenuItem value="all">Alle Controles</MenuItem>
+            {!loading && totalPages > 1 && (
+              <span className={styles.pageIndicator}>
+                {page} / {totalPages}
+              </span>
+            )}
+          </div>
 
-                  <MenuItem value="30">Dagelijkse controle</MenuItem>
+          {/* Error */}
 
-                  <MenuItem value="month">Maandelijkse controle</MenuItem>
-                </Select>
-              </FormControl>
+          {error && (
+            <div className={styles.emptyState} role="alert">
+              <Package size={42} />
 
-              <FormControl fullWidth>
-                <InputLabel>Sorteren</InputLabel>
+              <h3>Er ging iets mis</h3>
 
-                <Select
-                  value={sort}
-                  label="Sorteren"
-                  onChange={(event) =>
-                    setSort(event.target.value as SortOption)
-                  }
-                >
-                  <MenuItem value="name_asc">Naam A-Z</MenuItem>
+              <p>{error}</p>
 
-                  <MenuItem value="name_desc">Naam Z-A</MenuItem>
-
-                  <MenuItem value="expiry_asc">
-                    Vervaldatum: vroeg → laat
-                  </MenuItem>
-
-                  <MenuItem value="expiry_desc">
-                    Vervaldatum: laat → vroeg
-                  </MenuItem>
-
-                  <MenuItem value="category_asc">Categorie A-Z</MenuItem>
-
-                  <MenuItem value="category_desc">Categorie Z-A</MenuItem>
-                </Select>
-              </FormControl>
-
-              <Box>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: 1,
-                  }}
-                >
-                  <Typography variant="subtitle2">Datumfilter</Typography>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
-                      color={
-                        dateFilterMode === "exact"
-                          ? "text.primary"
-                          : "text.secondary"
-                      }
-                    >
-                      Exacte datum
-                    </Typography>
-
-                    <Switch
-                      checked={dateFilterMode === "range"}
-                      onChange={(event) =>
-                        setDateFilterMode(
-                          event.target.checked ? "range" : "exact",
-                        )
-                      }
-                    />
-
-                    <Typography
-                      variant="body2"
-                      color={
-                        dateFilterMode === "range"
-                          ? "text.primary"
-                          : "text.secondary"
-                      }
-                    >
-                      Tussen datums
-                    </Typography>
-                  </Box>
-                </Box>
-
-                {dateFilterMode === "exact" ? (
-                  <TextField
-                    label="Vervaldatum"
-                    type="date"
-                    value={exactDate}
-                    onChange={(event) => setExactDate(event.target.value)}
-                    fullWidth
-                    slotProps={{
-                      inputLabel: {
-                        shrink: true,
-                      },
-                    }}
-                  />
-                ) : (
-                  <Stack
-                    direction={{
-                      xs: "column",
-                      sm: "row",
-                    }}
-                    spacing={2}
-                  >
-                    <TextField
-                      label="Vanaf datum"
-                      type="date"
-                      value={fromDate}
-                      onChange={(event) => setFromDate(event.target.value)}
-                      fullWidth
-                      slotProps={{
-                        inputLabel: {
-                          shrink: true,
-                        },
-                      }}
-                    />
-
-                    <TextField
-                      label="Tot datum"
-                      type="date"
-                      value={toDate}
-                      onChange={(event) => setToDate(event.target.value)}
-                      fullWidth
-                      slotProps={{
-                        inputLabel: {
-                          shrink: true,
-                        },
-                      }}
-                    />
-                  </Stack>
-                )}
-              </Box>
-
-              <Button
-                className="StyledButton3"
-                variant="outlined"
-                onClick={clearFilters}
-                disabled={!filtersActive}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className={styles.emptyButton}
               >
-                Filters wissen
-              </Button>
-            </Stack>
-          </Box>
-
-          {loading && (
-            <Typography color="text.secondary">Items laden...</Typography>
+                Opnieuw proberen
+              </button>
+            </div>
           )}
 
-          {error && <Typography color="error">{error}</Typography>}
+          {/* Loading */}
 
-          {!loading && !error && (
-            <Stack spacing={2}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 2,
-                }}
+          {loading && (
+            <div className={styles.loadingState} role="status">
+              Producten laden...
+            </div>
+          )}
+
+          {/* Empty */}
+
+          {!loading && !error && items.length === 0 && (
+            <div className={styles.emptyState}>
+              <Search size={43} />
+
+              <h3>Geen producten gevonden</h3>
+
+              <p>Probeer een andere zoekterm of pas je filters aan.</p>
+
+              <button
+                type="button"
+                onClick={clearFilters}
+                className={styles.emptyButton}
               >
-                <Typography color="text.secondary">
-                  {total === 0
-                    ? "Geen items"
-                    : `${firstItem}-${lastItem} van ${total} ${
-                        total === 1 ? "item" : "items"
-                      }`}
-                </Typography>
+                Filters wissen
+              </button>
+            </div>
+          )}
 
-                {totalPages > 1 && (
-                  <Typography variant="body2" color="text.secondary">
-                    Pagina {page} van {totalPages}
-                  </Typography>
-                )}
-              </Box>
+          {/* Product cards */}
 
-              {items.map((item) => (
-                <Box
-                  className="StyledBox color-invert"
-                  key={item.id}
-                  component={Link}
-                  href={`/stockchecker/${item.id}`}
-                  sx={{
-                    display: "flex",
-                    gap: 2,
-                    alignItems: "center",
-                    textDecoration: "none",
-                    color: "inherit",
-                    transition: "transform 0.15s",
-                    "&:hover": {
-                      transform: "translateY(-2px)",
-                    },
-                  }}
-                >
-                  {item.photo_url ? (
-                    <Image
-                      src={item.photo_url}
-                      alt={item.name}
-                      width={100}
-                      height={100}
-                      loading="lazy"
-                      sizes="100px"
-                      style={{
-                        width: 100,
-                        height: 100,
-                        objectFit: "cover",
-                        borderRadius: "8px",
-                        flexShrink: 0,
-                      }}
-                    />
-                  ) : (
-                    <Box
-                      sx={{
-                        width: 100,
-                        height: 100,
-                        borderRadius: 2,
-                        backgroundColor: "action.hover",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          textAlign: "center",
-                        }}
-                      >
-                        Geen foto
-                      </Typography>
-                    </Box>
-                  )}
+          {!loading && !error && items.length > 0 && (
+            <>
+              <div className={styles.productList}>
+                {items.map((item) => (
+                  <ProductCard key={item.id} item={item} />
+                ))}
+              </div>
 
-                  <Stack
-                    spacing={1}
-                    sx={{
-                      minWidth: 0,
-                    }}
-                  >
-                    <Typography
-                      className="color-invert"
-                      variant="h6"
-                      sx={{
-                        fontWeight: 700,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {item.name}
-                    </Typography>
-
-                    <Typography className="color-invert" color="text.secondary">
-                      {item.category_name ?? "Geen categorie"}
-                    </Typography>
-
-                    <Typography className="color-invert">
-                      Vervaldatum:{" "}
-                      <strong>{formatDate(item.expiry_date)}</strong>
-                    </Typography>
-
-                    <Typography
-                      className="color-invert"
-                      variant="body2"
-                      color="text.secondary"
-                    >
-                      {item.sticker_30_percent
-                        ? "Dagelijkse Controle"
-                        : "Maandcontrole"}
-                    </Typography>
-                  </Stack>
-                </Box>
-              ))}
-
-              {items.length === 0 && (
-                <Typography color="text.secondary">
-                  Geen items gevonden met deze filters.
-                </Typography>
-              )}
+              {/* Pagination */}
 
               {totalPages > 1 && (
-                <Stack
-                  direction="row"
-                  spacing={{
-                    xs: 0.25,
-                    sm: 1,
-                  }}
-                  sx={{
-                    pt: 2,
-                    width: "100%",
-                    flexWrap: "nowrap",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Button
-                    className="StyledButton3"
-                    variant="outlined"
-                    size="small"
-                    disabled={page === 1}
+                <nav className={styles.pagination} aria-label="Paginering">
+                  <button
+                    type="button"
                     onClick={() => goToPage(page - 1)}
-                    sx={{
-                      flexShrink: 1,
-                      minWidth: {
-                        xs: 48,
-                        sm: 64,
-                      },
-                      px: {
-                        xs: 0.75,
-                        sm: 1.5,
-                      },
-                      fontSize: {
-                        xs: "0.7rem",
-                        sm: "0.875rem",
-                      },
-                      whiteSpace: "nowrap",
-                    }}
+                    disabled={page === 1}
+                    aria-label="Vorige pagina"
                   >
-                    Vorige
-                  </Button>
+                    <ChevronLeft size={20} />
+                  </button>
 
-                  {getPageNumbers().map((pageNumber, index) =>
-                    pageNumber === "..." ? (
-                      <Typography
+                  {pageNumbers.map((number, index) =>
+                    number === "..." ? (
+                      <span
                         key={`ellipsis-${index}`}
-                        sx={{
-                          px: {
-                            xs: 0.25,
-                            sm: 1,
-                          },
-                          fontSize: {
-                            xs: "0.8rem",
-                            sm: "1rem",
-                          },
-                          flexShrink: 1,
-                        }}
+                        className={styles.ellipsis}
                       >
                         ...
-                      </Typography>
+                      </span>
                     ) : (
-                      <Button
-                        className={
-                          pageNumber === page
-                            ? "StyledButton1"
-                            : "StyledButton3"
-                        }
-                        key={pageNumber}
-                        variant={pageNumber === page ? "contained" : "outlined"}
-                        size="small"
-                        onClick={() => goToPage(pageNumber)}
-                        sx={{
-                          flexShrink: 1,
-                          minWidth: {
-                            xs: 30,
-                            sm: 40,
-                          },
-                          width: {
-                            xs: 30,
-                            sm: 40,
-                          },
-                          px: 0,
-                          fontSize: {
-                            xs: "0.7rem",
-                            sm: "0.875rem",
-                          },
-                        }}
+                      <button
+                        type="button"
+                        key={number}
+                        onClick={() => goToPage(number)}
+                        className={number === page ? styles.currentPage : ""}
+                        aria-label={`Pagina ${number}`}
+                        aria-current={number === page ? "page" : undefined}
                       >
-                        {pageNumber}
-                      </Button>
+                        {number}
+                      </button>
                     ),
                   )}
 
-                  <Button
-                    className="StyledButton3"
-                    variant="outlined"
-                    size="small"
-                    disabled={page === totalPages}
+                  <button
+                    type="button"
                     onClick={() => goToPage(page + 1)}
-                    sx={{
-                      flexShrink: 1,
-                      minWidth: {
-                        xs: 52,
-                        sm: 72,
-                      },
-                      px: {
-                        xs: 0.75,
-                        sm: 1.5,
-                      },
-                      fontSize: {
-                        xs: "0.7rem",
-                        sm: "0.875rem",
-                      },
-                      whiteSpace: "nowrap",
-                    }}
+                    disabled={page === totalPages}
+                    aria-label="Volgende pagina"
                   >
-                    Volgende
-                  </Button>
-                </Stack>
+                    <ChevronRight size={20} />
+                  </button>
+                </nav>
               )}
-            </Stack>
+
+              <p className={styles.rangeLabel}>
+                Toont {firstItem}–{lastItem} van {total}
+              </p>
+            </>
           )}
-        </Stack>
-      </Box>
-    </Container>
+        </section>
+
+        <footer className={styles.footer}>
+          DateCheck <span>•</span> Voorraadbeheer
+        </footer>
+      </div>
+    </main>
   );
 }

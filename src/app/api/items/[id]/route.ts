@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
@@ -138,6 +139,24 @@ export async function PATCH(
             paused,
         } = body;
 
+        if (
+            Object.prototype.hasOwnProperty.call(body, "expiry_date") &&
+            expiry_date !== null &&
+            (
+                typeof expiry_date !== "string" ||
+                !/^\d{4}-\d{2}-\d{2}$/.test(expiry_date) ||
+                !Number.isFinite(Date.parse(`${expiry_date}T00:00:00Z`)) ||
+                new Date(`${expiry_date}T00:00:00Z`)
+                    .toISOString()
+                    .slice(0, 10) !== expiry_date
+            )
+        ) {
+            return NextResponse.json(
+                { error: "Invalid expiry date" },
+                { status: 400 },
+            );
+        }
+
         const currentItem = await sql`
             SELECT photo_url
             FROM items
@@ -164,10 +183,15 @@ export async function PATCH(
                     ELSE photo_url
                 END,
                 category_id = COALESCE(${category_id ?? null}, category_id),
-                expiry_date = COALESCE(
-                    ${expiry_date ?? null}::date,
-                    expiry_date
-                ),
+                expiry_date = CASE
+                    WHEN ${Object.prototype.hasOwnProperty.call(
+            body,
+            "expiry_date",
+        )
+            }
+                    THEN ${expiry_date ?? null}::date
+                    ELSE expiry_date
+                END,
                 sticker_30_percent = COALESCE(
                     ${sticker_30_percent ?? null},
                     sticker_30_percent

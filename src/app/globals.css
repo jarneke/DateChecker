@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  /* Legacy app colors */
   --color-app-background: #100f0e;
   --color-app-foreground: #fff2dd;
   --color-app-surface: #fff2dd;
@@ -47,6 +48,8 @@
   }
 }
 
+/* Legacy custom styling */
+
 .StyledBox {
   padding: 1rem !important;
   border-radius: 0.5rem !important;
@@ -57,7 +60,7 @@
   color: #100f0e !important;
 }
 
-/* Global MUI Switch styling */
+/* MUI switches */
 
 .MuiSwitch-switchBase {
   color: #100f0e !important;
@@ -75,7 +78,7 @@
   background-color: #c1b4a7 !important;
 }
 
-/* Global MUI focus and selection styling */
+/* MUI inputs */
 
 .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
   border-color: #716b65 !important;
@@ -94,13 +97,11 @@
   color: #c1b4a7 !important;
 }
 
-/* Select focus */
-
 .MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline {
   border-color: #c1b4a7 !important;
 }
 
-/* Checkboxes */
+/* MUI checkboxes */
 
 .MuiCheckbox-root {
   color: #716b65 !important;
@@ -110,7 +111,7 @@
   color: #c1b4a7 !important;
 }
 
-/* Radio buttons */
+/* MUI radio buttons */
 
 .MuiRadio-root {
   color: #716b65 !important;
@@ -120,7 +121,7 @@
   color: #c1b4a7 !important;
 }
 
-/* Sliders */
+/* MUI sliders */
 
 .MuiSlider-root {
   color: #c1b4a7 !important;
@@ -132,13 +133,13 @@
   box-shadow: 0 0 0 8px rgba(193, 180, 167, 0.16) !important;
 }
 
-/* General keyboard focus */
+/* Global focus */
 
 *:focus-visible {
   outline-color: #c1b4a7;
 }
 
-/* Menu selected states */
+/* MUI menus */
 
 .MuiMenuItem-root.Mui-selected {
   background-color: rgba(193, 180, 167, 0.12) !important;
@@ -148,7 +149,7 @@
   background-color: rgba(193, 180, 167, 0.18) !important;
 }
 
-/* Dark buttons */
+/* Legacy dark buttons */
 
 .StyledButton1 {
   background-color: #100f0e !important;
@@ -180,7 +181,7 @@
   opacity: 1 !important;
 }
 
-/* Light buttons */
+/* Legacy light buttons */
 
 .StyledButton3 {
   background-color: #fff2dd !important;
@@ -210,4 +211,62 @@
   border-color: #716b65 !important;
   cursor: not-allowed;
   opacity: 1 !important;
+}
+
+/* New DateCheck design system */
+
+:root {
+  /* Backgrounds */
+  --dc-background: #110f0e;
+  --dc-surface: #211d1b;
+  --dc-surface-raised: #24201e;
+  --dc-surface-hover: #332720;
+
+  /* Text */
+  --dc-text: #f5eee5;
+  --dc-text-secondary: #a99f98;
+  --dc-text-subtle: #9c9189;
+  --dc-text-inverse: #161210;
+
+  /* Borders */
+  --dc-border: #38312d;
+  --dc-border-soft: #332b27;
+
+  /* Ochtendcontrole */
+  --dc-accent: #a3e635;
+  --dc-accent-rgb: 163, 230, 53;
+
+  /* Over datum */
+  --dc-danger: #ff6b6b;
+  --dc-danger-rgb: 255, 107, 107;
+
+  /* Maandelijkse controle */
+  --dc-info: #38bdf8;
+  --dc-info-rgb: 56, 189, 248;
+
+  /* Avondcontrole */
+  --dc-purple: #fbbf24;
+  --dc-purple-rgb: 251, 191, 36;
+
+  /* Stockcheck */
+  --dc-success: #34d399;
+  --dc-success-rgb: 52, 211, 153;
+
+  /* Typography */
+  --dc-font: Inter, system-ui, -apple-system, sans-serif;
+
+  /* Border radius */
+  --dc-radius-sm: 8px;
+  --dc-radius-md: 14px;
+  --dc-radius-lg: 20px;
+  --dc-radius-xl: 23px;
+
+  /* Spacing */
+  --dc-space-1: 4px;
+  --dc-space-2: 8px;
+  --dc-space-3: 12px;
+  --dc-space-4: 16px;
+  --dc-space-5: 20px;
+  --dc-space-6: 24px;
+  --dc-space-8: 32px;
 }

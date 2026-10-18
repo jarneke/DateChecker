@@ -1,47 +1,71 @@
 "use client";
 
 import Link from "next/link";
-import { Button, Container, Stack, Typography } from "@mui/material";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  ImagePlus,
+  Settings2,
+  Shield,
+} from "lucide-react";
+
+import styles from "./page.module.css";
+
+const adminLinks = [
+  {
+    title: "Instellingen",
+    description: "Beheer categorieën, kleuren en controle-instellingen.",
+    href: "/admin/settings",
+    icon: Settings2,
+  },
+  {
+    title: "Image Linker",
+    description: "Voeg ontbrekende foto's toe aan producten.",
+    href: "/admin/imagelinker",
+    icon: ImagePlus,
+  },
+];
 
 export default function AdminPage() {
   return (
-    <Container maxWidth="sm" className="py-12">
-      <Typography variant="h4" className="mb-2 font-bold">
-        Admin
-      </Typography>
+    <main className={styles.page}>
+      <div className={styles.container}>
+        <Link href="/" className={styles.backLink}>
+          <ArrowLeft size={20} />
+          Terug
+        </Link>
 
-      <Typography color="text.secondary" className="mb-8">
-        Manage the application.
-      </Typography>
+        <header className={styles.header}>
+          <div className={styles.headerIcon}>
+            <Shield size={26} />
+          </div>
 
-      <Stack spacing={2}>
-        <Button
-          component={Link}
-          href="/admin/settings"
-          variant="outlined"
-          fullWidth
-        >
-          Settings
-        </Button>
+          <h1>Beheer</h1>
 
-        <Button
-          component={Link}
-          href="/admin/relink"
-          variant="outlined"
-          fullWidth
-        >
-          Relink
-        </Button>
+          <p>Beheer de instellingen en hulpmiddelen van DateCheck.</p>
+        </header>
 
-        <Button
-          component={Link}
-          href="/admin/imagelinker"
-          variant="outlined"
-          fullWidth
-        >
-          Image Linker
-        </Button>
-      </Stack>
-    </Container>
+        <div className={styles.links}>
+          {adminLinks.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <Link key={item.href} href={item.href} className={styles.card}>
+                <div className={styles.cardIcon}>
+                  <Icon size={23} />
+                </div>
+
+                <div className={styles.cardContent}>
+                  <h2>{item.title}</h2>
+                  <p>{item.description}</p>
+                </div>
+
+                <ArrowUpRight size={21} className={styles.cardArrow} />
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </main>
   );
 }

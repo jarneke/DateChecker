@@ -3,25 +3,25 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Box,
-  Button,
-  Container,
-  IconButton,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
-import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
-import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
-import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
-import DeleteSweepOutlinedIcon from "@mui/icons-material/DeleteSweepOutlined";
+  ArrowLeft,
+  Camera,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardList,
+  CloudUpload,
+  LoaderCircle,
+  Plus,
+  Tag,
+  Trash2,
+  X,
+} from "lucide-react";
+
+import styles from "./page.module.css";
 
 type Category = {
   id: string;
   name: string;
+  color?: string;
 };
 
 type CheckType = "daily" | "monthly";
@@ -44,6 +44,10 @@ type FastAddItem = StoredFastAddItem & {
 const DB_NAME = "datechecker-fastadd";
 const STORE_NAME = "items";
 const PAST_EXPIRY_DATE = "2020-01-01";
+
+// --------------------------------------------------
+// IndexedDB
+// --------------------------------------------------
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -74,14 +78,13 @@ async function getStoredItems(): Promise<StoredFastAddItem[]> {
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, "readonly");
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
+
+    const request = transaction.objectStore(STORE_NAME).getAll();
 
     request.onsuccess = () => {
       resolve(
-        request.result.sort(
-          (a: StoredFastAddItem, b: StoredFastAddItem) =>
-            a.createdAt - b.createdAt,
+        (request.result as StoredFastAddItem[]).sort(
+          (a, b) => a.createdAt - b.createdAt,
         ),
       );
     };
@@ -89,6 +92,8 @@ async function getStoredItems(): Promise<StoredFastAddItem[]> {
     request.onerror = () => {
       reject(request.error);
     };
+
+    transaction.oncomplete = () => db.close();
   });
 }
 
@@ -97,15 +102,16 @@ async function saveStoredItem(item: StoredFastAddItem): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
 
-    store.put(item);
+    transaction.objectStore(STORE_NAME).put(item);
 
     transaction.oncomplete = () => {
+      db.close();
       resolve();
     };
 
     transaction.onerror = () => {
+      db.close();
       reject(transaction.error);
     };
   });
@@ -116,15 +122,16 @@ async function deleteStoredItem(id: string): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
 
-    store.delete(id);
+    transaction.objectStore(STORE_NAME).delete(id);
 
     transaction.oncomplete = () => {
+      db.close();
       resolve();
     };
 
     transaction.onerror = () => {
+      db.close();
       reject(transaction.error);
     };
   });
@@ -135,19 +142,24 @@ async function clearStoredItems(): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
 
-    store.clear();
+    transaction.objectStore(STORE_NAME).clear();
 
     transaction.oncomplete = () => {
+      db.close();
       resolve();
     };
 
     transaction.onerror = () => {
+      db.close();
       reject(transaction.error);
     };
   });
 }
+
+// --------------------------------------------------
+// Image compression
+// --------------------------------------------------
 
 async function compressImage(file: File): Promise<Blob> {
   const image = new Image();
@@ -156,12 +168,16 @@ async function compressImage(file: File): Promise<Blob> {
   try {
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve();
-      image.onerror = () =>
+
+      image.onerror = () => {
         reject(new Error("Afbeelding kon niet geladen worden."));
+      };
+
       image.src = objectUrl;
     });
 
     const maxSize = 1280;
+
     const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
 
     const canvas = document.createElement("canvas");
@@ -195,8 +211,15 @@ async function compressImage(file: File): Promise<Blob> {
   }
 }
 
+// --------------------------------------------------
+// Page
+// --------------------------------------------------
+
 export default function FastAddPage() {
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const itemsRef = useRef<FastAddItem[]>([]);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
@@ -216,6 +239,12 @@ export default function FastAddPage() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
 
+  const busy = loading || adding || uploading;
+
+  // --------------------------------------------------
+  // Initial load
+  // --------------------------------------------------
+
   useEffect(() => {
     let cancelled = false;
 
@@ -233,9 +262,7 @@ export default function FastAddPage() {
         const loadedCategories =
           (await categoriesResponse.json()) as Category[];
 
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         setCategories(loadedCategories);
 
@@ -272,7 +299,7 @@ export default function FastAddPage() {
       }
     }
 
-    load();
+    void load();
 
     return () => {
       cancelled = true;
@@ -286,6 +313,20 @@ export default function FastAddPage() {
   }, [loading]);
 
   useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    return () => {
+      for (const item of itemsRef.current) {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (photoPreview) {
         URL.revokeObjectURL(photoPreview);
@@ -293,31 +334,44 @@ export default function FastAddPage() {
     };
   }, [photoPreview]);
 
-  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // --------------------------------------------------
+  // Photo selection
+  // --------------------------------------------------
+
+  function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     if (!file.type.startsWith("image/")) {
       setError("Selecteer een geldige afbeelding.");
+      event.target.value = "";
       return;
     }
 
     setError("");
-
-    if (photoPreview) {
-      URL.revokeObjectURL(photoPreview);
-    }
-
     setPhoto(file);
     setPhotoPreview(URL.createObjectURL(file));
 
     event.target.value = "";
-  };
+  }
 
-  const handleAddItem = async () => {
+  function handleRemovePhoto() {
+    setPhoto(null);
+    setPhotoPreview("");
+
+    if (photoInputRef.current) {
+      photoInputRef.current.value = "";
+    }
+  }
+
+  // --------------------------------------------------
+  // Add product locally
+  // --------------------------------------------------
+
+  async function handleAddItem() {
+    if (busy) return;
+
     const trimmedName = name.trim().toUpperCase();
 
     if (!trimmedName) {
@@ -367,11 +421,6 @@ export default function FastAddPage() {
       setItems((current) => [...current, newItem]);
 
       setName("");
-
-      if (photoPreview) {
-        URL.revokeObjectURL(photoPreview);
-      }
-
       setPhoto(null);
       setPhotoPreview("");
 
@@ -387,24 +436,22 @@ export default function FastAddPage() {
     } finally {
       setAdding(false);
     }
-  };
+  }
 
-  const handleRemoveItem = async (id: string) => {
+  // --------------------------------------------------
+  // Remove product locally
+  // --------------------------------------------------
+
+  async function handleRemoveItem(id: string) {
+    if (busy) return;
+
     try {
       setError("");
       setStatus("");
 
       await deleteStoredItem(id);
 
-      setItems((current) => {
-        const item = current.find((entry) => entry.id === id);
-
-        if (item?.previewUrl) {
-          URL.revokeObjectURL(item.previewUrl);
-        }
-
-        return current.filter((entry) => entry.id !== id);
-      });
+      setItems((current) => current.filter((item) => item.id !== id));
     } catch (removeError) {
       console.error(removeError);
 
@@ -414,14 +461,16 @@ export default function FastAddPage() {
           : "Product kon niet verwijderd worden.",
       );
     }
-  };
+  }
 
-  const uploadPhotoToGitHub = async (
+  // --------------------------------------------------
+  // GitHub upload
+  // --------------------------------------------------
+
+  async function uploadPhotoToGitHub(
     item: FastAddItem,
-  ): Promise<string | null> => {
-    if (!item.photo) {
-      return null;
-    }
+  ): Promise<string | null> {
+    if (!item.photo) return null;
 
     const formData = new FormData();
 
@@ -442,32 +491,47 @@ export default function FastAddPage() {
     const data = (await response.json()) as {
       url?: string;
       error?: string;
+      details?: string;
     };
 
     if (!response.ok) {
-      throw new Error(data.error || "Foto kon niet geüpload worden.");
+      throw new Error(
+        data.details || data.error || "Foto kon niet geüpload worden.",
+      );
     }
 
-    return data.url ?? null;
-  };
+    if (!data.url) {
+      throw new Error("De upload gaf geen foto-URL terug.");
+    }
 
-  const deleteGitHubPhoto = async (id: string) => {
+    return data.url;
+  }
+
+  async function deleteGitHubPhoto(id: string) {
     try {
-      await fetch("/api/github-upload", {
+      const response = await fetch("/api/github-upload", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          id,
-        }),
+        body: JSON.stringify({ id }),
       });
+
+      if (!response.ok) {
+        console.error("Foto kon niet verwijderd worden:", id);
+      }
     } catch (deleteError) {
       console.error("Foto kon niet verwijderd worden:", deleteError);
     }
-  };
+  }
 
-  const handleUploadCurrentList = async () => {
+  // --------------------------------------------------
+  // Upload entire list
+  // --------------------------------------------------
+
+  async function handleUploadCurrentList() {
+    if (busy) return;
+
     if (items.length === 0) {
       setError("Er staan nog geen producten in de lijst.");
       return;
@@ -527,6 +591,7 @@ export default function FastAddPage() {
         (data.skippedNames ?? []).map((item) => item.toUpperCase()),
       );
 
+      // Remove photos of products that already exist.
       for (const item of items) {
         if (
           skippedNames.has(item.name.toUpperCase()) &&
@@ -537,15 +602,10 @@ export default function FastAddPage() {
       }
 
       const insertedCount = data.insertedCount ?? insertedNames.size;
+
       const skippedCount = data.skippedCount ?? skippedNames.size;
 
       await clearStoredItems();
-
-      items.forEach((item) => {
-        if (item.previewUrl) {
-          URL.revokeObjectURL(item.previewUrl);
-        }
-      });
 
       setItems([]);
 
@@ -564,24 +624,31 @@ export default function FastAddPage() {
           ? uploadError.message
           : "De lijst kon niet geüpload worden.",
       );
+
       setStatus("");
     } finally {
       setUploading(false);
     }
-  };
+  }
 
-  const handleClearList = async () => {
+  // --------------------------------------------------
+  // Clear list
+  // --------------------------------------------------
+
+  async function handleClearList() {
+    if (busy || items.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Weet je zeker dat je alle ${items.length} producten uit de lijst wilt verwijderen?`,
+    );
+
+    if (!confirmed) return;
+
     try {
       setError("");
       setStatus("");
 
       await clearStoredItems();
-
-      items.forEach((item) => {
-        if (item.previewUrl) {
-          URL.revokeObjectURL(item.previewUrl);
-        }
-      });
 
       setItems([]);
     } catch (clearError) {
@@ -593,98 +660,155 @@ export default function FastAddPage() {
           : "De lijst kon niet gewist worden.",
       );
     }
-  };
+  }
 
-  const getCategoryName = (categoryId: string) => {
-    return (
-      categories.find((category) => category.id === categoryId)?.name ??
-      "Onbekende categorie"
-    );
-  };
+  // --------------------------------------------------
+  // Helpers
+  // --------------------------------------------------
+
+  function getCategory(categoryId: string) {
+    return categories.find((category) => category.id === categoryId);
+  }
+
+  const selectedCategory = getCategory(selectedCategoryId);
+
+  // --------------------------------------------------
+  // Render
+  // --------------------------------------------------
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        py: 4,
-        backgroundColor: "#100f0e",
-        color: "#fff2dd",
-      }}
-    >
-      <Container maxWidth="md">
-        <Stack spacing={3}>
-          <Box>
-            <Button
-              component={Link}
-              href="/stockchecker"
-              startIcon={<ArrowBackOutlinedIcon />}
-              className="StyledButton3"
-              sx={{
-                mb: 2,
-              }}
-            >
-              Terug
-            </Button>
+    <main className={styles.page}>
+      <div className={styles.container}>
+        <Link href="/stockchecker" className={styles.backLink}>
+          <ArrowLeft size={20} />
+          Terug
+        </Link>
 
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{
-                fontWeight: 700,
-              }}
-            >
-              Snel toevoegen
-            </Typography>
+        <header className={styles.header}>
+          <h1>Snel toevoegen</h1>
+          <p>
+            Voeg meerdere producten toe en upload ze in één keer naar
+            DateCheck.
+          </p>
+        </header>
 
-            <Typography
-              variant="body2"
-              sx={{
-                opacity: 0.7,
-                mt: 0.5,
-              }}
-            >
-              Voeg snel meerdere producten toe voordat je ze naar de voorraad
-              uploadt.
-            </Typography>
-          </Box>
+        {error && (
+          <div className={`${styles.message} ${styles.error}`} role="alert">
+            {error}
+          </div>
+        )}
 
-          <Box className="StyledBox color-invert">
-            <Stack spacing={2}>
-              <TextField
-                select
-                fullWidth
-                label="Categorie"
-                value={selectedCategoryId}
-                onChange={(event) => setSelectedCategoryId(event.target.value)}
-                disabled={
-                  loading || categories.length === 0 || adding || uploading
-                }
-              >
-                {categories.map((category) => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+        {status && !error && (
+          <div className={styles.message} role="status">
+            {status}
+          </div>
+        )}
 
-              <TextField
-                select
-                fullWidth
-                label="Type controle"
-                value={selectedCheckType}
-                onChange={(event) =>
-                  setSelectedCheckType(event.target.value as CheckType)
-                }
-                disabled={adding || uploading}
-              >
-                <MenuItem value="daily">Dagelijks</MenuItem>
-                <MenuItem value="monthly">Maandelijks</MenuItem>
-              </TextField>
+        {/* Add product */}
 
-              <TextField
-                inputRef={nameInputRef}
-                fullWidth
-                label="Naam"
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <div className={styles.cardIcon}>
+              <Tag size={22} />
+            </div>
+
+            <div className={styles.cardHeading}>
+              <h2>Product toevoegen</h2>
+              <p>Vul de gegevens in en voeg het product toe aan de lijst.</p>
+            </div>
+          </div>
+
+          <div className={styles.fields}>
+            {/* Category */}
+
+            <div className={styles.field}>
+              <label htmlFor="fastadd-category">Categorie</label>
+
+              <div className={styles.selectWrapper}>
+                {selectedCategory && (
+                  <span
+                    className={styles.categoryDot}
+                    style={{
+                      backgroundColor: selectedCategory.color || "#a3e635",
+                    }}
+                  />
+                )}
+
+                <select
+                  id="fastadd-category"
+                  className={selectedCategory ? styles.withDot : ""}
+                  value={selectedCategoryId}
+                  onChange={(event) =>
+                    setSelectedCategoryId(event.target.value)
+                  }
+                  disabled={busy || categories.length === 0}
+                >
+                  {categories.length === 0 && (
+                    <option value="">
+                      {loading ? "Categorieën laden..." : "Geen categorieën"}
+                    </option>
+                  )}
+
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+
+                <ChevronDown size={19} className={styles.selectChevron} />
+              </div>
+            </div>
+
+            {/* Control */}
+
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>Controle</span>
+
+              <div className={styles.checkOptions}>
+                <button
+                  type="button"
+                  className={`${styles.checkOption} ${
+                    selectedCheckType === "daily"
+                      ? styles.checkOptionActive
+                      : ""
+                  }`}
+                  onClick={() => setSelectedCheckType("daily")}
+                  aria-pressed={selectedCheckType === "daily"}
+                  disabled={busy}
+                >
+                  {selectedCheckType === "daily" && <CheckCircle2 size={17} />}
+                  Dagelijks (30%)
+                </button>
+
+                <button
+                  type="button"
+                  className={`${styles.checkOption} ${
+                    selectedCheckType === "monthly"
+                      ? styles.checkOptionActive
+                      : ""
+                  }`}
+                  onClick={() => setSelectedCheckType("monthly")}
+                  aria-pressed={selectedCheckType === "monthly"}
+                  disabled={busy}
+                >
+                  {selectedCheckType === "monthly" && (
+                    <CheckCircle2 size={17} />
+                  )}
+                  Maandelijks
+                </button>
+              </div>
+            </div>
+
+            {/* Name */}
+
+            <div className={styles.field}>
+              <label htmlFor="fastadd-name">Naam</label>
+
+              <input
+                ref={nameInputRef}
+                id="fastadd-name"
+                type="text"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 onKeyDown={(event) => {
@@ -693,255 +817,212 @@ export default function FastAddPage() {
                     void handleAddItem();
                   }
                 }}
-                disabled={adding || uploading}
+                placeholder="Naam van het product"
                 autoComplete="off"
+                disabled={busy}
               />
+            </div>
 
-              <Stack direction="column" spacing={1.5}>
-                <Button
-                  className="StyledButton3"
-                  component="label"
-                  variant="outlined"
-                  fullWidth
-                  startIcon={<CameraAltOutlinedIcon />}
-                  disabled={adding || uploading}
-                  sx={{
-                    minHeight: 48,
-                  }}
+            {/* Photo */}
+
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>Foto</span>
+
+              <div className={styles.photoArea}>
+                <button
+                  type="button"
+                  className={styles.photoButton}
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={busy}
                 >
-                  {photo ? "Foto geselecteerd" : "Foto nemen"}
-                  <input
-                    hidden
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handlePhotoChange}
-                  />
-                </Button>
+                  <Camera size={28} />
+                  <span>{photo ? "Foto wijzigen" : "Foto nemen"}</span>
+                </button>
 
-                <Button
-                  className="StyledButton1"
-                  variant="contained"
-                  fullWidth
-                  startIcon={<AddOutlinedIcon />}
-                  onClick={() => void handleAddItem()}
-                  disabled={adding || uploading || loading}
-                  sx={{
-                    minHeight: 48,
-                  }}
-                >
-                  Toevoegen
-                </Button>
-              </Stack>
+                {photoPreview ? (
+                  <div className={styles.photoPreview}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photoPreview} alt="Geselecteerde productfoto" />
 
-              {photoPreview && (
-                <Box
-                  component="img"
-                  src={photoPreview}
-                  alt="Geselecteerde foto"
-                  sx={{
-                    width: "100%",
-                    maxHeight: 280,
-                    objectFit: "cover",
-                    borderRadius: 2,
-                  }}
-                />
-              )}
-            </Stack>
-          </Box>
-
-          {(error || status) && (
-            <Box className="StyledBox color-invert">
-              {error && (
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: "#ffb4ab",
-                  }}
-                >
-                  {error}
-                </Typography>
-              )}
-
-              {status && !error && (
-                <Typography variant="body2">{status}</Typography>
-              )}
-            </Box>
-          )}
-
-          <Box className="StyledBox color-invert">
-            <Stack spacing={2}>
-              <Stack
-                direction="row"
-                sx={{
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Box>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 700,
-                    }}
-                  >
-                    Huidige lijst ({items.length})
-                  </Typography>
-
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      opacity: 0.7,
-                      mt: 0.5,
-                    }}
-                  >
-                    Producten die klaarstaan om te uploaden.
-                  </Typography>
-                </Box>
-
-                {items.length > 0 && (
-                  <IconButton
-                    onClick={() => void handleClearList()}
-                    disabled={uploading}
-                    aria-label="Lijst wissen"
-                  >
-                    <DeleteSweepOutlinedIcon />
-                  </IconButton>
-                )}
-              </Stack>
-
-              {items.length === 0 ? (
-                <Typography
-                  variant="body2"
-                  sx={{
-                    opacity: 0.7,
-                  }}
-                >
-                  Nog geen producten toegevoegd.
-                </Typography>
-              ) : (
-                <Stack spacing={1.5}>
-                  {items.map((item) => (
-                    <Box
-                      key={item.id}
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1.5,
-                        minWidth: 0,
+                    <button
+                      type="button"
+                      className={styles.removePhoto}
+                      onClick={handleRemovePhoto}
+                      disabled={busy}
+                      aria-label="Foto verwijderen"
+                    >
+                      <X size={19} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.photoPreview}>
+                    <div
+                      className={styles.listPlaceholder}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        minHeight: 135,
                       }}
                     >
-                      {item.previewUrl ? (
-                        <Box
-                          component="img"
-                          src={item.previewUrl}
-                          alt={item.name}
-                          sx={{
-                            width: 58,
-                            height: 58,
-                            objectFit: "cover",
-                            borderRadius: 1.5,
-                            flexShrink: 0,
+                      <Camera size={26} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className={styles.hiddenInput}
+                onChange={handlePhotoChange}
+                disabled={busy}
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className={styles.addButton}
+            onClick={() => void handleAddItem()}
+            disabled={busy}
+          >
+            {adding ? (
+              <>
+                <LoaderCircle size={21} className={styles.spinner} />
+                Toevoegen...
+              </>
+            ) : (
+              <>
+                <Plus size={22} />
+                Toevoegen aan lijst
+              </>
+            )}
+          </button>
+        </section>
+
+        {/* Current list */}
+
+        <section className={`${styles.card} ${styles.listCard}`}>
+          <div className={styles.listHeader}>
+            <div className={styles.cardIcon}>
+              <ClipboardList size={22} />
+            </div>
+
+            <div className={styles.cardHeading}>
+              <h2>Producten in de lijst</h2>
+              <p>Deze producten zijn nog niet toegevoegd aan DateCheck.</p>
+            </div>
+
+            <span className={styles.count}>{items.length}</span>
+          </div>
+
+          {items.length === 0 ? (
+            <div className={styles.emptyList}>
+              {loading
+                ? "Producten laden..."
+                : "Nog geen producten toegevoegd."}
+            </div>
+          ) : (
+            <div className={styles.listItems}>
+              {items.map((item) => {
+                const category = getCategory(item.categoryId);
+
+                return (
+                  <div key={item.id} className={styles.listItem}>
+                    {item.previewUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={item.previewUrl}
+                        alt={item.name}
+                        className={styles.listPhoto}
+                      />
+                    ) : (
+                      <div className={styles.listPlaceholder}>
+                        <Camera size={23} />
+                      </div>
+                    )}
+
+                    <div className={styles.listDetails}>
+                      <p className={styles.listName}>{item.name}</p>
+
+                      <div className={styles.listMeta}>
+                        <span
+                          className={styles.metaDot}
+                          style={{
+                            backgroundColor: category?.color || "#a3e635",
                           }}
                         />
-                      ) : (
-                        <Box
-                          sx={{
-                            width: 58,
-                            height: 58,
-                            borderRadius: 1.5,
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <CameraAltOutlinedIcon
-                            sx={{
-                              opacity: 0.5,
-                            }}
-                          />
-                        </Box>
-                      )}
 
-                      <Box
-                        sx={{
-                          minWidth: 0,
-                          flex: 1,
-                        }}
-                      >
-                        <Typography
-                          variant="body1"
-                          sx={{
-                            fontWeight: 600,
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {item.name}
-                        </Typography>
+                        <span>{category?.name || "Onbekende categorie"}</span>
+                      </div>
 
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            opacity: 0.7,
-                          }}
-                        >
-                          {getCategoryName(item.categoryId)} ·{" "}
-                          {item.sticker30Percent ? "Dagelijks" : "Maandelijks"}
-                        </Typography>
-                      </Box>
+                      <div className={styles.listMeta}>
+                        <Tag size={13} color="#a3e635" />
 
-                      <IconButton
-                        onClick={() => void handleRemoveItem(item.id)}
-                        disabled={uploading}
-                        aria-label={`${item.name} verwijderen`}
-                      >
-                        <DeleteOutlineOutlinedIcon />
-                      </IconButton>
-                    </Box>
-                  ))}
-                </Stack>
-              )}
+                        <span>
+                          {item.sticker30Percent
+                            ? "Dagelijks (30%)"
+                            : "Maandelijks"}
+                        </span>
+                      </div>
+                    </div>
 
-              {items.length > 0 && (
-                <Stack spacing={1}>
-                  <Button
-                    className="StyledButton1"
-                    variant="contained"
-                    fullWidth
-                    startIcon={<CloudUploadOutlinedIcon />}
-                    onClick={() => void handleUploadCurrentList()}
-                    disabled={uploading || adding}
-                    sx={{
-                      minHeight: 48,
-                    }}
-                  >
-                    {uploading
-                      ? "Bezig met uploaden..."
-                      : "Huidige lijst uploaden"}
-                  </Button>
+                    <button
+                      type="button"
+                      className={styles.removeItem}
+                      onClick={() => void handleRemoveItem(item.id)}
+                      disabled={busy}
+                      aria-label={`${item.name} verwijderen`}
+                    >
+                      <Trash2 size={19} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      opacity: 0.6,
-                      textAlign: "center",
-                    }}
-                  >
-                    Geüploade producten krijgen
-                    {` `}
-                    {PAST_EXPIRY_DATE}
-                    {` `}
-                    als startdatum en kunnen daarna vanuit de voorraad beheerd
-                    worden.
-                  </Typography>
-                </Stack>
-              )}
-            </Stack>
-          </Box>
-        </Stack>
-      </Container>
-    </Box>
+          {items.length > 0 && (
+            <div className={styles.listActions}>
+              <button
+                type="button"
+                className={styles.uploadButton}
+                onClick={() => void handleUploadCurrentList()}
+                disabled={busy}
+              >
+                {uploading ? (
+                  <>
+                    <LoaderCircle size={21} className={styles.spinner} />
+                    Bezig met uploaden...
+                  </>
+                ) : (
+                  <>
+                    <CloudUpload size={22} />
+                    Alles uploaden naar DateCheck
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className={styles.clearButton}
+                onClick={() => void handleClearList()}
+                disabled={busy}
+              >
+                <Trash2 size={19} />
+                Lijst wissen
+              </button>
+
+              <p className={styles.uploadHint}>
+                Geüploade producten krijgen {PAST_EXPIRY_DATE} als startdatum en
+                kunnen daarna vanuit de voorraad beheerd worden.
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }

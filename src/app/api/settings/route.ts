@@ -1,10 +1,18 @@
+
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
 type CategoryInput = {
     id?: string;
     name: string;
+    color?: string;
 };
+
+const DEFAULT_CATEGORY_COLOR = "#A3E635";
+
+function isValidColor(color: string): boolean {
+    return /^#[0-9A-Fa-f]{6}$/.test(color);
+}
 
 export async function GET() {
     try {
@@ -25,11 +33,12 @@ export async function GET() {
             SELECT
                 c.id,
                 c.name,
+                c.color,
                 c.sort_order,
                 COUNT(i.id)::int AS item_count
             FROM categories c
             LEFT JOIN items i ON i.category_id = c.id
-            GROUP BY c.id, c.name, c.sort_order
+            GROUP BY c.id, c.name, c.color, c.sort_order
             ORDER BY c.sort_order ASC, c.name ASC
         `;
 
@@ -53,6 +62,7 @@ export async function PATCH(request: Request) {
         const body = await request.json();
 
         const daysBeforeEnd = Number(body.monthCheckDaysBeforeEnd);
+
         const categories: CategoryInput[] = Array.isArray(body.categories)
             ? body.categories
             : [];
@@ -77,12 +87,28 @@ export async function PATCH(request: Request) {
 
         const cleanedCategories = categories.map((category) => ({
             ...category,
-            name: category.name.trim(),
+            name: typeof category.name === "string"
+                ? category.name.trim()
+                : "",
+            color: category.color ?? DEFAULT_CATEGORY_COLOR,
         }));
 
         if (cleanedCategories.some((category) => !category.name)) {
             return NextResponse.json(
                 { error: "Een categorienaam mag niet leeg zijn." },
+                { status: 400 },
+            );
+        }
+
+        if (
+            cleanedCategories.some(
+                (category) => !isValidColor(category.color),
+            )
+        ) {
+            return NextResponse.json(
+                {
+                    error: "Elke categorie moet een geldige hexkleur hebben (#RRGGBB).",
+                },
                 { status: 400 },
             );
         }
@@ -102,7 +128,7 @@ export async function PATCH(request: Request) {
         }
 
         const existingCategories = await sql`
-            SELECT id, name
+            SELECT id, name, color
             FROM categories
         `;
 
@@ -150,6 +176,7 @@ export async function PATCH(request: Request) {
                     UPDATE categories
                     SET
                         name = ${category.name},
+                        color = ${category.color},
                         sort_order = ${sortOrder}
                     WHERE id = ${category.id}
                     RETURNING id
@@ -167,10 +194,12 @@ export async function PATCH(request: Request) {
                 await sql`
                     INSERT INTO categories (
                         name,
+                        color,
                         sort_order
                     )
                     VALUES (
                         ${category.name},
+                        ${category.color},
                         ${sortOrder}
                     )
                 `;
@@ -188,11 +217,12 @@ export async function PATCH(request: Request) {
             SELECT
                 c.id,
                 c.name,
+                c.color,
                 c.sort_order,
                 COUNT(i.id)::int AS item_count
             FROM categories c
             LEFT JOIN items i ON i.category_id = c.id
-            GROUP BY c.id, c.name, c.sort_order
+            GROUP BY c.id, c.name, c.color, c.sort_order
             ORDER BY c.sort_order ASC, c.name ASC
         `;
 

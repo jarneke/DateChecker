@@ -4,21 +4,26 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  Box,
-  Button,
-  Container,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
-import SaveOutlined from "@mui/icons-material/SaveOutlined";
-import CameraAltOutlined from "@mui/icons-material/CameraAltOutlined";
+  ArrowLeft,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  LoaderCircle,
+  Package,
+  Save,
+  Tag,
+  Trash2,
+  X,
+} from "lucide-react";
+
+import ProductPhoto from "@/components/product/ProductPhoto";
+import { uploadProductPhoto } from "@/components/product/imageUtils";
+import styles from "./page.module.css";
 
 type Category = {
   id: string;
   name: string;
+  color?: string;
 };
 
 type Item = {
@@ -26,96 +31,67 @@ type Item = {
   name: string;
   photo_url: string | null;
   category_id: string;
-  expiry_date: string;
+  expiry_date: string | null;
   sticker_30_percent: boolean;
   category_name: string | null;
 };
 
-function compressImage(file: File): Promise<File> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const objectUrl = URL.createObjectURL(file);
+function getDateInputValue(value: string | null): string {
+  if (!value) return "";
 
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
+  if (value.includes("T")) {
+    const date = new Date(value);
 
-      const maxSize = 800;
+    if (!Number.isNaN(date.getTime())) {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Brussels",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(date);
 
-      let width = image.naturalWidth;
-      let height = image.naturalHeight;
+      const year = parts.find((part) => part.type === "year")?.value;
+      const month = parts.find((part) => part.type === "month")?.value;
+      const day = parts.find((part) => part.type === "day")?.value;
 
-      if (width > maxSize || height > maxSize) {
-        if (width > height) {
-          height = Math.round((height / width) * maxSize);
-          width = maxSize;
-        } else {
-          width = Math.round((width / height) * maxSize);
-          height = maxSize;
-        }
+      if (year && month && day) {
+        return `${year}-${month}-${day}`;
       }
+    }
+  }
 
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-
-      const context = canvas.getContext("2d");
-
-      if (!context) {
-        reject(new Error("Afbeelding kon niet verwerkt worden."));
-        return;
-      }
-
-      context.drawImage(image, 0, 0, width, height);
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error("Afbeelding kon niet gecomprimeerd worden."));
-            return;
-          }
-
-          const compressedFile = new File(
-            [blob],
-            `${file.name.replace(/\.[^/.]+$/, "")}.webp`,
-            {
-              type: "image/webp",
-              lastModified: Date.now(),
-            },
-          );
-
-          resolve(compressedFile);
-        },
-        "image/webp",
-        0.8,
-      );
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Afbeelding kon niet gelezen worden."));
-    };
-
-    image.src = objectUrl;
-  });
+  return value.slice(0, 10);
 }
 
 export default function ItemDetailPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params.id as string;
+
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const returnTo = searchParams.get("returnTo");
+  const backHref =
+    returnTo?.startsWith("/") && !returnTo.startsWith("//")
+      ? returnTo
+      : "/stockchecker";
 
   const [item, setItem] = useState<Item | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+
   const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState("");
   const [removePhoto, setRemovePhoto] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       try {
         const [itemResponse, categoriesResponse] = await Promise.all([
@@ -124,108 +100,92 @@ export default function ItemDetailPage() {
         ]);
 
         if (!itemResponse.ok) {
-          throw new Error("Item not found");
+          throw new Error("Product kon niet geladen worden.");
         }
 
         if (!categoriesResponse.ok) {
-          throw new Error("Categories could not be loaded");
+          throw new Error("Categorieën konden niet geladen worden.");
         }
 
-        const itemData = await itemResponse.json();
-        const categoriesData = await categoriesResponse.json();
+        const itemData: Item = await itemResponse.json();
+        const categoriesData: Category[] = await categoriesResponse.json();
 
-        setItem(itemData);
+        if (cancelled) return;
+
+        setItem({
+          ...itemData,
+          expiry_date: getDateInputValue(itemData.expiry_date),
+        });
+
         setCategories(categoriesData);
-
-        if (itemData.photo_url) {
-          setPhotoPreview(itemData.photo_url);
+      } catch (caughtError) {
+        if (!cancelled) {
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Product kon niet geladen worden.",
+          );
         }
-      } catch {
-        setError("Kon item niet laden.");
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
-  useEffect(() => {
-    return () => {
-      if (photoPreview.startsWith("blob:")) {
-        URL.revokeObjectURL(photoPreview);
-      }
-    };
-  }, [photoPreview]);
+  function updateItem(changes: Partial<Item>) {
+    setItem((current) =>
+      current
+        ? {
+            ...current,
+            ...changes,
+          }
+        : current,
+    );
 
-  function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      setError("Selecteer een geldige afbeelding.");
-      return;
-    }
-
-    setError("");
-    setPhoto(file);
-    setRemovePhoto(false);
-
-    if (photoPreview.startsWith("blob:")) {
-      URL.revokeObjectURL(photoPreview);
-    }
-
-    setPhotoPreview(URL.createObjectURL(file));
+    setSaved(false);
   }
 
-  function handleRemovePhoto() {
-    setPhoto(null);
-    setRemovePhoto(true);
-
-    if (photoPreview.startsWith("blob:")) {
-      URL.revokeObjectURL(photoPreview);
-    }
-
-    setPhotoPreview("");
+  function handlePhotoChange(file: File | null, removed: boolean) {
+    setPhoto(file);
+    setRemovePhoto(removed);
+    setSaved(false);
   }
 
   async function handleSave() {
-    if (!item) {
+    if (!item || saving) return;
+
+    if (!item.name.trim()) {
+      setError("Vul een productnaam in.");
+      return;
+    }
+
+    if (!item.category_id) {
+      setError("Selecteer een categorie.");
+      return;
+    }
+
+    if (!item.expiry_date) {
+      setError("Vul een vervaldatum in.");
       return;
     }
 
     setSaving(true);
     setError("");
+    setSaved(false);
 
     try {
-      const oldPhotoUrl = item.photo_url;
-      let photoUrl = removePhoto ? null : oldPhotoUrl;
+      let photoUrl: string | null = removePhoto ? null : item.photo_url;
 
       if (photo) {
-        const compressedPhoto = await compressImage(photo);
-
-        const formData = new FormData();
-        formData.append("file", compressedPhoto);
-
-        const uploadResponse = await fetch("/api/github-upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const uploadData = await uploadResponse.json();
-
-        if (!uploadResponse.ok) {
-          throw new Error(
-            uploadData?.details ||
-              uploadData?.error ||
-              "Foto kon niet geüpload worden.",
-          );
-        }
-
-        photoUrl = uploadData.url;
+        photoUrl = await uploadProductPhoto(photo);
       }
 
       const response = await fetch(`/api/items/${id}`, {
@@ -245,7 +205,7 @@ export default function ItemDetailPage() {
       if (!response.ok) {
         const data = await response.json().catch(() => null);
 
-        throw new Error(data?.error || "Opslaan van het item mislukt.");
+        throw new Error(data?.error || "Opslaan van het product mislukt.");
       }
 
       const updatedItem = await response.json();
@@ -255,6 +215,9 @@ export default function ItemDetailPage() {
           ? {
               ...current,
               ...updatedItem,
+              expiry_date: getDateInputValue(
+                updatedItem.expiry_date ?? current.expiry_date,
+              ),
               photo_url: photoUrl,
             }
           : current,
@@ -262,33 +225,25 @@ export default function ItemDetailPage() {
 
       setPhoto(null);
       setRemovePhoto(false);
-      setPhotoPreview(photoUrl || "");
+      setSaved(true);
 
-      if (returnTo) {
-        router.push(returnTo);
+      if (returnTo && backHref === returnTo) {
+        router.push(backHref);
         return;
       }
 
       router.refresh();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Opslaan mislukt.");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error ? caughtError.message : "Opslaan mislukt.",
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!item) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Weet je zeker dat je "${item.name}" wilt verwijderen?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
+    if (!item || saving) return;
 
     setSaving(true);
     setError("");
@@ -306,208 +261,283 @@ export default function ItemDetailPage() {
 
       router.push("/stockchecker");
       router.refresh();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Verwijderen mislukt.");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Verwijderen mislukt.",
+      );
+
       setSaving(false);
+      setShowDeleteConfirm(false);
     }
   }
 
   if (loading) {
     return (
-      <Container maxWidth="md">
-        <Box sx={{ py: 4 }}>
-          <Typography>Laden...</Typography>
-        </Box>
-      </Container>
+      <main className={styles.page}>
+        <div className={styles.container}>
+          <div className={styles.loadingState}>
+            <LoaderCircle size={28} className={styles.spinner} />
+            <span>Product laden...</span>
+          </div>
+        </div>
+      </main>
     );
   }
 
   if (!item) {
     return (
-      <Container maxWidth="md">
-        <Box sx={{ py: 4 }}>
-          <Typography variant="h5">Item niet gevonden</Typography>
+      <main className={styles.page}>
+        <div className={styles.container}>
+          <Link href="/stockchecker" className={styles.backLink}>
+            <ArrowLeft size={20} />
+            Terug
+          </Link>
 
-          <Button
-            component={Link}
-            href="/stockchecker"
-            startIcon={<ArrowBackOutlined />}
-            sx={{ mt: 2 }}
-          >
-            Terug naar overzicht
-          </Button>
-        </Box>
-      </Container>
+          <div className={styles.emptyState}>
+            <Package size={36} />
+            <h1>Product niet gevonden</h1>
+            <p>{error || "Dit product bestaat niet meer."}</p>
+          </div>
+        </div>
+      </main>
     );
   }
 
+  const selectedCategory = categories.find(
+    (category) => category.id === item.category_id,
+  );
+
   return (
-    <Container maxWidth="md">
-      <Box sx={{ py: 4 }}>
-        <Button
-          className="StyledButton3"
-          component={Link}
-          href={returnTo || "/stockchecker"}
-          startIcon={<ArrowBackOutlined />}
-          sx={{ mb: 3 }}
-        >
+    <main className={styles.page}>
+      <div className={styles.container}>
+        <Link href={backHref} className={styles.backLink}>
+          <ArrowLeft size={20} />
           Terug
-        </Button>
+        </Link>
 
-        <Typography variant="h4" sx={{ mb: 3 }}>
-          Item aanpassen
-        </Typography>
+        <header className={styles.header}>
+          <h1>Product bewerken</h1>
+          <p>Pas de gegevens aan en sla je wijzigingen op.</p>
+        </header>
 
-        <Box className="StyledBox color-invert">
-          <Stack spacing={3}>
-            {error && <Typography color="error">{error}</Typography>}
+        {error && (
+          <div className={styles.errorMessage} role="alert">
+            {error}
+          </div>
+        )}
 
-            <Box>
-              <Stack spacing={2}>
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  Productfoto
-                </Typography>
+        {saved && (
+          <div className={styles.successMessage} role="status">
+            <Check size={18} />
+            Wijzigingen opgeslagen
+          </div>
+        )}
 
-                {photoPreview && (
-                  <Box
-                    component="img"
-                    src={photoPreview}
-                    alt={item.name}
-                    sx={{
-                      width: "100%",
-                      maxHeight: 300,
-                      objectFit: "contain",
-                      borderRadius: 2,
+        <ProductPhoto
+          initialUrl={item.photo_url}
+          onChange={handlePhotoChange}
+          disabled={saving}
+        />
+
+        <section className={styles.card}>
+          <div className={styles.sectionHeader}>
+            <div className={styles.sectionIcon}>
+              <Tag size={22} />
+            </div>
+
+            <div>
+              <h2>Productgegevens</h2>
+              <p>Naam, categorie en vervaldatum.</p>
+            </div>
+          </div>
+
+          <div className={styles.fields}>
+            <div className={styles.field}>
+              <label htmlFor="product-name">Naam</label>
+
+              <input
+                id="product-name"
+                type="text"
+                value={item.name}
+                onChange={(event) =>
+                  updateItem({
+                    name: event.target.value,
+                  })
+                }
+                disabled={saving}
+                autoComplete="off"
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="product-category">Categorie</label>
+
+              <div className={styles.selectWrapper}>
+                {selectedCategory && (
+                  <span
+                    className={styles.categoryDot}
+                    style={{
+                      backgroundColor: selectedCategory.color || "#a3e635",
                     }}
                   />
                 )}
 
-                <Button
-                  className="StyledButton3"
-                  component="label"
-                  variant="outlined"
-                  size="large"
-                  startIcon={<CameraAltOutlined />}
-                  fullWidth
+                <select
+                  id="product-category"
+                  className={selectedCategory ? styles.categorySelect : ""}
+                  value={item.category_id}
+                  onChange={(event) =>
+                    updateItem({
+                      category_id: event.target.value,
+                    })
+                  }
                   disabled={saving}
                 >
-                  {photoPreview ? "Andere foto nemen" : "Foto nemen"}
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
 
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    capture="environment"
-                    hidden
-                    onChange={handlePhotoChange}
-                  />
-                </Button>
+                <ChevronDown size={19} className={styles.selectChevron} />
+              </div>
+            </div>
 
-                {photoPreview && (
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={handleRemovePhoto}
-                    disabled={saving}
-                  >
-                    Foto verwijderen
-                  </Button>
-                )}
-              </Stack>
-            </Box>
+            <div className={styles.field}>
+              <label htmlFor="product-expiry">Vervaldatum</label>
 
-            <TextField
-              label="Naam"
-              value={item.name}
+              <div className={styles.dateWrapper}>
+                <CalendarDays size={19} className={styles.dateIcon} />
+
+                <input
+                  id="product-expiry"
+                  type="date"
+                  value={item.expiry_date || ""}
+                  onChange={(event) =>
+                    updateItem({
+                      expiry_date: event.target.value,
+                    })
+                  }
+                  disabled={saving}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.card}>
+          <div className={styles.sectionHeader}>
+            <div className={styles.sectionIcon}>
+              <CalendarDays size={22} />
+            </div>
+
+            <div>
+              <h2>Controle-instellingen</h2>
+              <p>Bepaal hoe dit product gecontroleerd wordt.</p>
+            </div>
+          </div>
+
+          <label className={styles.toggleRow}>
+            <span className={styles.toggleText}>
+              <strong>Dagelijkse controle (30%)</strong>
+
+              <span>
+                {item.sticker_30_percent
+                  ? "Toon dit product bij de dagelijkse controle."
+                  : "Dit product valt onder de maandelijkse controle."}
+              </span>
+            </span>
+
+            <input
+              type="checkbox"
+              className={styles.toggleInput}
+              checked={item.sticker_30_percent}
               onChange={(event) =>
-                setItem({
-                  ...item,
-                  name: event.target.value,
+                updateItem({
+                  sticker_30_percent: event.target.checked,
                 })
               }
               disabled={saving}
-              fullWidth
             />
 
-            <TextField
-              select
-              label="Categorie"
-              value={item.category_id}
-              onChange={(event) =>
-                setItem({
-                  ...item,
-                  category_id: event.target.value,
-                })
-              }
+            <span className={styles.toggleSwitch} aria-hidden="true" />
+          </label>
+        </section>
+
+        <button
+          type="button"
+          className={styles.saveButton}
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? (
+            <>
+              <LoaderCircle size={21} className={styles.spinner} />
+              Opslaan...
+            </>
+          ) : (
+            <>
+              <Save size={21} />
+              Wijzigingen opslaan
+            </>
+          )}
+        </button>
+
+        <div className={styles.deleteSection}>
+          {!showDeleteConfirm ? (
+            <button
+              type="button"
+              className={styles.deleteLink}
+              onClick={() => setShowDeleteConfirm(true)}
               disabled={saving}
-              fullWidth
             >
-              {categories.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              <Trash2 size={17} />
+              Product verwijderen
+            </button>
+          ) : (
+            <div className={styles.deleteConfirm}>
+              <div className={styles.deleteConfirmHeader}>
+                <Trash2 size={20} />
+                <strong>Product verwijderen?</strong>
+              </div>
 
-            <TextField
-              label="Vervaldatum"
-              type="date"
-              value={item.expiry_date ? item.expiry_date.slice(0, 10) : ""}
-              onChange={(event) =>
-                setItem({
-                  ...item,
-                  expiry_date: event.target.value,
-                })
-              }
-              disabled={saving}
-              slotProps={{
-                inputLabel: {
-                  shrink: true,
-                },
-              }}
-              fullWidth
-            />
+              <p>
+                Weet je zeker dat je "{item.name}" wilt verwijderen? Dit kan
+                niet ongedaan gemaakt worden.
+              </p>
 
-            <TextField
-              select
-              label="Controle"
-              value={item.sticker_30_percent ? "daily" : "monthly"}
-              onChange={(event) =>
-                setItem({
-                  ...item,
-                  sticker_30_percent: event.target.value === "daily",
-                })
-              }
-              disabled={saving}
-              fullWidth
-            >
-              <MenuItem value="daily">Dagelijkse check</MenuItem>
-              <MenuItem value="monthly">Maandelijkse check</MenuItem>
-            </TextField>
+              <div className={styles.deleteActions}>
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={saving}
+                >
+                  <X size={17} />
+                  Annuleren
+                </button>
 
-            <Stack spacing={2}>
-              <Button
-                className="StyledButton1"
-                variant="contained"
-                size="large"
-                startIcon={<SaveOutlined />}
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? "Opslaan..." : "Opslaan"}
-              </Button>
-
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={handleDelete}
-                disabled={saving}
-              >
-                Item verwijderen
-              </Button>
-            </Stack>
-          </Stack>
-        </Box>
-      </Box>
-    </Container>
+                <button
+                  type="button"
+                  className={styles.confirmDeleteButton}
+                  onClick={handleDelete}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <LoaderCircle size={17} className={styles.spinner} />
+                  ) : (
+                    <Trash2 size={17} />
+                  )}
+                  Verwijderen
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
   );
 }

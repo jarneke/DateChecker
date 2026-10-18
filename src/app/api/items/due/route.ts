@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
@@ -8,16 +9,17 @@ export async function GET() {
         i.id,
         i.name,
         i.photo_url,
-        i.expiry_date,
+        TO_CHAR(i.expiry_date, 'YYYY-MM-DD') AS expiry_date,
         i.sticker_30_percent,
         i.category_id,
         i.paused,
-        i.stickered_for_date,
+        TO_CHAR(i.stickered_for_date, 'YYYY-MM-DD') AS stickered_for_date,
         c.name AS category_name
       FROM items i
       INNER JOIN categories c
         ON c.id = i.category_id
-      WHERE i.sticker_30_percent = TRUE
+      WHERE
+        i.sticker_30_percent = TRUE
         AND i.paused = FALSE
         AND i.expiry_date = (
           CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels'
@@ -34,7 +36,7 @@ export async function GET() {
 
     return NextResponse.json(
       { error: "Items konden niet geladen worden." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

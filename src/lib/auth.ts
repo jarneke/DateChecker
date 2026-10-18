@@ -1,8 +1,11 @@
+
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 
 const COOKIE_NAME = "site_session";
-const SESSION_DURATION = 60 * 60 * 24 * 30; // 30 days
+
+// Session expires 7 days after login
+const SESSION_DURATION = 60 * 60 * 24 * 7;
 
 function getSecret() {
     const secret = process.env.AUTH_SECRET;
@@ -36,7 +39,13 @@ export async function createSession() {
 
 export async function verifySession(token: string) {
     try {
-        const { payload } = await jwtVerify(token, getSecret());
+        const { payload } = await jwtVerify(
+            token,
+            getSecret(),
+            {
+                algorithms: ["HS256"],
+            },
+        );
 
         return payload.authenticated === true;
     } catch {

@@ -1,0 +1,614 @@
+.page {
+  min-height: 100dvh;
+  background: var(--dc-background);
+  color: var(--dc-text);
+  font-family: var(--dc-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--dc-accent);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.backLink:hover {
+  color: color-mix(in srgb, var(--dc-accent), white 15%);
+}
+
+.header {
+  margin: 27px 0 25px;
+}
+
+.header h1 {
+  margin: 0 0 9px;
+  font-size: clamp(26px, 6vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.9px;
+  line-height: 1.2;
+}
+
+.header p {
+  margin: 0;
+  color: var(--dc-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.card {
+  margin-bottom: 17px;
+  padding: 19px;
+  background: var(--dc-surface);
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-lg);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 23px;
+}
+
+.sectionIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 45px;
+  height: 45px;
+  border-radius: var(--dc-radius-md);
+  background: rgba(var(--dc-accent-rgb), 0.1);
+  color: var(--dc-accent);
+}
+
+.sectionHeader h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.sectionHeader p {
+  margin: 0;
+  color: var(--dc-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.photoContent {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.photoPreview,
+.photoPlaceholder {
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--dc-radius-md);
+}
+
+.photoPreview {
+  background: var(--dc-background);
+}
+
+.photoPreview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photoPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed var(--dc-text-subtle);
+  background: var(--dc-background);
+  color: var(--dc-text-subtle);
+  font-size: 11px;
+}
+
+.photoActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.photoChangeButton,
+.photoRemoveButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  min-height: 49px;
+  width: 100%;
+  padding: 10px 8px;
+  border-radius: var(--dc-radius-md);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.photoChangeButton {
+  border: 1px solid var(--dc-accent);
+  color: var(--dc-accent);
+}
+
+.photoChangeButton:hover:not(:disabled) {
+  background: rgba(var(--dc-accent-rgb), 0.08);
+}
+
+.photoRemoveButton {
+  border: 1px solid rgba(var(--dc-danger-rgb), 0.4);
+  color: var(--dc-danger);
+}
+
+.photoRemoveButton:hover:not(:disabled) {
+  background: rgba(var(--dc-danger-rgb), 0.06);
+}
+
+.photoChangeButton:disabled,
+.photoRemoveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.field label {
+  color: var(--dc-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.field input,
+.field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 49px;
+  padding: 0 14px;
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-md);
+  background: var(--dc-background);
+  color: var(--dc-text);
+  color-scheme: dark;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--dc-accent);
+  box-shadow: 0 0 0 3px rgba(var(--dc-accent-rgb), 0.1);
+}
+
+.field input::placeholder {
+  color: var(--dc-text-subtle);
+}
+
+.field input:disabled,
+.field select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.selectWrapper,
+.dateWrapper {
+  position: relative;
+  min-width: 0;
+}
+
+.selectWrapper select {
+  appearance: none;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+.selectWrapper select.categorySelect {
+  padding-left: 37px;
+}
+
+.categoryDot {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 15px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.selectChevron {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  color: var(--dc-text-secondary);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.dateWrapper input {
+  padding-left: 43px;
+}
+
+.dateIcon {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  z-index: 1;
+  color: var(--dc-text-secondary);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.dateWrapper input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+.toggleRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 78px;
+  padding: 15px;
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-md);
+  background: var(--dc-background);
+  cursor: pointer;
+}
+
+.toggleRow:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toggleText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.toggleText strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.toggleText > span {
+  color: var(--dc-text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.toggleInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.toggleSwitch {
+  position: relative;
+  flex-shrink: 0;
+  width: 48px;
+  height: 27px;
+  border-radius: 999px;
+  background: var(--dc-text-subtle);
+  transition: background 0.2s ease;
+}
+
+.toggleSwitch::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--dc-text-inverse);
+  transition: transform 0.2s ease;
+}
+
+.toggleInput:checked + .toggleSwitch {
+  background: var(--dc-accent);
+}
+
+.toggleInput:checked + .toggleSwitch::after {
+  transform: translateX(21px);
+}
+
+.toggleInput:focus-visible + .toggleSwitch {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: 3px;
+}
+
+.saveButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 53px;
+  padding: 13px;
+  border: 0;
+  border-radius: var(--dc-radius-md);
+  background: var(--dc-accent);
+  color: var(--dc-text-inverse);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dc-accent), white 15%);
+}
+
+.saveButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.deleteSection {
+  margin-top: 20px;
+}
+
+.deleteLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px;
+  border: 0;
+  border-radius: var(--dc-radius-sm);
+  background: transparent;
+  color: var(--dc-danger);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.deleteLink:hover:not(:disabled) {
+  background: rgba(var(--dc-danger-rgb), 0.06);
+}
+
+.deleteLink:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.deleteConfirm {
+  padding: 17px;
+  border: 1px solid rgba(var(--dc-danger-rgb), 0.35);
+  border-radius: var(--dc-radius-md);
+  background: rgba(var(--dc-danger-rgb), 0.06);
+}
+
+.deleteConfirmHeader {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--dc-danger);
+  font-size: 14px;
+}
+
+.deleteConfirm p {
+  margin: 12px 0 17px;
+  color: var(--dc-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.deleteActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cancelButton,
+.confirmDeleteButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 9px;
+  border-radius: var(--dc-radius-sm);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cancelButton {
+  border: 1px solid var(--dc-border);
+  background: var(--dc-surface);
+  color: var(--dc-text);
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: var(--dc-surface-hover);
+}
+
+.confirmDeleteButton {
+  border: 0;
+  background: var(--dc-danger);
+  color: var(--dc-text-inverse);
+}
+
+.confirmDeleteButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dc-danger), white 15%);
+}
+
+.cancelButton:disabled,
+.confirmDeleteButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.errorMessage,
+.successMessage {
+  margin-bottom: 17px;
+  padding: 13px 15px;
+  border-radius: var(--dc-radius-md);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.errorMessage {
+  border: 1px solid rgba(var(--dc-danger-rgb), 0.3);
+  background: rgba(var(--dc-danger-rgb), 0.1);
+  color: var(--dc-danger);
+}
+
+.successMessage {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(var(--dc-success-rgb), 0.3);
+  background: rgba(var(--dc-success-rgb), 0.08);
+  color: var(--dc-success);
+}
+
+.loadingState,
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  min-height: 55vh;
+  color: var(--dc-text-secondary);
+  text-align: center;
+}
+
+.emptyState h1 {
+  margin: 0;
+  color: var(--dc-text);
+  font-size: 22px;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.backLink:focus-visible,
+.photoChangeButton:focus-visible,
+.photoRemoveButton:focus-visible,
+.saveButton:focus-visible,
+.deleteLink:focus-visible,
+.cancelButton:focus-visible,
+.confirmDeleteButton:focus-visible {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: 3px;
+}
+
+.spinner {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (min-width: 600px) {
+  .container {
+    padding: 35px 24px 65px;
+  }
+
+  .card {
+    padding: 24px;
+  }
+
+  .photoContent {
+    grid-template-columns: 190px minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .photoChangeButton,
+  .photoRemoveButton {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .photoContent {
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .photoChangeButton,
+  .photoRemoveButton {
+    font-size: 11px;
+  }
+
+  .toggleRow {
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+
+  .toggleSwitch,
+  .toggleSwitch::after {
+    transition: none;
+  }
+}

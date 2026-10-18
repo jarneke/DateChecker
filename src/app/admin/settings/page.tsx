@@ -1,24 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Box,
-  Button,
-  Container,
-  IconButton,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SaveIcon from "@mui/icons-material/Save";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
-import { useEffect, useState } from "react";
+  ArrowLeft,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  GripVertical,
+  Plus,
+  Save,
+  Trash2,
+  AlertCircle,
+  Palette,
+  Package,
+} from "lucide-react";
 import {
   DndContext,
-  DragEndEvent,
+  type DragEndEvent,
   PointerSensor,
   TouchSensor,
   closestCenter,
@@ -32,23 +31,47 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import styles from "./page.module.css";
 
 type Category = {
   id?: string;
+  localId: string;
   name: string;
+  color: string;
   sort_order: number;
   item_count: number;
 };
 
+type ApiCategory = {
+  id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+  item_count: number;
+};
+
+const DEFAULT_COLOR = "#A3E635";
+
+function mapCategories(categories: ApiCategory[]): Category[] {
+  return categories.map((category) => ({
+    id: category.id,
+    localId: category.id,
+    name: category.name,
+    color: category.color || DEFAULT_COLOR,
+    sort_order: category.sort_order,
+    item_count: Number(category.item_count),
+  }));
+}
+
 type SortableCategoryProps = {
   category: Category;
-  index: number;
-  onDelete: (index: number) => void;
+  onColorChange: (localId: string, color: string) => void;
+  onDelete: (localId: string) => void;
 };
 
 function SortableCategory({
   category,
-  index,
+  onColorChange,
   onDelete,
 }: SortableCategoryProps) {
   const {
@@ -59,164 +82,92 @@ function SortableCategory({
     transition,
     isDragging,
   } = useSortable({
-    id: category.id ?? `new-${index}`,
+    id: category.localId,
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    zIndex: isDragging ? 10 : undefined,
+    position: "relative" as const,
+    opacity: isDragging ? 0.65 : 1,
   };
 
   return (
-    <Box
+    <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        px: 1.5,
-        py: 1.25,
-        borderRadius: 1.5,
-        border: "1px solid",
-        borderColor: isDragging ? "#c1b4a7" : "#716b65",
-        backgroundColor: "#100f0e",
-        color: "#fff2dd",
-        cursor: isDragging ? "grabbing" : "grab",
-        opacity: isDragging ? 0.5 : 1,
-        userSelect: "none",
-        touchAction: "none",
-        transition: "border-color 0.15s, opacity 0.15s, background-color 0.15s",
-        "&:hover": {
-          borderColor: "#a89d92",
-          backgroundColor: "#24211f",
-        },
-      }}
+      className={`${styles.categoryItem} ${isDragging ? styles.dragging : ""}`}
     >
-      <Box
+      <button
+        type="button"
+        className={styles.dragHandle}
+        aria-label={`${category.name} verslepen`}
+        {...attributes}
         {...listeners}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          cursor: isDragging ? "grabbing" : "grab",
-          touchAction: "none",
-        }}
       >
-        <DragIndicatorIcon
-          sx={{
-            color: "#716b65",
-            flexShrink: 0,
-          }}
+        <GripVertical size={19} />
+      </button>
+
+      <div
+        className={styles.colorPicker}
+        style={{ backgroundColor: category.color }}
+      >
+        <input
+          type="color"
+          value={category.color}
+          onChange={(event) =>
+            onColorChange(category.localId, event.target.value.toUpperCase())
+          }
+          aria-label={`Kleur van ${category.name}`}
         />
-      </Box>
+      </div>
 
-      <Typography
-        sx={{
-          flex: 1,
-          fontWeight: 500,
-          color: "#fff2dd",
-        }}
-      >
-        {category.name}
-      </Typography>
+      <div className={styles.categoryInfo}>
+        <span className={styles.categoryName}>{category.name}</span>
+        <span className={styles.categoryMeta}>
+          {category.item_count} {category.item_count === 1 ? "item" : "items"}
+          <span className={styles.metaDot}>·</span>
+          {category.color.toUpperCase()}
+        </span>
+      </div>
 
-      {category.item_count > 0 && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.75,
-          }}
+      {category.item_count === 0 ? (
+        <button
+          type="button"
+          className={styles.deleteButton}
+          onClick={() => onDelete(category.localId)}
+          aria-label={`${category.name} verwijderen`}
         >
-          <Typography
-            sx={{
-              fontWeight: 800,
-              color: "#100f0e",
-              backgroundColor: "#fff2dd",
-              borderRadius: "50%",
-              width: 22,
-              height: 22,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "0.9rem",
-            }}
-          >
-            !
-          </Typography>
-
-          <Typography
-            variant="body2"
-            sx={{
-              color: "#a89d92",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {category.item_count} {category.item_count === 1 ? "item" : "items"}
-          </Typography>
-
-          <Typography
-            sx={{
-              fontWeight: 800,
-              color: "#100f0e",
-              backgroundColor: "#fff2dd",
-              borderRadius: "50%",
-              width: 22,
-              height: 22,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "0.9rem",
-            }}
-          >
-            !
-          </Typography>
-        </Box>
+          <Trash2 size={17} />
+        </button>
+      ) : (
+        <Package
+          size={16}
+          className={styles.lockedIcon}
+          aria-label="Categorie bevat producten"
+        />
       )}
-
-      {category.item_count === 0 && (
-        <IconButton
-          onClick={(event) => {
-            event.stopPropagation();
-            onDelete(index);
-          }}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-          }}
-          aria-label={`Verwijder ${category.name}`}
-          size="small"
-          sx={{
-            color: "#716b65",
-            "&:hover": {
-              color: "#fff2dd",
-              backgroundColor: "rgba(255, 242, 221, 0.08)",
-            },
-          }}
-        >
-          <DeleteIcon />
-        </IconButton>
-      )}
-    </Box>
+    </div>
   );
 }
 
 export default function SettingsPage() {
-  const [daysBeforeEnd, setDaysBeforeEnd] = useState("");
+  const [daysBeforeEnd, setDaysBeforeEnd] = useState("5");
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState(DEFAULT_COLOR);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(true);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+      activationConstraint: { distance: 8 },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
@@ -229,35 +180,20 @@ export default function SettingsPage() {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const res = await fetch("/api/settings", {
+        const response = await fetch("/api/settings", {
           cache: "no-store",
         });
 
-        if (!res.ok) {
+        if (!response.ok) {
           throw new Error("Instellingen konden niet geladen worden.");
         }
 
-        const data = await res.json();
+        const data = await response.json();
 
         setDaysBeforeEnd(String(data.monthCheckDaysBeforeEnd));
-
-        setCategories(
-          data.categories.map(
-            (category: {
-              id: string;
-              name: string;
-              sort_order: number;
-              item_count: number;
-            }) => ({
-              id: category.id,
-              name: category.name,
-              sort_order: category.sort_order,
-              item_count: Number(category.item_count),
-            }),
-          ),
-        );
-      } catch (error) {
-        console.error(error);
+        setCategories(mapCategories(data.categories));
+      } catch (err) {
+        console.error(err);
         setError("Instellingen konden niet geladen worden.");
       } finally {
         setLoading(false);
@@ -269,9 +205,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent) {
-      if (!hasUnsavedChanges) {
-        return;
-      }
+      if (!hasUnsavedChanges) return;
 
       event.preventDefault();
       event.returnValue = "";
@@ -284,29 +218,32 @@ export default function SettingsPage() {
     };
   }, [hasUnsavedChanges]);
 
-  function markAsChanged() {
+  function markChanged() {
     setHasUnsavedChanges(true);
     setSaved(false);
     setError(null);
   }
 
-  function handleDaysChange(value: string) {
-    setDaysBeforeEnd(value);
-    markAsChanged();
+  function handleColorChange(localId: string, color: string) {
+    setCategories((current) =>
+      current.map((category) =>
+        category.localId === localId ? { ...category, color } : category,
+      ),
+    );
+
+    markChanged();
   }
 
   function handleAddCategory() {
     const name = newCategory.trim();
 
-    if (!name) {
-      return;
-    }
+    if (!name) return;
 
-    const alreadyExists = categories.some(
-      (category) => category.name.trim().toLowerCase() === name.toLowerCase(),
+    const exists = categories.some(
+      (category) => category.name.toLowerCase() === name.toLowerCase(),
     );
 
-    if (alreadyExists) {
+    if (exists) {
       setError("Deze categorie bestaat al.");
       return;
     }
@@ -314,85 +251,73 @@ export default function SettingsPage() {
     setCategories((current) => [
       ...current,
       {
+        localId: crypto.randomUUID(),
         name,
+        color: newCategoryColor,
         sort_order: current.length + 1,
         item_count: 0,
       },
     ]);
 
     setNewCategory("");
-    markAsChanged();
+    setNewCategoryColor(DEFAULT_COLOR);
+    markChanged();
   }
 
-  function handleDeleteCategory(index: number) {
-    const category = categories[index];
+  function handleDeleteCategory(localId: string) {
+    const category = categories.find((item) => item.localId === localId);
+
+    if (!category) return;
 
     if (category.item_count > 0) {
       setError(
-        `Categorie "${category.name}" kan niet verwijderd worden omdat er nog ${category.item_count} ${
-          category.item_count === 1 ? "item" : "items"
-        } aan gekoppeld ${
-          category.item_count === 1 ? "is" : "zijn"
-        }. Pas eerst de categorie van deze ${
-          category.item_count === 1 ? "item" : "items"
-        } aan.`,
+        `Categorie "${category.name}" bevat nog producten en kan niet verwijderd worden.`,
       );
-      setSaved(false);
       return;
     }
 
-    setCategories((current) => {
-      const updated = current.filter(
-        (_, currentIndex) => currentIndex !== index,
-      );
+    setCategories((current) =>
+      current
+        .filter((item) => item.localId !== localId)
+        .map((item, index) => ({
+          ...item,
+          sort_order: index + 1,
+        })),
+    );
 
-      return updated.map((category, currentIndex) => ({
-        ...category,
-        sort_order: currentIndex + 1,
-      }));
-    });
-
-    markAsChanged();
+    markChanged();
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
 
-    if (!over || active.id === over.id) {
-      return;
-    }
+    if (!over || active.id === over.id) return;
 
     setCategories((current) => {
-      const oldIndex = current.findIndex(
-        (category, index) => (category.id ?? `new-${index}`) === active.id,
-      );
+      const oldIndex = current.findIndex((item) => item.localId === active.id);
 
-      const newIndex = current.findIndex(
-        (category, index) => (category.id ?? `new-${index}`) === over.id,
-      );
+      const newIndex = current.findIndex((item) => item.localId === over.id);
 
       if (oldIndex === -1 || newIndex === -1) {
         return current;
       }
 
-      const updated = arrayMove(current, oldIndex, newIndex);
-
-      return updated.map((category, index) => ({
-        ...category,
+      return arrayMove(current, oldIndex, newIndex).map((item, index) => ({
+        ...item,
         sort_order: index + 1,
       }));
     });
 
-    markAsChanged();
+    markChanged();
   }
 
   async function handleSave() {
-    const value = Number(daysBeforeEnd);
+    const days = Number(daysBeforeEnd);
 
     if (
-      !Number.isInteger(value) ||
-      value < 0 ||
-      value > 31 ||
+      !Number.isInteger(days) ||
+      days < 0 ||
+      days > 31 ||
       saving ||
       categories.length === 0
     ) {
@@ -404,54 +329,38 @@ export default function SettingsPage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/settings", {
+      const response = await fetch("/api/settings", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          monthCheckDaysBeforeEnd: value,
+          monthCheckDaysBeforeEnd: days,
           categories: categories.map((category) => ({
             id: category.id,
             name: category.name,
+            color: category.color,
           })),
         }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok) {
+      if (!response.ok) {
         throw new Error(
           data.error || "Instellingen konden niet opgeslagen worden.",
         );
       }
 
       setDaysBeforeEnd(String(data.monthCheckDaysBeforeEnd));
-
-      setCategories(
-        data.categories.map(
-          (category: {
-            id: string;
-            name: string;
-            sort_order: number;
-            item_count: number;
-          }) => ({
-            id: category.id,
-            name: category.name,
-            sort_order: category.sort_order,
-            item_count: Number(category.item_count),
-          }),
-        ),
-      );
-
+      setCategories(mapCategories(data.categories));
       setHasUnsavedChanges(false);
       setSaved(true);
-    } catch (error) {
-      console.error(error);
-
+    } catch (err) {
+      console.error(err);
       setError(
-        error instanceof Error
-          ? error.message
+        err instanceof Error
+          ? err.message
           : "Instellingen konden niet opgeslagen worden.",
       );
     } finally {
@@ -460,126 +369,131 @@ export default function SettingsPage() {
   }
 
   function handleBack(event: React.MouseEvent<HTMLAnchorElement>) {
-    if (!hasUnsavedChanges) {
-      return;
-    }
+    if (!hasUnsavedChanges) return;
 
-    const confirmed = window.confirm(
-      "Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je de pagina wilt verlaten?",
-    );
-
-    if (!confirmed) {
+    if (
+      !window.confirm(
+        "Je hebt niet-opgeslagen wijzigingen. Wil je de pagina verlaten?",
+      )
+    ) {
       event.preventDefault();
     }
   }
 
-  const value = Number(daysBeforeEnd);
+  const days = Number(daysBeforeEnd);
 
   const isValid =
-    daysBeforeEnd !== "" &&
-    Number.isInteger(value) &&
-    value >= 0 &&
-    value <= 31;
+    daysBeforeEnd !== "" && Number.isInteger(days) && days >= 0 && days <= 31;
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: "100vh",
-          py: 4,
-        }}
-      >
-        <Stack spacing={4}>
-          <Button
-            className="StyledButton3"
-            component={Link}
-            href="/"
-            startIcon={<ArrowBackIcon />}
-            onClick={handleBack}
-            sx={{
-              alignSelf: "flex-start",
-            }}
-          >
-            Terug
-          </Button>
+    <main className={styles.page}>
+      <div className={styles.container}>
+        <Link href="/admin" className={styles.backLink} onClick={handleBack}>
+          <ArrowLeft size={17} />
+          Terug
+        </Link>
 
-          <Box>
-            <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-              Instellingen
-            </Typography>
+        <header className={styles.header}>
+          <div>
+            <h1 className={styles.title}>Instellingen</h1>
+            <p className={styles.subtitle}>
+              Beheer je voorkeuren en categorieën.
+            </p>
+          </div>
+        </header>
 
-            <Typography color="text.secondary" sx={{ mt: 1 }}>
-              Stel de maandcontrole en de volgorde van je categorieën in.
-            </Typography>
-          </Box>
+        {loading ? (
+          <div className={styles.loading}>Instellingen laden...</div>
+        ) : (
+          <>
+            {hasUnsavedChanges && (
+              <div className={styles.unsavedNotice}>
+                <AlertCircle size={17} />
+                Niet-opgeslagen wijzigingen
+              </div>
+            )}
 
-          {loading ? (
-            <Typography color="text.secondary">
-              Instellingen laden...
-            </Typography>
-          ) : (
-            <Stack spacing={3}>
-              {hasUnsavedChanges && (
-                <Box
-                  sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    border: "1px solid",
-                    borderColor: "error.main",
-                    backgroundColor: "error.light",
+            <section className={styles.section}>
+              <div className={styles.sectionHeading}>
+                <div className={styles.sectionIcon}>
+                  <CalendarDays size={19} />
+                </div>
+
+                <div>
+                  <h2>Maandelijkse controle</h2>
+                  <p>Bepaal wanneer de maandcontrole beschikbaar wordt.</p>
+                </div>
+              </div>
+
+              <div className={styles.daysControl}>
+                <div className={styles.daysText}>
+                  <span className={styles.fieldLabel}>
+                    Dagen voor einde maand
+                  </span>
+                  <span className={styles.fieldHint}>
+                    Ontgrendel de controle zoveel dagen vóór de laatste dag van
+                    de maand.
+                  </span>
+                </div>
+
+                <input
+                  type="number"
+                  min={0}
+                  max={31}
+                  value={daysBeforeEnd}
+                  onChange={(event) => {
+                    setDaysBeforeEnd(event.target.value);
+                    markChanged();
                   }}
-                >
-                  <Typography
-                    sx={{
-                      fontWeight: 600,
-                      color: "error.contrast",
-                    }}
-                  >
-                    Je hebt niet-opgeslagen wijzigingen.
-                  </Typography>
-                </Box>
+                  className={styles.daysInput}
+                  aria-label="Dagen voor einde maand"
+                />
+              </div>
+
+              <p className={styles.example}>
+                Bijvoorbeeld: bij 5 dagen wordt de maandcontrole 5 dagen vóór
+                het einde van de maand ontgrendeld.
+              </p>
+
+              {!isValid && (
+                <p className={styles.validationError}>
+                  Kies een geheel getal tussen 0 en 31.
+                </p>
               )}
+            </section>
 
-              <Box className="StyledBox color-invert">
-                <Stack spacing={2}>
-                  <TextField
-                    label="Dagen voor einde maand"
-                    type="number"
-                    value={daysBeforeEnd}
-                    onChange={(event) => handleDaysChange(event.target.value)}
-                    helperText="Bijvoorbeeld 5 = de maandcontrole start 5 dagen voor het einde van de maand."
-                    error={!isValid}
-                    slotProps={{
-                      htmlInput: {
-                        min: 0,
-                        max: 31,
-                      },
-                    }}
-                    fullWidth
-                  />
-                </Stack>
-              </Box>
+            <section className={styles.section}>
+              <button
+                type="button"
+                className={styles.categoriesHeader}
+                onClick={() => setCategoriesOpen((current) => !current)}
+                aria-expanded={categoriesOpen}
+              >
+                <div className={styles.sectionHeading}>
+                  <div className={styles.sectionIcon}>
+                    <Palette size={19} />
+                  </div>
 
-              <Box className="StyledBox color-invert">
-                <Stack spacing={2}>
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      component="h2"
-                      sx={{ fontWeight: 700 }}
-                    >
-                      Categorieën
-                    </Typography>
+                  <div>
+                    <h2>Categorieën</h2>
+                    <p>Volgorde en kleuren beheren</p>
+                  </div>
+                </div>
 
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 0.5 }}
-                    >
-                      Sleep categorieën om de volgorde van de winkelroute te
-                      bepalen.
-                    </Typography>
-                  </Box>
+                <ChevronDown
+                  size={20}
+                  className={`${styles.chevron} ${
+                    categoriesOpen ? styles.chevronOpen : ""
+                  }`}
+                />
+              </button>
+
+              {categoriesOpen && (
+                <div className={styles.categoriesContent}>
+                  <p className={styles.dragHint}>
+                    Sleep via het icoon om de winkelroute te wijzigen. Tik op
+                    een kleur om deze aan te passen.
+                  </p>
 
                   <DndContext
                     sensors={sensors}
@@ -587,92 +501,110 @@ export default function SettingsPage() {
                     onDragEnd={handleDragEnd}
                   >
                     <SortableContext
-                      items={categories.map(
-                        (category, index) => category.id ?? `new-${index}`,
-                      )}
+                      items={categories.map((category) => category.localId)}
                       strategy={verticalListSortingStrategy}
                     >
-                      <Stack spacing={1}>
-                        {categories.map((category, index) => (
+                      <div className={styles.categoryList}>
+                        {categories.map((category) => (
                           <SortableCategory
-                            key={category.id ?? `new-${index}`}
+                            key={category.localId}
                             category={category}
-                            index={index}
+                            onColorChange={handleColorChange}
                             onDelete={handleDeleteCategory}
                           />
                         ))}
-                      </Stack>
+                      </div>
                     </SortableContext>
                   </DndContext>
 
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      alignItems: "flex-start",
-                      pt: 1,
-                    }}
-                  >
-                    <TextField
-                      label="Nieuwe categorie"
-                      value={newCategory}
-                      onChange={(event) => {
-                        setNewCategory(event.target.value);
-                        setError(null);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          handleAddCategory();
-                        }
-                      }}
-                      fullWidth
-                    />
+                  <div className={styles.addSection}>
+                    <h3>Nieuwe categorie</h3>
 
-                    <Button
-                      className="StyledButton3"
-                      variant="outlined"
+                    <div className={styles.addFields}>
+                      <div
+                        className={styles.newColorPicker}
+                        style={{
+                          backgroundColor: newCategoryColor,
+                        }}
+                      >
+                        <input
+                          type="color"
+                          value={newCategoryColor}
+                          onChange={(event) =>
+                            setNewCategoryColor(
+                              event.target.value.toUpperCase(),
+                            )
+                          }
+                          aria-label="Kleur nieuwe categorie"
+                        />
+                      </div>
+
+                      <input
+                        type="text"
+                        className={styles.nameInput}
+                        placeholder="Naam categorie..."
+                        value={newCategory}
+                        onChange={(event) => setNewCategory(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            handleAddCategory();
+                          }
+                        }}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      className={styles.addButton}
                       onClick={handleAddCategory}
-                      startIcon={<AddIcon />}
-                      sx={{
-                        minWidth: "auto",
-                        height: 56,
-                        whiteSpace: "nowrap",
-                      }}
+                      disabled={!newCategory.trim()}
                     >
-                      Toevoegen
-                    </Button>
-                  </Box>
-                </Stack>
-              </Box>
-
-              <Button
-                className="StyledButton3"
-                variant="contained"
-                size="large"
-                startIcon={<SaveIcon />}
-                onClick={handleSave}
-                disabled={!isValid || saving || categories.length === 0}
-                fullWidth
-              >
-                {saving ? "Opslaan..." : "Opslaan"}
-              </Button>
-
-              {saved && (
-                <Typography color="success.main" sx={{ textAlign: "center" }}>
-                  Instellingen opgeslagen.
-                </Typography>
+                      <Plus size={18} />
+                      Categorie toevoegen
+                    </button>
+                  </div>
+                </div>
               )}
+            </section>
 
-              {error && (
-                <Typography color="error" sx={{ textAlign: "center" }}>
-                  {error}
-                </Typography>
+            {error && (
+              <div className={styles.errorNotice}>
+                <AlertCircle size={17} />
+                {error}
+              </div>
+            )}
+
+            {saved && (
+              <div className={styles.successNotice}>
+                <Check size={17} />
+                Instellingen opgeslagen.
+              </div>
+            )}
+
+            <button
+              type="button"
+              className={styles.saveButton}
+              onClick={handleSave}
+              disabled={
+                !isValid ||
+                saving ||
+                categories.length === 0 ||
+                !hasUnsavedChanges
+              }
+            >
+              {saving ? (
+                "Opslaan..."
+              ) : (
+                <>
+                  <Save size={19} />
+                  Wijzigingen opslaan
+                </>
               )}
-            </Stack>
-          )}
-        </Stack>
-      </Box>
-    </Container>
+            </button>
+          </>
+        )}
+      </div>
+    </main>
   );
 }

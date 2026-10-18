@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
@@ -19,20 +20,26 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
 
     const pageParam = Number(searchParams.get("page") ?? "1");
-    const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+    const page =
+      Number.isFinite(pageParam) && pageParam > 0
+        ? pageParam
+        : 1;
 
     const search = searchParams.get("search")?.trim() ?? "";
     const category = searchParams.get("category")?.trim() ?? "";
     const control = searchParams.get("control")?.trim() ?? "";
 
-    const exactDate = searchParams.get("exactDate")?.trim() ?? "";
-    const fromDate = searchParams.get("fromDate")?.trim() ?? "";
-    const toDate = searchParams.get("toDate")?.trim() ?? "";
+    const exactDate =
+      searchParams.get("exactDate")?.trim() ?? "";
+    const fromDate =
+      searchParams.get("fromDate")?.trim() ?? "";
+    const toDate =
+      searchParams.get("toDate")?.trim() ?? "";
 
     const sortParam = searchParams.get("sort") ?? "name_asc";
 
     const sort: SortOption = VALID_SORT_OPTIONS.includes(
-      sortParam as SortOption
+      sortParam as SortOption,
     )
       ? (sortParam as SortOption)
       : "name_asc";
@@ -40,119 +47,128 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * PAGE_SIZE;
 
     const items = await sql`
-SELECT
-i.id,
-  i.name,
-  i.photo_url,
-  i.category_id,
-  c.name AS category_name,
-    i.expiry_date,
-    i.sticker_30_percent,
-    i.paused,
-    i.stickered_for_date,
-    i.created_at,
-    i.updated_at
+      SELECT
+        i.id,
+        i.name,
+        i.photo_url,
+        i.category_id,
+        c.name AS category_name,
+        c.color AS category_color,
+        i.expiry_date,
+        i.sticker_30_percent,
+        i.paused,
+        i.stickered_for_date,
+        i.created_at,
+        i.updated_at
       FROM items i
-      INNER JOIN categories c ON c.id = i.category_id
-WHERE
-  (
-    ${search} = ''
+      INNER JOIN categories c
+        ON c.id = i.category_id
+      WHERE
+        (
+          ${search} = ''
           OR i.name ILIKE ${"%" + search + "%"}
-  )
-AND(
-  ${category} = ''
-          OR c.name = ${category}
-)
-AND(
-  ${control} = ''
-          OR(
-    ${control} = '30'
-            AND i.sticker_30_percent = true
-  )
-          OR(
-    ${control} = 'month'
-            AND i.sticker_30_percent = false
-  )
-)
-AND(
-  ${exactDate} = ''
-          OR i.expiry_date = NULLIF(${exactDate}, ''):: date
-)
-AND(
-  ${fromDate} = ''
-          OR i.expiry_date >= NULLIF(${fromDate}, ''):: date
-)
-AND(
-  ${toDate} = ''
-          OR i.expiry_date <= NULLIF(${toDate}, ''):: date
-)
+        )
+        AND (
+          ${category} = ''
+          OR i.category_id::text = ${category}
+        )
+        AND (
+          ${control} = ''
+          OR (
+            ${control} = '30'
+            AND i.sticker_30_percent = TRUE
+          )
+          OR (
+            ${control} = 'month'
+            AND i.sticker_30_percent = FALSE
+          )
+        )
+        AND (
+          ${exactDate} = ''
+          OR i.expiry_date = NULLIF(${exactDate}, '')::date
+        )
+        AND (
+          ${fromDate} = ''
+          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
+        )
+        AND (
+          ${toDate} = ''
+          OR i.expiry_date <= NULLIF(${toDate}, '')::date
+        )
       ORDER BY
-CASE
-          WHEN ${sort} = 'name_asc' THEN i.name
+        CASE
+          WHEN ${sort} = 'name_asc'
+          THEN i.name
         END ASC,
 
-  CASE
-          WHEN ${sort} = 'name_desc' THEN i.name
+        CASE
+          WHEN ${sort} = 'name_desc'
+          THEN i.name
         END DESC,
 
-  CASE
-          WHEN ${sort} = 'expiry_asc' THEN i.expiry_date
+        CASE
+          WHEN ${sort} = 'expiry_asc'
+          THEN i.expiry_date
         END ASC,
 
-  CASE
-          WHEN ${sort} = 'expiry_desc' THEN i.expiry_date
+        CASE
+          WHEN ${sort} = 'expiry_desc'
+          THEN i.expiry_date
         END DESC,
 
-  CASE
-          WHEN ${sort} = 'category_asc' THEN c.name
+        CASE
+          WHEN ${sort} = 'category_asc'
+          THEN c.name
         END ASC,
 
-  CASE
-          WHEN ${sort} = 'category_desc' THEN c.name
+        CASE
+          WHEN ${sort} = 'category_desc'
+          THEN c.name
         END DESC,
 
-  i.name ASC
+        i.name ASC
       LIMIT ${PAGE_SIZE}
       OFFSET ${offset}
-`;
+    `;
 
     const countResult = await sql`
       SELECT COUNT(*)::int AS total
       FROM items i
-      INNER JOIN categories c ON c.id = i.category_id
-WHERE
-  (
-    ${search} = ''
+      INNER JOIN categories c
+        ON c.id = i.category_id
+      WHERE
+        (
+          ${search} = ''
           OR i.name ILIKE ${"%" + search + "%"}
-  )
-AND(
-  ${category} = ''
-          OR c.name = ${category}
-)
-AND(
-  ${control} = ''
-          OR(
-    ${control} = '30'
-            AND i.sticker_30_percent = true
-  )
-          OR(
-    ${control} = 'month'
-            AND i.sticker_30_percent = false
-  )
-)
-AND(
-  ${exactDate} = ''
-          OR i.expiry_date = NULLIF(${exactDate}, ''):: date
-)
-AND(
-  ${fromDate} = ''
-          OR i.expiry_date >= NULLIF(${fromDate}, ''):: date
-)
-AND(
-  ${toDate} = ''
-          OR i.expiry_date <= NULLIF(${toDate}, ''):: date
-)
-  `;
+        )
+        AND (
+          ${category} = ''
+          OR i.category_id::text = ${category}
+        )
+        AND (
+          ${control} = ''
+          OR (
+            ${control} = '30'
+            AND i.sticker_30_percent = TRUE
+          )
+          OR (
+            ${control} = 'month'
+            AND i.sticker_30_percent = FALSE
+          )
+        )
+        AND (
+          ${exactDate} = ''
+          OR i.expiry_date = NULLIF(${exactDate}, '')::date
+        )
+        AND (
+          ${fromDate} = ''
+          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
+        )
+        AND (
+          ${toDate} = ''
+          OR i.expiry_date <= NULLIF(${toDate}, '')::date
+        )
+    `;
 
     const total = countResult[0]?.total ?? 0;
 
@@ -168,7 +184,7 @@ AND(
 
     return NextResponse.json(
       { error: "Failed to fetch items" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -183,7 +199,8 @@ export async function POST(request: NextRequest) {
         : "";
 
     const photoUrl =
-      typeof body.photo_url === "string" && body.photo_url.trim() !== ""
+      typeof body.photo_url === "string" &&
+        body.photo_url.trim() !== ""
         ? body.photo_url.trim()
         : null;
 
@@ -210,55 +227,57 @@ export async function POST(request: NextRequest) {
     if (!name) {
       return NextResponse.json(
         { error: "Name is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!expiryDate) {
       return NextResponse.json(
         { error: "Expiry date is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!categoryId) {
       return NextResponse.json(
         { error: "Category is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const result = await sql`
-      INSERT INTO items(
-    name,
-    photo_url,
-    expiry_date,
-    category_id,
-    sticker_30_percent,
-    paused
-  )
-VALUES(
-  ${name},
-  ${photoUrl},
-  ${expiryDate},
-  ${categoryId},
-  ${sticker30Percent},
-  ${paused}
-)
-RETURNING
-id,
-  name,
-  photo_url,
-  expiry_date,
-  category_id,
-  sticker_30_percent,
-  paused,
-  stickered_for_date,
-  created_at,
-  updated_at
+      INSERT INTO items (
+        name,
+        photo_url,
+        expiry_date,
+        category_id,
+        sticker_30_percent,
+        paused
+      )
+      VALUES (
+        ${name},
+        ${photoUrl},
+        ${expiryDate},
+        ${categoryId},
+        ${sticker30Percent},
+        ${paused}
+      )
+      RETURNING
+        id,
+        name,
+        photo_url,
+        expiry_date,
+        category_id,
+        sticker_30_percent,
+        paused,
+        stickered_for_date,
+        created_at,
+        updated_at
     `;
 
-    return NextResponse.json(result[0], { status: 201 });
+    return NextResponse.json(result[0], {
+      status: 201,
+    });
   } catch (error: unknown) {
     console.error("Failed to create item:", error);
 
@@ -270,13 +289,13 @@ id,
     ) {
       return NextResponse.json(
         { error: "Een item met deze naam bestaat al." },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
     return NextResponse.json(
       { error: "Item kon niet toegevoegd worden." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

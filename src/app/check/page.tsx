@@ -1,872 +1,193 @@
 "use client";
 
-import Link from "next/link";
-import {
-  Box,
-  Button,
-  Container,
-  IconButton,
-  Menu,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import CheckIcon from "@mui/icons-material/Check";
-import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
-import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
-import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useMemo } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
-type CheckType = "sticker" | "overdue" | "monthly" | "evening";
+import CheckHeader from "./components/CheckHeader";
+import ProductCard from "./components/ProductCard";
+import CheckQuestion from "./components/CheckQuestion";
+import CheckActions from "./components/CheckActions";
+import CheckStates from "./components/CheckStates";
+import CategorySelector from "./components/CategorySelector";
 
-type DailyStep = "sticker" | "new-stock";
+import { useCheckWorkflow } from "./hooks/useCheckWorkflow";
 
-type Item = {
-  id: string;
-  name: string;
-  photo_url: string | null;
-  expiry_date: string;
-  sticker_30_percent: boolean;
-  category_id: string;
-  category_name: string;
-  paused?: boolean;
-  stickered_for_date?: string | null;
-};
-
-const checkConfig: Record<
-  CheckType,
-  {
-    title: string;
-    endpoint: string;
-    emptyDescription: string;
-    instructions: string;
-    icon: React.ReactNode;
-  }
-> = {
-  sticker: {
-    title: "Dagelijkse controle",
-    endpoint: "/api/items/due",
-    emptyDescription:
-      "Alle items voor de dagelijkse controle zijn gecontroleerd.",
-    instructions:
-      "Ga naar het aangegeven product in de winkel en controleer de vervaldatum van de aanwezige producten.",
-    icon: <LocalOfferOutlinedIcon fontSize="large" />,
-  },
-  overdue: {
-    title: "Te controleren",
-    endpoint: "/api/items/overdue",
-    emptyDescription:
-      "Alle items met een verlopen controledatum zijn gecontroleerd.",
-    instructions:
-      "De geplande controle is gemist. Controleer de huidige stock en vervaldatums van dit product.",
-    icon: <FactCheckOutlinedIcon fontSize="large" />,
-  },
-  monthly: {
-    title: "Maandelijkse controle",
-    endpoint: "/api/items/monthly",
-    emptyDescription:
-      "Alle items voor de maandelijkse controle zijn gecontroleerd.",
-    instructions:
-      "Ga naar het aangegeven product in de winkel en controleer de vervaldatum van de aanwezige producten.",
-    icon: <CalendarMonthOutlinedIcon fontSize="large" />,
-  },
-  evening: {
-    title: "Avondcontrole",
-    endpoint: "/api/items/evening",
-    emptyDescription:
-      "Alle producten die vandaag gestickerd zijn, zijn gecontroleerd.",
-    instructions:
-      "Ga naar het aangegeven product in de winkel en haal alle producten die hiervoor in aanmerking komen uit de winkel.",
-    icon: <LocalOfferOutlinedIcon fontSize="large" />,
-  },
-};
+import styles from "./page.module.css";
 
 function CheckContent() {
-  const searchParams = useSearchParams();
+  const workflow = useCheckWorkflow();
 
-  const typeParam = searchParams.get("type");
-  const refreshToken = searchParams.get("refresh");
+  const {
+    type,
+    config,
+    items,
+    categories,
+    categoryId,
+    selectedCategory,
+    currentItem,
+    loading,
+    categoriesLoading,
+    saving,
+    error,
+    initialCount,
+    completedCount,
+    progressPercent,
+    dailyStep,
+    showDateInput,
+    nextExpiryDate,
+    todayString,
+    swipeOffset,
+    missedCheck,
+    isEvening,
+    isStock,
+    isStickerQuestion,
+    canSwipe,
+    changeCategory,
+    setNextExpiryDate,
+    setShowDateInput,
+    handleChecked,
+    handleEveningNext,
+    handleYes,
+    handleNo,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    handleTouchCancel,
+  } = workflow;
 
-  const type: CheckType | null =
-    typeParam === "sticker" ||
-    typeParam === "overdue" ||
-    typeParam === "monthly" ||
-    typeParam === "evening"
-      ? typeParam
-      : null;
+  const editReturnUrl = useMemo(() => {
+    if (!type) return "/";
 
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [itemMenuAnchor, setItemMenuAnchor] =
-    useState<HTMLButtonElement | null>(null);
+    const params = new URLSearchParams({
+      type,
+      refresh: String(Date.now()),
+    });
 
-  const [nextExpiryDate, setNextExpiryDate] = useState("");
-  const [showDateInput, setShowDateInput] = useState(false);
-  const [dailyStep, setDailyStep] = useState<DailyStep>("sticker");
-
-  const today = new Date();
-
-  const todayString = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0"),
-  ].join("-");
-
-  useEffect(() => {
-    if (!type) {
-      setLoading(false);
-      return;
+    if (type === "stock" && categoryId) {
+      params.set("categoryId", categoryId);
     }
 
-    const checkType = type;
+    return `/check?${params.toString()}`;
+  }, [type, categoryId]);
 
-    async function loadItems() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const config = checkConfig[checkType];
-
-        const res = await fetch(config.endpoint, {
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          throw new Error("Items konden niet geladen worden.");
-        }
-
-        const data = await res.json();
-
-        if (!Array.isArray(data)) {
-          throw new Error("Ongeldige data ontvangen.");
-        }
-
-        setItems(data);
-      } catch (error) {
-        console.error(error);
-        setError("Items konden niet geladen worden.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadItems();
-  }, [type, refreshToken]);
-
-  function resetCurrentItem() {
-    setNextExpiryDate("");
-    setShowDateInput(false);
-    setDailyStep("sticker");
-    setError(null);
+  if (!type || !config) {
+    return <CheckStates state="invalid" />;
   }
 
-  function handleNextItem() {
-    if (!currentItem) return;
-
-    setItems((currentItems) =>
-      currentItems.filter((item) => item.id !== currentItem.id),
-    );
-
-    resetCurrentItem();
-  }
-
-  async function handleEveningNext() {
-    if (!currentItem || saving) return;
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`/api/items/${currentItem.id}/evening`, {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        throw new Error("Item kon niet verwerkt worden.");
-      }
-
-      handleNextItem();
-    } catch (error) {
-      console.error(error);
-      setError("Het item kon niet verwerkt worden.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDailySticker(shouldSticker: boolean) {
-    if (!currentItem || saving) return;
-
-    if (!shouldSticker) {
-      setDailyStep("new-stock");
-      setError(null);
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`/api/items/${currentItem.id}/sticker`, {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        throw new Error("Item kon niet als gestickerd worden gemarkeerd.");
-      }
-
-      setDailyStep("new-stock");
-    } catch (error) {
-      console.error(error);
-      setError("Het item kon niet als gestickerd worden gemarkeerd.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleNewStock() {
-    setShowDateInput(true);
-  }
-
-  async function handleChecked() {
-    if (!currentItem || !nextExpiryDate || saving) return;
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`/api/items/${currentItem.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          expiry_date: nextExpiryDate,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Item kon niet opgeslagen worden.");
-      }
-
-      handleNextItem();
-    } catch (error) {
-      console.error(error);
-      setError("Het item kon niet opgeslagen worden.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleNoNewStock() {
-    handleNextItem();
-  }
-
-  if (!type) {
+  if (isStock && !categoryId) {
     return (
-      <Container maxWidth="sm">
-        <Box
-          sx={{
-            minHeight: "100vh",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-          }}
-        >
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                Ongeldige controle
-              </Typography>
-
-              <Typography color="text.secondary" sx={{ mt: 1 }}>
-                Geen geldige controle geselecteerd.
-              </Typography>
-            </Box>
-
-            <Button
-              className="StyledButton1"
-              component={Link}
-              href="/"
-              variant="outlined"
-              startIcon={<ArrowBackIcon />}
-            >
-              Terug naar home
-            </Button>
-          </Stack>
-        </Box>
-      </Container>
+      <CategorySelector
+        categories={categories}
+        categoryId={categoryId}
+        loading={categoriesLoading}
+        error={error}
+        onChange={changeCategory}
+      />
     );
   }
-
-  const config = checkConfig[type];
-  const currentItem = items[0];
 
   if (loading) {
-    return (
-      <Container maxWidth="sm">
-        <Box sx={{ py: 6 }}>
-          <Typography>Items laden...</Typography>
-        </Box>
-      </Container>
-    );
+    return <CheckStates state="loading" />;
   }
 
   if (error && items.length === 0) {
-    return (
-      <Container maxWidth="sm">
-        <Box
-          sx={{
-            minHeight: "100vh",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-          }}
-        >
-          <Stack spacing={3} sx={{ width: "100%" }}>
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                Er ging iets mis
-              </Typography>
-
-              <Typography color="text.secondary" sx={{ mt: 1 }}>
-                {error}
-              </Typography>
-            </Box>
-
-            <Button
-              className="StyledButton1"
-              component={Link}
-              href="/"
-              variant="outlined"
-              startIcon={<ArrowBackIcon />}
-            >
-              Terug naar home
-            </Button>
-          </Stack>
-        </Box>
-      </Container>
-    );
+    return <CheckStates state="error" error={error} />;
   }
 
   if (!currentItem) {
     return (
-      <Container maxWidth="sm">
-        <Box
-          sx={{
-            minHeight: "100vh",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-          }}
-        >
-          <Stack spacing={3} sx={{ width: "100%" }}>
-            <Box>
-              <Typography
-                variant="h4"
-                component="h1"
-                sx={{
-                  fontWeight: 700,
-                }}
-              >
-                Alles gecontroleerd
-              </Typography>
-
-              <Typography color="text.secondary" sx={{ mt: 1 }}>
-                {config.emptyDescription}
-              </Typography>
-            </Box>
-
-            <Button
-              className="StyledButton1"
-              component={Link}
-              href="/"
-              variant="outlined"
-              startIcon={<ArrowBackIcon />}
-            >
-              Terug naar home
-            </Button>
-          </Stack>
-        </Box>
-      </Container>
+      <CheckStates
+        state="completed"
+        description={config.emptyDescription}
+        isStock={isStock}
+        onChangeCategory={() => changeCategory("")}
+      />
     );
   }
 
-  const expiryDate = new Date(currentItem.expiry_date);
-
-  const expiryDateString = expiryDate.toLocaleDateString("en-CA", {
-    timeZone: "Europe/Brussels",
-  });
-
-  const missedCheck = expiryDateString < todayString;
-
-  const isDaily = type === "sticker";
-  const isEvening = type === "evening";
-
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: "100vh",
-          py: 4,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <Button
-          className="StyledButton3"
-          component={Link}
-          href="/"
-          startIcon={<ArrowBackIcon />}
-          sx={{
-            alignSelf: "flex-start",
-            mb: 4,
-          }}
+    <main className={styles.page}>
+      <div className={styles.container}>
+        <CheckHeader
+          title={config.title}
+          type={type}
+          categoryName={isStock ? selectedCategory?.name : undefined}
+          remainingCount={items.length}
+          completedCount={completedCount}
+          initialCount={initialCount}
+          progressPercent={progressPercent}
+          saving={saving}
+          onChangeCategory={() => changeCategory("")}
+        />
+
+        <div
+          className={styles.checkBody}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
         >
-          Terug
-        </Button>
+          <ProductCard
+            key={currentItem.id}
+            item={currentItem}
+            type={type}
+            missedCheck={missedCheck}
+            editReturnUrl={editReturnUrl}
+            swipeOffset={swipeOffset}
+          >
+            {error && (
+              <p className={styles.checkError} role="alert">
+                {error}
+              </p>
+            )}
 
-        <Stack
-          spacing={3}
-          sx={{
-            flex: 1,
+            <CheckQuestion
+              type={type}
+              dailyStep={dailyStep}
+              expiryDate={currentItem.expiry_date}
+              showDateInput={showDateInput}
+              nextExpiryDate={nextExpiryDate}
+              todayString={todayString}
+              saving={saving}
+              onDateChange={setNextExpiryDate}
+            />
+
+            {canSwipe && (
+              <div className={styles.swipeHint}>
+                <ArrowLeft size={15} />
+                <span>Nee</span>
+                <span className={styles.swipeDivider}>·</span>
+                <span>Swipe</span>
+                <span className={styles.swipeDivider}>·</span>
+                <span>Ja</span>
+                <ArrowRight size={15} />
+              </div>
+            )}
+          </ProductCard>
+        </div>
+
+        <CheckActions
+          isEvening={isEvening}
+          showDateInput={!isStickerQuestion && showDateInput}
+          nextExpiryDate={nextExpiryDate}
+          todayString={todayString}
+          saving={saving}
+          onYes={handleYes}
+          onNo={handleNo}
+          onSaveDate={() => void handleChecked()}
+          onEveningNext={() => void handleEveningNext()}
+          onBack={() => {
+            setShowDateInput(false);
+            setNextExpiryDate("");
           }}
-        >
-          <Box>
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{
-                fontWeight: 700,
-              }}
-            >
-              {config.title}
-            </Typography>
-
-            <Typography color="text.secondary" sx={{ mt: 1 }}>
-              {items.length} {items.length === 1 ? "item" : "items"} te
-              controleren
-            </Typography>
-          </Box>
-
-          <Box className="StyledBox color-invert relative">
-            <IconButton
-              aria-label="Itemopties"
-              aria-haspopup="menu"
-              aria-expanded={Boolean(itemMenuAnchor)}
-              onClick={(event) => setItemMenuAnchor(event.currentTarget)}
-              className="absolute right-2 top-2"
-              size="small"
-            >
-              <MoreVertIcon />
-            </IconButton>
-            <Menu
-              anchorEl={itemMenuAnchor}
-              open={Boolean(itemMenuAnchor)}
-              onClose={() => setItemMenuAnchor(null)}
-            >
-              <MenuItem
-                component={Link}
-                href={`/stockchecker/${currentItem.id}?returnTo=${encodeURIComponent(`/check?type=${type}&refresh=${Date.now()}`)}`}
-                onClick={() => setItemMenuAnchor(null)}
-              >
-                <EditOutlinedIcon fontSize="small" className="mr-2" />
-                Item bewerken
-              </MenuItem>
-            </Menu>
-            <Stack spacing={3}>
-              <Stack
-                direction="row"
-                spacing={2}
-                sx={{
-                  alignItems: "center",
-                }}
-              >
-                {config.icon}
-
-                <Box className="min-w-0 pr-8">
-                  <Typography
-                    variant="h5"
-                    component="h2"
-                    sx={{
-                      fontWeight: 700,
-                    }}
-                  >
-                    {currentItem.name}
-                  </Typography>
-
-                  <Typography color="text.secondary">
-                    {currentItem.category_name}
-                  </Typography>
-                </Box>
-              </Stack>
-
-              {currentItem.photo_url && (
-                <Box
-                  component="img"
-                  src={currentItem.photo_url}
-                  alt={currentItem.name}
-                  sx={{
-                    width: "100%",
-                    maxHeight: 300,
-                    objectFit: "contain",
-                    borderRadius: 2,
-                  }}
-                />
-              )}
-
-              {!isEvening && (
-                <Box>
-                  {missedCheck && (
-                    <Box
-                      sx={{
-                        mb: 1.5,
-                        p: 1.5,
-                        borderRadius: 2,
-                        bgcolor: "error.light",
-                        color: "error.contrastText",
-                      }}
-                    >
-                      <Typography sx={{ fontWeight: 700 }}>
-                        Vervaldatum verstreken
-                      </Typography>
-
-                      <Typography variant="body2" sx={{ mt: 0.5 }}>
-                        Controleer de facing op producten met vervaldatum{" "}
-                        {new Date(currentItem.expiry_date).toLocaleDateString(
-                          "nl-BE",
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            timeZone: "Europe/Brussels",
-                          },
-                        )}
-                        .
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-              )}
-
-              {isEvening ? (
-                <Stack spacing={2}>
-                  <Box>
-                    <Typography sx={{ fontWeight: 700 }}>
-                      Stap 2 — Product controleren
-                    </Typography>
-
-                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                      Controleer dit product en haal alle producten die hiervoor
-                      in aanmerking komen uit de winkel.
-                    </Typography>
-                  </Box>
-
-                  <Button
-                    className="StyledButton1"
-                    variant="contained"
-                    size="large"
-                    startIcon={<CheckIcon />}
-                    onClick={() => void handleEveningNext()}
-                    disabled={saving}
-                    fullWidth
-                  >
-                    {saving ? "Opslaan..." : "Volgend item"}
-                  </Button>
-                </Stack>
-              ) : isDaily ? (
-                <Stack spacing={2}>
-                  {dailyStep === "sticker" && (
-                    <>
-                      <Box>
-                        <Typography sx={{ fontWeight: 700 }}>
-                          Stap 1 — Zoek het product
-                        </Typography>
-
-                        <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                          {config.instructions}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography sx={{ fontWeight: 700 }}>
-                          Stap 2 — Controleer de stock
-                        </Typography>
-
-                        <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                          Kijk in het rayon naar producten met vervaldatum{" "}
-                          <Box
-                            component="span"
-                            sx={{
-                              fontWeight: 700,
-                            }}
-                          >
-                            {new Date(
-                              currentItem.expiry_date,
-                            ).toLocaleDateString("nl-BE", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              timeZone: "Europe/Brussels",
-                            })}
-                          </Box>{" "}
-                          en sticker deze items indien aanwezig.
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography sx={{ fontWeight: 700 }}>
-                          Heb je een sticker moeten plakken?
-                        </Typography>
-
-                        <Stack spacing={2} sx={{ mt: 1.5 }}>
-                          <Button
-                            className="StyledButton1"
-                            variant="contained"
-                            size="large"
-                            onClick={() => void handleDailySticker(true)}
-                            disabled={saving}
-                            fullWidth
-                          >
-                            Ja
-                          </Button>
-
-                          <Button
-                            className="StyledButton3"
-                            variant="outlined"
-                            size="large"
-                            onClick={() => void handleDailySticker(false)}
-                            disabled={saving}
-                            fullWidth
-                          >
-                            Nee
-                          </Button>
-                        </Stack>
-                      </Box>
-                    </>
-                  )}
-
-                  {dailyStep === "new-stock" && !showDateInput && (
-                    <>
-                      <Box>
-                        <Typography sx={{ fontWeight: 700 }}>
-                          Stap 3 — Nieuwe stock
-                        </Typography>
-
-                        <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                          Is er nieuwe stock aanwezig met een latere
-                          vervaldatum?
-                        </Typography>
-                      </Box>
-
-                      <Button
-                        className="StyledButton1"
-                        variant="contained"
-                        size="large"
-                        onClick={handleNewStock}
-                        fullWidth
-                      >
-                        Ja, nieuwe stock
-                      </Button>
-
-                      <Button
-                        className="StyledButton3"
-                        variant="outlined"
-                        size="large"
-                        onClick={handleNoNewStock}
-                        fullWidth
-                      >
-                        Nee, geen nieuwe stock
-                      </Button>
-                    </>
-                  )}
-
-                  {dailyStep === "new-stock" && showDateInput && (
-                    <>
-                      <Box>
-                        <Typography sx={{ fontWeight: 700 }}>
-                          Stap 4 — Noteer de nieuwe vervaldatum
-                        </Typography>
-
-                        <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                          Vul de eerstvolgende vervaldatum in die je op de
-                          nieuwe stock vindt.
-                        </Typography>
-                      </Box>
-
-                      <TextField
-                        label="Eerstvolgende vervaldatum"
-                        type="date"
-                        value={nextExpiryDate}
-                        onChange={(event) =>
-                          setNextExpiryDate(event.target.value)
-                        }
-                        slotProps={{
-                          inputLabel: {
-                            shrink: true,
-                          },
-                          htmlInput: {
-                            min: todayString,
-                          },
-                        }}
-                        fullWidth
-                      />
-
-                      <Button
-                        className="StyledButton1"
-                        variant="contained"
-                        size="large"
-                        startIcon={<CheckIcon />}
-                        onClick={() => void handleChecked()}
-                        disabled={!nextExpiryDate || saving}
-                        fullWidth
-                      >
-                        {saving ? "Opslaan..." : "Nieuwe datum opslaan"}
-                      </Button>
-
-                      <Button
-                        className="StyledButton3"
-                        variant="outlined"
-                        onClick={() => {
-                          setShowDateInput(false);
-                          setNextExpiryDate("");
-                        }}
-                        disabled={saving}
-                      >
-                        Terug
-                      </Button>
-                    </>
-                  )}
-                </Stack>
-              ) : (
-                <Stack spacing={2}>
-                  <Box>
-                    <Typography sx={{ fontWeight: 700 }}>
-                      Stap 1 — Zoek het product
-                    </Typography>
-
-                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                      {config.instructions}
-                    </Typography>
-                  </Box>
-
-                  <Box>
-                    <Typography sx={{ fontWeight: 700 }}>
-                      Stap 2 — Controleer de stock
-                    </Typography>
-
-                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                      Kijk of er nieuwe producten aanwezig zijn met een latere
-                      vervaldatum.
-                    </Typography>
-                  </Box>
-
-                  {!showDateInput ? (
-                    <>
-                      <Button
-                        className="StyledButton1"
-                        variant="contained"
-                        size="large"
-                        onClick={handleNewStock}
-                        fullWidth
-                      >
-                        Ja, nieuwe stock
-                      </Button>
-
-                      <Box>
-                        <Button
-                          className="StyledButton3"
-                          variant="outlined"
-                          size="large"
-                          onClick={handleNoNewStock}
-                          fullWidth
-                        >
-                          Nee, geen nieuwe stock
-                        </Button>
-
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{
-                            mt: 1,
-                            textAlign: "center",
-                          }}
-                        >
-                          Geen nieuwe stock gevonden? Kies deze optie om verder
-                          te gaan naar het volgende item.
-                        </Typography>
-                      </Box>
-                    </>
-                  ) : (
-                    <>
-                      <TextField
-                        label="Eerstvolgende vervaldatum"
-                        type="date"
-                        value={nextExpiryDate}
-                        onChange={(event) =>
-                          setNextExpiryDate(event.target.value)
-                        }
-                        slotProps={{
-                          inputLabel: {
-                            shrink: true,
-                          },
-                          htmlInput: {
-                            min: todayString,
-                          },
-                        }}
-                        fullWidth
-                      />
-
-                      <Button
-                        className="StyledButton1"
-                        variant="contained"
-                        size="large"
-                        startIcon={<CheckIcon />}
-                        onClick={() => void handleChecked()}
-                        disabled={!nextExpiryDate || saving}
-                        fullWidth
-                      >
-                        {saving ? "Opslaan..." : "Gecontroleerd"}
-                      </Button>
-
-                      <Button
-                        className="StyledButton3"
-                        variant="outlined"
-                        onClick={() => {
-                          setShowDateInput(false);
-                          setNextExpiryDate("");
-                        }}
-                        disabled={saving}
-                      >
-                        Terug
-                      </Button>
-                    </>
-                  )}
-                </Stack>
-              )}
-            </Stack>
-          </Box>
-        </Stack>
-      </Box>
-    </Container>
+        />
+      </div>
+    </main>
   );
 }
 
 function CheckPageFallback() {
-  return (
-    <Container maxWidth="sm">
-      <Box sx={{ py: 6 }}>
-        <Typography>Controle laden...</Typography>
-      </Box>
-    </Container>
-  );
+  return <CheckStates state="loading" />;
 }
 
 export default function CheckPage() {

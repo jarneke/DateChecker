@@ -1,156 +1,91 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Box,
-  Button,
-  Container,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
-import AddOutlined from "@mui/icons-material/AddOutlined";
-import CameraAltOutlined from "@mui/icons-material/CameraAltOutlined";
-import PlaylistAddOutlined from "@mui/icons-material/PlaylistAddOutlined";
+  ArrowLeft,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  LoaderCircle,
+  Plus,
+  ListPlus,
+  Tag,
+} from "lucide-react";
 
-type Category = { id: string; name: string };
+import ProductPhoto from "@/components/product/ProductPhoto";
+import { uploadProductPhoto } from "@/components/product/imageUtils";
+import styles from "./page.module.css";
+
+type Category = {
+  id: string;
+  name: string;
+  color?: string;
+};
+
 type CheckType = "daily" | "monthly";
-
-function compressImage(file: File): Promise<File> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-
-      const maxSize = 800;
-
-      let width = image.naturalWidth;
-      let height = image.naturalHeight;
-
-      if (width > maxSize || height > maxSize) {
-        if (width > height) {
-          height = Math.round((height / width) * maxSize);
-          width = maxSize;
-        } else {
-          width = Math.round((width / height) * maxSize);
-          height = maxSize;
-        }
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-
-      const context = canvas.getContext("2d");
-
-      if (!context) {
-        reject(new Error("Afbeelding kon niet verwerkt worden."));
-        return;
-      }
-
-      context.drawImage(image, 0, 0, width, height);
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error("Afbeelding kon niet gecomprimeerd worden."));
-            return;
-          }
-
-          const compressedFile = new File(
-            [blob],
-            `${file.name.replace(/\.[^/.]+$/, "")}.webp`,
-            { type: "image/webp", lastModified: Date.now() },
-          );
-
-          resolve(compressedFile);
-        },
-        "image/webp",
-        0.8,
-      );
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Afbeelding kon niet gelezen worden."));
-    };
-
-    image.src = objectUrl;
-  });
-}
 
 export default function NewItemPage() {
   const router = useRouter();
 
   const [categories, setCategories] = useState<Category[]>([]);
+
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [checkType, setCheckType] = useState<CheckType>("daily");
+
   const [loading, setLoading] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const loadCategories = async () => {
+    let cancelled = false;
+
+    async function loadCategories() {
       try {
         const response = await fetch("/api/categories");
 
         if (!response.ok) {
-          throw new Error("Failed to load categories");
+          throw new Error("Categorieën konden niet geladen worden.");
         }
 
-        const data = await response.json();
-        setCategories(data);
+        const data: Category[] = await response.json();
+
+        if (!cancelled) {
+          setCategories(data);
+        }
       } catch {
-        setError("Categorieën konden niet geladen worden.");
+        if (!cancelled) {
+          setError("Categorieën konden niet geladen worden.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingCategories(false);
+        }
       }
-    };
+    }
 
     loadCategories();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (photoPreview) {
-        URL.revokeObjectURL(photoPreview);
-      }
-    };
-  }, [photoPreview]);
-
-  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      setError("Selecteer een geldige afbeelding.");
-      return;
-    }
-
-    setError("");
+  function handlePhotoChange(file: File | null, _removed: boolean) {
     setPhoto(file);
+    setError("");
+  }
 
-    if (photoPreview) {
-      URL.revokeObjectURL(photoPreview);
-    }
-
-    setPhotoPreview(URL.createObjectURL(file));
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!name.trim() || !expiryDate || !categoryId || !checkType) {
+    if (loading) return;
+
+    if (!name.trim() || !expiryDate || !categoryId) {
       setError("Vul alle verplichte velden in.");
       return;
     }
@@ -164,32 +99,14 @@ export default function NewItemPage() {
       let photoUrl: string | null = null;
 
       if (photo) {
-        const compressedPhoto = await compressImage(photo);
-
-        const formData = new FormData();
-        formData.append("file", compressedPhoto);
-
-        const uploadResponse = await fetch("/api/github-upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const uploadData = await uploadResponse.json();
-
-        if (!uploadResponse.ok) {
-          throw new Error(
-            uploadData?.details ||
-              uploadData?.error ||
-              "Foto kon niet geüpload worden.",
-          );
-        }
-
-        photoUrl = uploadData.url;
+        photoUrl = await uploadProductPhoto(photo);
       }
 
       const response = await fetch("/api/items", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           name: name.trim(),
           photo_url: photoUrl,
@@ -202,14 +119,17 @@ export default function NewItemPage() {
       const itemData = await response.json();
 
       if (!response.ok) {
-        throw new Error(itemData?.error || "Item kon niet toegevoegd worden.");
+        throw new Error(
+          itemData?.error || "Product kon niet toegevoegd worden.",
+        );
       }
 
       itemId = itemData.id;
 
       router.push("/stockchecker");
-    } catch (error) {
-      console.error("Failed to create item:", error);
+      router.refresh();
+    } catch (caughtError) {
+      console.error("Failed to create product:", caughtError);
 
       if (itemId) {
         try {
@@ -217,173 +137,228 @@ export default function NewItemPage() {
             method: "DELETE",
           });
         } catch (deleteError) {
-          console.error("Failed to clean up item after error:", deleteError);
+          console.error("Failed to clean up product:", deleteError);
         }
       }
 
       setError(
-        error instanceof Error
-          ? error.message
-          : "Item kon niet toegevoegd worden.",
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Product kon niet toegevoegd worden.",
       );
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  const selectedCategory = categories.find(
+    (category) => category.id === categoryId,
+  );
 
   return (
-    <Container maxWidth="sm" sx={{ py: 4 }}>
-      <Stack spacing={3}>
-        <Stack
-          direction="row"
-          spacing={1.5}
-          sx={{
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <Button
-            className="StyledButton3"
-            component={Link}
-            href="/stockchecker"
-            startIcon={<ArrowBackOutlined />}
-            sx={{
-              color: "inherit",
-              flexShrink: 0,
-            }}
-          >
+    <main className={styles.page}>
+      <div className={styles.container}>
+        <div className={styles.topBar}>
+          <Link href="/stockchecker" className={styles.backLink}>
+            <ArrowLeft size={20} />
             Terug
-          </Button>
+          </Link>
 
-          <Button
-            className="StyledButton3"
-            component={Link}
-            href="/fastadd"
-            variant="outlined"
-            startIcon={<PlaylistAddOutlined />}
-            sx={{
-              flexShrink: 0,
-            }}
-          >
+          <Link href="/fastadd" className={styles.bulkButton}>
+            <ListPlus size={18} />
             Bulk toevoegen
-          </Button>
-        </Stack>
+          </Link>
+        </div>
 
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Nieuw item
-          </Typography>
+        <header className={styles.header}>
+          <h1>Nieuw product</h1>
+          <p>Voeg een nieuw product toe aan de voorraad.</p>
+        </header>
 
-          <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
-            Voeg een nieuw product toe aan de voorraad.
-          </Typography>
-        </Box>
+        {error && (
+          <div className={styles.errorMessage} role="alert">
+            {error}
+          </div>
+        )}
 
-        <Box className="StyledBox color-invert">
-          <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
-            <Button
-              className="StyledButton3"
-              component="label"
-              variant="outlined"
-              size="large"
-              startIcon={<CameraAltOutlined />}
-              fullWidth
-            >
-              {photo ? "Andere foto nemen" : "Foto nemen"}
+        <form onSubmit={handleSubmit}>
+          <ProductPhoto onChange={handlePhotoChange} disabled={loading} />
 
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                hidden
-                onChange={handlePhotoChange}
-              />
-            </Button>
+          <section className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionIcon}>
+                <Tag size={22} />
+              </div>
 
-            {photoPreview && (
-              <Box
-                component="img"
-                src={photoPreview}
-                alt="Voorbeeld van productfoto"
-                sx={{
-                  width: "100%",
-                  maxHeight: 300,
-                  objectFit: "cover",
-                  borderRadius: 2,
-                }}
-              />
+              <div>
+                <h2>Productgegevens</h2>
+                <p>Vul de gegevens van het product in.</p>
+              </div>
+            </div>
+
+            <div className={styles.fields}>
+              <div className={styles.field}>
+                <label htmlFor="product-name">Naam</label>
+
+                <input
+                  id="product-name"
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Naam van het product"
+                  autoComplete="off"
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor="product-category">Categorie</label>
+
+                <div className={styles.selectWrapper}>
+                  {selectedCategory && (
+                    <span
+                      className={styles.categoryDot}
+                      style={{
+                        backgroundColor: selectedCategory.color || "#a3e635",
+                      }}
+                    />
+                  )}
+
+                  <select
+                    id="product-category"
+                    className={selectedCategory ? styles.categorySelect : ""}
+                    value={categoryId}
+                    onChange={(event) => setCategoryId(event.target.value)}
+                    required
+                    disabled={loading || loadingCategories}
+                  >
+                    <option value="" disabled>
+                      {loadingCategories
+                        ? "Categorieën laden..."
+                        : "Selecteer een categorie"}
+                    </option>
+
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <ChevronDown size={19} className={styles.selectChevron} />
+                </div>
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor="product-expiry">Vervaldatum</label>
+
+                <div className={styles.dateWrapper}>
+                  <CalendarDays size={19} className={styles.dateIcon} />
+
+                  <input
+                    id="product-expiry"
+                    type="date"
+                    value={expiryDate}
+                    onChange={(event) => setExpiryDate(event.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionIcon}>
+                <CalendarDays size={22} />
+              </div>
+
+              <div>
+                <h2>Controle-instellingen</h2>
+                <p>Bepaal hoe dit product gecontroleerd wordt.</p>
+              </div>
+            </div>
+
+            <div className={styles.checkOptions}>
+              <label
+                className={`${styles.checkOption} ${
+                  checkType === "daily" ? styles.checkOptionActive : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="checkType"
+                  value="daily"
+                  checked={checkType === "daily"}
+                  onChange={() => setCheckType("daily")}
+                  disabled={loading}
+                />
+
+                <span className={styles.checkOptionText}>
+                  <strong>Dagelijkse controle (30%)</strong>
+                  <span>
+                    Controleer het product dagelijks wanneer de vervaldatum
+                    bereikt is.
+                  </span>
+                </span>
+
+                <span className={styles.radioIndicator}>
+                  {checkType === "daily" && <Check size={14} strokeWidth={3} />}
+                </span>
+              </label>
+
+              <label
+                className={`${styles.checkOption} ${
+                  checkType === "monthly" ? styles.checkOptionActive : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="checkType"
+                  value="monthly"
+                  checked={checkType === "monthly"}
+                  onChange={() => setCheckType("monthly")}
+                  disabled={loading}
+                />
+
+                <span className={styles.checkOptionText}>
+                  <strong>Maandelijkse controle</strong>
+                  <span>
+                    Controleer het product tijdens de maandelijkse
+                    vervaldatumcontrole.
+                  </span>
+                </span>
+
+                <span className={styles.radioIndicator}>
+                  {checkType === "monthly" && (
+                    <Check size={14} strokeWidth={3} />
+                  )}
+                </span>
+              </label>
+            </div>
+          </section>
+
+          <button
+            type="submit"
+            className={styles.submitButton}
+            disabled={loading || loadingCategories}
+          >
+            {loading ? (
+              <>
+                <LoaderCircle size={21} className={styles.spinner} />
+                Toevoegen...
+              </>
+            ) : (
+              <>
+                <Plus size={21} />
+                Product toevoegen
+              </>
             )}
-
-            <TextField
-              label="Naam"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-              fullWidth
-            />
-
-            <TextField
-              label="Vervaldatum"
-              type="date"
-              value={expiryDate}
-              onChange={(event) => setExpiryDate(event.target.value)}
-              required
-              fullWidth
-              slotProps={{
-                inputLabel: {
-                  shrink: true,
-                },
-              }}
-            />
-
-            <TextField
-              select
-              label="Categorie"
-              value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
-              required
-              fullWidth
-            >
-              {categories.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              label="Controle"
-              value={checkType}
-              onChange={(event) =>
-                setCheckType(event.target.value as CheckType)
-              }
-              required
-              fullWidth
-            >
-              <MenuItem value="daily">Dagelijkse check</MenuItem>
-              <MenuItem value="monthly">Maandelijkse check</MenuItem>
-            </TextField>
-
-            {error && (
-              <Typography variant="body2" sx={{ color: "error.main" }}>
-                {error}
-              </Typography>
-            )}
-
-            <Button
-              className="StyledButton1"
-              type="submit"
-              variant="contained"
-              size="large"
-              startIcon={<AddOutlined />}
-              disabled={loading}
-            >
-              {loading ? "Toevoegen..." : "Item toevoegen"}
-            </Button>
-          </Stack>
-        </Box>
-      </Stack>
-    </Container>
+          </button>
+        </form>
+      </div>
+    </main>
   );
 }
