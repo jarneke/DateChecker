@@ -3,7 +3,6 @@
 import {
     useCallback,
     useEffect,
-    useMemo,
     useRef,
     useState,
     type TouchEvent,
@@ -14,20 +13,56 @@ import {
     CHECK_CONFIG,
     isCheckType,
     type Category,
-    type DailyStep,
     type Item,
 } from "../types";
+import { getToday } from "../utils";
 
-import {
-    clearDailyStep,
-    getDailyStepKey,
-    getProgressKey,
-    getToday,
-    readDailyStep,
-    readProgress,
-    saveDailyStep,
-    saveProgress,
-} from "../utils";
+type CheckStage =
+    | "sticker"
+    | "new-stock"
+    | "date"
+    | "evening"
+    | "completed";
+
+type SharedItem = Item & {
+    stage: CheckStage;
+    draft_expiry_date: string | null;
+    version: number;
+};
+
+export type SharedCategory = Category & {
+    color?: string | null;
+    remaining_count: number;
+};
+
+export type CheckSnapshot = {
+    date: string;
+    morningCompleted: boolean;
+    eveningCompleted: boolean;
+    morningRemaining: number;
+    eveningRemaining: number;
+    blocked: string | null;
+    items: SharedItem[];
+    initialCount: number;
+    completedCount: number;
+    categories: SharedCategory[];
+};
+
+type CheckAction =
+    | "sticker-yes"
+    | "sticker-no"
+    | "open-date"
+    | "draft-date"
+    | "back"
+    | "save-date"
+    | "no-stock"
+    | "evening-done";
+
+type UpdatedTask = {
+    stage: CheckStage;
+    draft_expiry_date: string | null;
+    version: number;
+};
 
 export function useCheckWorkflow() {
     const router = useRouter();
@@ -35,402 +70,333 @@ export function useCheckWorkflow() {
 
     const typeParam = searchParams.get("type");
     const type = isCheckType(typeParam) ? typeParam : null;
-    const categoryParam = searchParams.get("categoryId") ?? "";
+    const categoryId = searchParams.get("categoryId") ?? "";
     const refreshToken = searchParams.get("refresh");
 
-    const [items, setItems] = useState<Item[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [categoryId, setCategoryId] = useState(categoryParam);
-
+    const [snapshot, setSnapshot] = useState<CheckSnapshot | null>(null);
     const [loading, setLoading] = useState(true);
-    const [categoriesLoading, setCategoriesLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const savingRef = useRef(false);
-
     const [error, setError] = useState<string | null>(null);
-    const [completedIds, setCompletedIds] = useState<string[]>([]);
-    const [initialCount, setInitialCount] = useState(0);
-
-    const [dailyStep, setDailyStep] = useState<DailyStep>("sticker");
-    const [showDateInput, setShowDateInput] = useState(false);
-    const [nextExpiryDate, setNextExpiryDate] = useState("");
-
-    const touchStart = useRef<{ x: number; y: number } | null>(null);
+    const [nextExpiryDate, setDateDraft] = useState("");
     const [swipeOffset, setSwipeOffset] = useState(0);
 
-    const todayString = getToday();
+    const snapshotRef = useRef<CheckSnapshot | null>(null);
+    const savingRef = useRef(false);
+    const requestIdRef = useRef(0);
+    const mountedRef = useRef(false);
+    const contextRef = useRef("");
+    const touchStart = useRef<{ x: number; y: number } | null>(null);
 
-    const progressKey = type ? getProgressKey(type, categoryId) : "";
-    const dailyStepKey = getDailyStepKey();
+    const context = `${type ?? ""}:${categoryId}:${refreshToken ?? ""}`;
+    contextRef.current = context;
 
-    const currentItem = items[0] ?? null;
-    const config = type ? CHECK_CONFIG[type] : null;
+    const applySnapshot = useCallback((data: CheckSnapshot) => {
+        snapshotRef.current = data;
+        setSnapshot(data);
+        setDateDraft(data.items[0]?.draft_expiry_date ?? "");
+        setSwipeOffset(0);
+    }, []);
 
-    const completedCount = Math.max(0, initialCount - items.length);
-    const progressPercent =
-        initialCount > 0
-            ? Math.min(100, (completedCount / initialCount) * 100)
-            : 0;
+    const loadSnapshot = useCallback(
+        async (force = false): Promise<boolean> => {
+            if (!type || (!force && savingRef.current)) return false;
 
-    const selectedCategory = useMemo(
-        () =>
-            categoryId === "all"
-                ? { id: "all", name: "Alle categorieën" }
-                : categories.find((category) => category.id === categoryId),
-        [categories, categoryId],
-    );
-
-    const changeCategory = useCallback(
-        (id: string) => {
-            setCategoryId(id);
-            setError(null);
-
-            const params = new URLSearchParams(searchParams.toString());
-
-            if (id) {
-                params.set("categoryId", id);
-            } else {
-                params.delete("categoryId");
-            }
-
-            router.replace(`/check?${params.toString()}`, {
-                scroll: false,
-            });
-        },
-        [router, searchParams],
-    );
-
-    useEffect(() => {
-        if (type !== "stock") return;
-        setCategoryId(categoryParam);
-    }, [type, categoryParam]);
-
-    useEffect(() => {
-        if (type !== "stock") return;
-
-        let cancelled = false;
-
-        async function loadCategories() {
-            setCategoriesLoading(true);
+            const requestId = ++requestIdRef.current;
+            const requestContext = context;
 
             try {
-                const response = await fetch("/api/categories", {
+                const params = new URLSearchParams({ type });
+
+                if (type === "stock") {
+                    params.set("categoryId", categoryId || "all");
+                }
+
+                const response = await fetch(`/api/checks?${params.toString()}`, {
                     cache: "no-store",
                 });
 
+                const data = await response.json();
+
                 if (!response.ok) {
-                    throw new Error("Categorieën konden niet geladen worden.");
+                    throw new Error(
+                        data?.error || "De controle kon niet geladen worden.",
+                    );
                 }
 
-                const data: unknown = await response.json();
-
-                if (!Array.isArray(data)) {
-                    throw new Error("Ongeldige categorieën ontvangen.");
+                if (
+                    !mountedRef.current ||
+                    requestId !== requestIdRef.current ||
+                    requestContext !== contextRef.current
+                ) {
+                    return false;
                 }
 
-                if (!cancelled) {
-                    setCategories(data as Category[]);
+                if (
+                    !Array.isArray(data.items) ||
+                    !Array.isArray(data.categories)
+                ) {
+                    throw new Error("Ongeldige controlegegevens ontvangen.");
                 }
-            } catch (err) {
-                console.error(err);
 
-                if (!cancelled) {
-                    setError("Categorieën konden niet geladen worden.");
+                applySnapshot(data as CheckSnapshot);
+                setError(null);
+                setLoading(false);
+
+                return true;
+            } catch (caughtError) {
+                if (
+                    mountedRef.current &&
+                    requestId === requestIdRef.current &&
+                    requestContext === contextRef.current
+                ) {
+                    setError(
+                        caughtError instanceof Error
+                            ? caughtError.message
+                            : "De controle kon niet geladen worden.",
+                    );
+                    setLoading(false);
                 }
-            } finally {
-                if (!cancelled) {
-                    setCategoriesLoading(false);
-                }
+
+                return false;
             }
-        }
-
-        void loadCategories();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [type]);
+        },
+        [type, categoryId, context, applySnapshot],
+    );
 
     useEffect(() => {
-        if (!type || (type === "stock" && !categoryId)) {
-            setItems([]);
-            setInitialCount(0);
-            setLoading(false);
+        mountedRef.current = true;
+        snapshotRef.current = null;
+        setSnapshot(null);
+        setDateDraft("");
+        setError(null);
+        setLoading(Boolean(type));
+
+        if (type) {
+            void loadSnapshot();
+        }
+
+        const refresh = () => {
+            if (document.visibilityState === "visible") {
+                void loadSnapshot();
+            }
+        };
+
+        const interval = window.setInterval(refresh, 5000);
+
+        window.addEventListener("focus", refresh);
+        document.addEventListener("visibilitychange", refresh);
+
+        return () => {
+            mountedRef.current = false;
+            requestIdRef.current += 1;
+            window.clearInterval(interval);
+            window.removeEventListener("focus", refresh);
+            document.removeEventListener("visibilitychange", refresh);
+        };
+    }, [type, loadSnapshot]);
+
+    async function performAction(
+        action: CheckAction,
+        expiryDate: string | null = null,
+    ) {
+        const currentSnapshot = snapshotRef.current;
+        const task = currentSnapshot?.items[0];
+
+        if (
+            !type ||
+            !currentSnapshot ||
+            !task ||
+            currentSnapshot.blocked ||
+            savingRef.current
+        ) {
             return;
         }
 
-        let cancelled = false;
-
-        async function loadItems() {
-            if (!type) return;
-
-            setLoading(true);
-            setError(null);
-
-            try {
-                const endpoint =
-                    type === "stock"
-                        ? `/api/items/out-of-stock?categoryId=${encodeURIComponent(
-                            categoryId,
-                        )}`
-                        : CHECK_CONFIG[type].endpoint;
-
-                const response = await fetch(endpoint, {
-                    cache: "no-store",
-                });
-
-                if (!response.ok) {
-                    throw new Error("Producten konden niet geladen worden.");
-                }
-
-                const data: unknown = await response.json();
-
-                if (!Array.isArray(data)) {
-                    throw new Error("Ongeldige productgegevens.");
-                }
-
-                const loadedItems = data as Item[];
-                const completed = readProgress(progressKey);
-
-                if (cancelled) return;
-
-                const remaining = loadedItems.filter(
-                    (item) => !completed.includes(item.id),
-                );
-
-                setCompletedIds(completed);
-                setInitialCount(
-                    loadedItems.length +
-                    completed.filter(
-                        (id) => !loadedItems.some((item) => item.id === id),
-                    ).length,
-                );
-                setItems(remaining);
-
-                setDailyStep(
-                    type === "sticker" && remaining[0]
-                        ? readDailyStep(dailyStepKey, remaining[0].id)
-                        : "sticker",
-                );
-
-                setShowDateInput(false);
-                setNextExpiryDate("");
-                setSwipeOffset(0);
-            } catch (err) {
-                console.error(err);
-
-                if (!cancelled) {
-                    setError("Producten konden niet geladen worden.");
-                    setItems([]);
-                }
-            } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            }
-        }
-
-        void loadItems();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [type, categoryId, refreshToken, progressKey, dailyStepKey]);
-
-    const resetCurrentItem = useCallback(
-        (nextItem?: Item | null) => {
-            setDailyStep(
-                type === "sticker" && nextItem
-                    ? readDailyStep(dailyStepKey, nextItem.id)
-                    : "sticker",
-            );
-
-            setShowDateInput(false);
-            setNextExpiryDate("");
-            setError(null);
-            setSwipeOffset(0);
-        },
-        [type, dailyStepKey],
-    );
-
-    const handleNextItem = useCallback(() => {
-        if (!currentItem) return;
-
-        const updated = [...new Set([...completedIds, currentItem.id])];
-
-        saveProgress(progressKey, updated);
-
-        if (type === "sticker") {
-            clearDailyStep(dailyStepKey);
-        }
-
-        setCompletedIds(updated);
-
-        const remaining = items.filter(
-            (item) => item.id !== currentItem.id,
-        );
-
-        setItems(remaining);
-        resetCurrentItem(remaining[0]);
-    }, [
-        currentItem,
-        completedIds,
-        progressKey,
-        type,
-        dailyStepKey,
-        items,
-        resetCurrentItem,
-    ]);
-
-    async function updateExpiryDate(date: string | null) {
-        if (!currentItem || savingRef.current) return;
+        const actionContext = context;
 
         savingRef.current = true;
+        requestIdRef.current += 1;
         setSaving(true);
         setError(null);
+        setSwipeOffset(0);
 
         try {
-            const response = await fetch(`/api/items/${currentItem.id}`, {
-                method: "PATCH",
+            const response = await fetch("/api/checks", {
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    expiry_date: date,
+                    date: currentSnapshot.date,
+                    type,
+                    itemId: task.id,
+                    version: task.version,
+                    action,
+                    expiryDate,
                 }),
             });
 
-            if (!response.ok) {
-                throw new Error("Product kon niet bijgewerkt worden.");
-            }
-
-            handleNextItem();
-        } catch (err) {
-            console.error(err);
-            setError("De vervaldatum kon niet opgeslagen worden.");
-        } finally {
-            savingRef.current = false;
-            setSaving(false);
-        }
-    }
-
-    async function handleChecked() {
-        if (!nextExpiryDate || nextExpiryDate < todayString) return;
-        await updateExpiryDate(nextExpiryDate);
-    }
-
-    async function handleNoNewStock() {
-        if (!currentItem || savingRef.current) return;
-
-        if (type === "stock") {
-            handleNextItem();
-            return;
-        }
-
-        await updateExpiryDate(null);
-    }
-
-    async function handleDailySticker(shouldSticker: boolean) {
-        if (!currentItem || savingRef.current) return;
-
-        if (!shouldSticker) {
-            saveDailyStep(dailyStepKey, currentItem.id);
-            setDailyStep("new-stock");
-            setError(null);
-            return;
-        }
-
-        savingRef.current = true;
-        setSaving(true);
-        setError(null);
-
-        try {
-            const response = await fetch(
-                `/api/items/${currentItem.id}/sticker`,
-                { method: "POST" },
-            );
+            const data = await response.json();
 
             if (!response.ok) {
-                throw new Error("Stickerstatus kon niet opgeslagen worden.");
+                throw new Error(
+                    data?.error || "De stap kon niet opgeslagen worden.",
+                );
             }
 
-            saveDailyStep(dailyStepKey, currentItem.id);
-            setDailyStep("new-stock");
-        } catch (err) {
-            console.error(err);
-            setError("Stickerstatus kon niet opgeslagen worden.");
+            if (
+                !mountedRef.current ||
+                actionContext !== contextRef.current
+            ) {
+                return;
+            }
+
+            const updatedTask = data.task as UpdatedTask;
+            const completed = updatedTask.stage === "completed";
+
+            // Gebruik de bevestigde serverversie meteen, ook als de
+            // daaropvolgende verversing tijdelijk mislukt.
+            applySnapshot({
+                ...currentSnapshot,
+                items: completed
+                    ? currentSnapshot.items.filter((item) => item.id !== task.id)
+                    : currentSnapshot.items.map((item) =>
+                        item.id === task.id
+                            ? {
+                                ...item,
+                                stage: updatedTask.stage,
+                                version: updatedTask.version,
+                                draft_expiry_date: updatedTask.draft_expiry_date,
+                            }
+                            : item,
+                    ),
+                completedCount:
+                    currentSnapshot.completedCount + Number(completed),
+            });
+
+            await loadSnapshot(true);
+        } catch (caughtError) {
+            if (
+                mountedRef.current &&
+                actionContext === contextRef.current
+            ) {
+                const message =
+                    caughtError instanceof Error
+                        ? caughtError.message
+                        : "De stap kon niet opgeslagen worden.";
+
+                await loadSnapshot(true);
+
+                if (
+                    mountedRef.current &&
+                    actionContext === contextRef.current
+                ) {
+                    setError(message);
+                }
+            }
         } finally {
             savingRef.current = false;
-            setSaving(false);
+
+            if (mountedRef.current) {
+                setSaving(false);
+            }
         }
     }
 
-    async function handleEveningNext() {
-        if (!currentItem || savingRef.current) return;
-
-        savingRef.current = true;
-        setSaving(true);
-        setError(null);
-
-        try {
-            const response = await fetch(
-                `/api/items/${currentItem.id}/evening`,
-                { method: "POST" },
-            );
-
-            if (!response.ok) {
-                throw new Error("Avondcontrole kon niet opgeslagen worden.");
-            }
-
-            handleNextItem();
-        } catch (err) {
-            console.error(err);
-            setError("Het product kon niet verwerkt worden.");
-        } finally {
-            savingRef.current = false;
-            setSaving(false);
-        }
-    }
+    const items = snapshot?.items ?? [];
+    const categories = snapshot?.categories ?? [];
+    const currentItem = items[0] ?? null;
 
     const isDaily = type === "sticker";
     const isEvening = type === "evening";
     const isStock = type === "stock";
 
+    const selectedCategory =
+        categoryId === "all"
+            ? { id: "all", name: "Alle categorieën" }
+            : categories.find((category) => category.id === categoryId);
+
+    const todayString = snapshot?.date ?? getToday();
+    const initialCount = snapshot?.initialCount ?? 0;
+    const completedCount = snapshot?.completedCount ?? 0;
+
+    const progressPercent =
+        initialCount > 0
+            ? Math.min(100, (completedCount / initialCount) * 100)
+            : 0;
+
+    const dailyStep =
+        currentItem?.stage === "sticker"
+            ? ("sticker" as const)
+            : ("new-stock" as const);
+
+    const showDateInput = currentItem?.stage === "date";
+    const isStickerQuestion = isDaily && dailyStep === "sticker";
+
     const missedCheck =
         currentItem?.expiry_date != null &&
         currentItem.expiry_date.slice(0, 10) < todayString;
 
-    const isStickerQuestion = isDaily && dailyStep === "sticker";
-
-    const isDateQuestion =
-        !isEvening && !isStickerQuestion && showDateInput;
-
     const canSwipe =
         Boolean(currentItem) &&
         !saving &&
-        !isDateQuestion &&
-        !isEvening &&
         !loading &&
-        !error;
+        !error &&
+        !snapshot?.blocked &&
+        !showDateInput &&
+        !isEvening;
 
-    function handleYes() {
+    function changeCategory(id: string) {
         if (savingRef.current) return;
 
+        const params = new URLSearchParams(searchParams.toString());
+
+        if (id) {
+            params.set("categoryId", id);
+        } else {
+            params.delete("categoryId");
+        }
+
+        router.replace(`/check?${params.toString()}`, {
+            scroll: false,
+        });
+    }
+
+    function handleYes() {
         if (isStickerQuestion) {
-            void handleDailySticker(true);
+            void performAction("sticker-yes");
         } else if (!isEvening && !showDateInput) {
-            setShowDateInput(true);
+            void performAction("open-date");
         }
     }
 
     function handleNo() {
-        if (savingRef.current) return;
-
         if (isStickerQuestion) {
-            void handleDailySticker(false);
+            void performAction("sticker-no");
         } else if (!isEvening && !showDateInput) {
-            void handleNoNewStock();
+            void performAction("no-stock");
         }
+    }
+
+    function updateDateDraft(value: string) {
+        if (savingRef.current || !showDateInput) return;
+
+        setDateDraft(value);
+        void performAction("draft-date", value || null);
+    }
+
+    function handleChecked() {
+        if (!nextExpiryDate || nextExpiryDate < todayString) return;
+
+        return performAction("save-date", nextExpiryDate);
+    }
+
+    function handleEveningNext() {
+        return performAction("evening-done");
+    }
+
+    function handleBack() {
+        return performAction("back");
     }
 
     function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
@@ -464,30 +430,25 @@ export function useCheckWorkflow() {
         const dx = event.touches[0].clientX - touchStart.current.x;
         const dy = event.touches[0].clientY - touchStart.current.y;
 
-        if (Math.abs(dx) > Math.abs(dy) * 1.5) {
-            setSwipeOffset(Math.max(-110, Math.min(110, dx)));
-        } else {
-            setSwipeOffset(0);
-        }
+        setSwipeOffset(
+            Math.abs(dx) > Math.abs(dy) * 1.5
+                ? Math.max(-110, Math.min(110, dx))
+                : 0,
+        );
     }
 
     function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
-        if (!touchStart.current || !canSwipe) {
-            touchStart.current = null;
-            setSwipeOffset(0);
-            return;
-        }
-
-        const dx = event.changedTouches[0].clientX - touchStart.current.x;
-        const dy = event.changedTouches[0].clientY - touchStart.current.y;
+        const start = touchStart.current;
 
         touchStart.current = null;
         setSwipeOffset(0);
 
-        if (
-            Math.abs(dx) < 90 ||
-            Math.abs(dx) < Math.abs(dy) * 1.5
-        ) {
+        if (!start || !canSwipe || !event.changedTouches[0]) return;
+
+        const dx = event.changedTouches[0].clientX - start.x;
+        const dy = event.changedTouches[0].clientY - start.y;
+
+        if (Math.abs(dx) < 90 || Math.abs(dx) < Math.abs(dy) * 1.5) {
             return;
         }
 
@@ -505,16 +466,17 @@ export function useCheckWorkflow() {
 
     return {
         type,
-        config,
+        config: type ? CHECK_CONFIG[type] : null,
         items,
         categories,
         categoryId,
         selectedCategory,
         currentItem,
         loading,
-        categoriesLoading,
+        categoriesLoading: loading,
         saving,
         error,
+        blocked: snapshot?.blocked ?? null,
         initialCount,
         completedCount,
         progressPercent,
@@ -530,11 +492,10 @@ export function useCheckWorkflow() {
         isStickerQuestion,
         canSwipe,
         changeCategory,
-        resetCurrentItem,
-        setNextExpiryDate,
-        setShowDateInput,
+        setNextExpiryDate: updateDateDraft,
         handleChecked,
         handleEveningNext,
+        handleBack,
         handleYes,
         handleNo,
         handleTouchStart,

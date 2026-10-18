@@ -3,161 +3,172 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
   CalendarDays,
   ClipboardCheck,
-  Clock3,
-  LayoutGrid,
   Moon,
   Package,
   Settings2,
   Tag,
   TriangleAlert,
 } from "lucide-react";
+
 import CheckTile from "@/components/home/CheckTile";
+import type { CheckSnapshot } from "./check/hooks/useCheckWorkflow";
 import styles from "./page.module.css";
 
 type SettingsResponse = {
   monthCheckDaysBeforeEnd: number;
 };
 
-type Counts = {
-  sticker: number | null;
-  overdue: number | null;
-  monthly: number | null;
+type HomeData = {
+  state: CheckSnapshot;
+  overdueCount: number;
+  monthlyCount: number;
+  monthCheckDaysBeforeEnd: number;
 };
 
-function getBrusselsDate() {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Brussels",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-
-  const get = (type: string) =>
-    parts.find((part) => part.type === type)?.value ?? "";
-
-  return new Date(
-    Date.UTC(Number(get("year")), Number(get("month")) - 1, Number(get("day"))),
-  );
-}
-
-function formatToday(date: Date) {
+function formatToday(value: string) {
   return new Intl.DateTimeFormat("nl-BE", {
     day: "numeric",
     month: "long",
     year: "numeric",
     timeZone: "UTC",
-  }).format(date);
+  }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function daysUntilMonthEnd(date: Date) {
+function daysUntilMonthEnd(value: string) {
+  const today = new Date(`${value}T00:00:00Z`);
   const lastDay = new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0),
   );
 
-  return Math.round((lastDay.getTime() - date.getTime()) / 86_400_000);
+  return Math.round((lastDay.getTime() - today.getTime()) / 86400000);
+}
+
+async function readResponse<T>(response: Response): Promise<T> {
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.error || "Gegevens konden niet geladen worden.");
+  }
+
+  return data as T;
 }
 
 export default function HomePage() {
-  const [counts, setCounts] = useState<Counts>({
-    sticker: null,
-    overdue: null,
-    monthly: null,
-  });
-
-  const [monthCheckDaysBeforeEnd, setMonthCheckDaysBeforeEnd] = useState<
-    number | null
-  >(null);
-
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<HomeData | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [today, setToday] = useState<Date | null>(null);
+  const [greeting, setGreeting] = useState("Welkom");
 
   useEffect(() => {
-    setToday(getBrusselsDate());
+    const controller = new AbortController();
+    let busy = false;
 
-    let cancelled = false;
+    async function refresh() {
+      if (busy || controller.signal.aborted) return;
 
-    async function loadCounts() {
+      busy = true;
+
       try {
-        const [stickerRes, overdueRes, monthlyRes, settingsRes] =
-          await Promise.all([
-            fetch("/api/items/due/count", { cache: "no-store" }),
-            fetch("/api/items/overdue/count", { cache: "no-store" }),
-            fetch("/api/items/monthly/count", { cache: "no-store" }),
-            fetch("/api/settings", { cache: "no-store" }),
-          ]);
+        const options = {
+          cache: "no-store" as const,
+          signal: controller.signal,
+        };
 
-        if (
-          !stickerRes.ok ||
-          !overdueRes.ok ||
-          !monthlyRes.ok ||
-          !settingsRes.ok
-        ) {
-          throw new Error("Gegevens konden niet geladen worden.");
-        }
+        const responses = await Promise.all([
+          fetch("/api/checks", options),
+          fetch("/api/checks?type=overdue", options),
+          fetch("/api/checks?type=monthly", options),
+          fetch("/api/settings", options),
+        ]);
 
-        const [stickerData, overdueData, monthlyData, settingsData] =
-          await Promise.all([
-            stickerRes.json(),
-            overdueRes.json(),
-            monthlyRes.json(),
-            settingsRes.json() as Promise<SettingsResponse>,
-          ]);
+        const [state, overdue, monthly, settings] = await Promise.all([
+          readResponse<CheckSnapshot>(responses[0]),
+          readResponse<CheckSnapshot>(responses[1]),
+          readResponse<CheckSnapshot>(responses[2]),
+          readResponse<SettingsResponse>(responses[3]),
+        ]);
 
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
 
-        setCounts({
-          sticker: stickerData.count ?? 0,
-          overdue: overdueData.count ?? 0,
-          monthly: monthlyData.count ?? 0,
+        setData({
+          state,
+          overdueCount: overdue.items.length,
+          monthlyCount: monthly.items.length,
+          monthCheckDaysBeforeEnd: settings.monthCheckDaysBeforeEnd,
         });
 
-        setMonthCheckDaysBeforeEnd(settingsData.monthCheckDaysBeforeEnd);
+        const hour = Number(
+          new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Europe/Brussels",
+            hour: "numeric",
+            hourCycle: "h23",
+          }).format(new Date()),
+        );
+
+        setGreeting(
+          hour < 12 ? "Goedemorgen" : hour < 18 ? "Goedemiddag" : "Goedenavond",
+        );
 
         setLoadError(false);
       } catch (error) {
-        console.error(error);
-
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
+          console.error(error);
           setLoadError(true);
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        busy = false;
       }
     }
 
-    void loadCounts();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    };
+
+    void refresh();
+
+    const interval = window.setInterval(refreshWhenVisible, 5000);
+
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
-      cancelled = true;
+      controller.abort();
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, []);
 
+  const state = data?.state;
+  const statusAvailable = Boolean(state) && !loadError;
+
+  const morningCompleted = state?.morningCompleted ?? false;
+  const eveningCompleted = state?.eveningCompleted ?? false;
+
   const monthlyCheckActive =
-    today !== null &&
-    monthCheckDaysBeforeEnd !== null &&
-    daysUntilMonthEnd(today) <= monthCheckDaysBeforeEnd;
+    data !== null &&
+    daysUntilMonthEnd(data.state.date) <= data.monthCheckDaysBeforeEnd;
 
-  const knownTotal =
-    counts.sticker !== null &&
-    counts.overdue !== null &&
-    counts.monthly !== null
-      ? counts.sticker + counts.overdue + counts.monthly
-      : null;
+  const morningNotice = !statusAvailable
+    ? loadError
+      ? "Status niet beschikbaar"
+      : "Status laden..."
+    : morningCompleted
+      ? "Afgerond voor vandaag"
+      : undefined;
 
-  const hour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/Brussels",
-      hour: "numeric",
-      hourCycle: "h23",
-    }).format(new Date()),
-  );
-
-  const greeting =
-    hour < 12 ? "Goedemorgen" : hour < 18 ? "Goedemiddag" : "Goedenavond";
+  const eveningNotice = !statusAvailable
+    ? loadError
+      ? "Status niet beschikbaar"
+      : "Status laden..."
+    : !morningCompleted
+      ? "Eerst de ochtendcontrole afronden"
+      : eveningCompleted
+        ? "Afgerond voor vandaag"
+        : undefined;
 
   return (
     <main className={styles.page}>
@@ -187,7 +198,7 @@ export default function HomePage() {
 
           <div className={styles.dateLabel}>
             <CalendarDays size={14} />
-            <span>{today ? formatToday(today) : "Vandaag"}</span>
+            <span>{state ? formatToday(state.date) : "Vandaag"}</span>
           </div>
 
           <div className={styles.heroContent}>
@@ -221,19 +232,25 @@ export default function HomePage() {
 
           {loadError && (
             <p className={styles.error} role="alert">
-              De aantallen konden niet geladen worden. Je kunt de controles nog
-              steeds openen.
+              De gedeelde status kon niet geladen worden. Ochtend- en
+              avondcontrole blijven gesloten tot de verbinding hersteld is.
             </p>
           )}
 
           <div className={styles.grid}>
             <CheckTile
               title="Ochtendcontrole"
-              description="Controleer de vervaldatums en sticker producten."
+              description={
+                morningCompleted
+                  ? "De ochtendcontrole is afgerond."
+                  : "Controleer de vervaldatums en sticker producten."
+              }
               icon={Tag}
               tone="morning"
               href="/check?type=sticker"
-              count={counts.sticker}
+              count={state?.morningRemaining}
+              disabled={!statusAvailable || morningCompleted}
+              notice={morningNotice}
             />
 
             <CheckTile
@@ -242,15 +259,24 @@ export default function HomePage() {
               icon={TriangleAlert}
               tone="overdue"
               href="/check?type=overdue"
-              count={counts.overdue}
+              count={data?.overdueCount}
             />
 
             <CheckTile
               title="Avondcontrole"
-              description="Haal gestickerde producten uit de winkel."
+              description={
+                eveningCompleted
+                  ? "De avondcontrole is afgerond."
+                  : "Haal gestickerde producten uit de winkel."
+              }
               icon={Moon}
               tone="evening"
               href="/check?type=evening"
+              count={state?.eveningRemaining}
+              disabled={
+                !statusAvailable || !morningCompleted || eveningCompleted
+              }
+              notice={eveningNotice}
             />
 
             <CheckTile
@@ -259,13 +285,13 @@ export default function HomePage() {
               icon={CalendarDays}
               tone="monthly"
               href="/check?type=monthly"
-              count={counts.monthly}
+              count={data?.monthlyCount}
               disabled={!monthlyCheckActive}
               notice={
                 !monthlyCheckActive
-                  ? monthCheckDaysBeforeEnd === null
-                    ? "Controlevenster laden..."
-                    : `Laatste ${monthCheckDaysBeforeEnd} dagen`
+                  ? data
+                    ? `Laatste ${data.monthCheckDaysBeforeEnd} dagen`
+                    : "Controlevenster laden..."
                   : undefined
               }
             />

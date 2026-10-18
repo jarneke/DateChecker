@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -11,27 +11,17 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-import type { Category, Item } from "../types";
-import { getProgressKey, readProgress } from "../utils";
+import type { SharedCategory } from "../hooks/useCheckWorkflow";
 
 import styles from "../page.module.css";
 import buttons from "./CategorySelector.module.css";
 
-type ColoredCategory = Category & {
-  color?: string | null;
-};
-
 type CategorySelectorProps = {
-  categories: ColoredCategory[];
+  categories: SharedCategory[];
   categoryId: string;
   loading: boolean;
   error: string | null;
   onChange: (categoryId: string) => void;
-};
-
-type StockCounts = {
-  all: number;
-  categories: Record<string, number>;
 };
 
 type CategoryStyle = CSSProperties & {
@@ -52,81 +42,10 @@ export default function CategorySelector({
   error,
   onChange,
 }: CategorySelectorProps) {
-  const [counts, setCounts] = useState<StockCounts | null>(null);
-  const [countsLoading, setCountsLoading] = useState(true);
-  const [countsError, setCountsError] = useState<string | null>(null);
-  const [retry, setRetry] = useState(0);
-
-  useEffect(() => {
-    if (loading) return;
-
-    const controller = new AbortController();
-
-    async function loadCounts() {
-      setCountsLoading(true);
-      setCountsError(null);
-
-      try {
-        const response = await fetch("/api/items/out-of-stock?categoryId=all", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error("Aantallen konden niet geladen worden.");
-        }
-
-        const data: unknown = await response.json();
-
-        if (!Array.isArray(data)) {
-          throw new Error("Ongeldige productgegevens ontvangen.");
-        }
-
-        const items = data as Item[];
-        const categoryCounts: Record<string, number> = {};
-
-        for (const category of categories) {
-          const completed = new Set(
-            readProgress(getProgressKey("stock", category.id)),
-          );
-
-          categoryCounts[category.id] = items.filter(
-            (item) =>
-              item.category_id === category.id && !completed.has(item.id),
-          ).length;
-        }
-
-        const allCompleted = new Set(
-          readProgress(getProgressKey("stock", "all")),
-        );
-
-        if (!controller.signal.aborted) {
-          setCounts({
-            all: items.filter((item) => !allCompleted.has(item.id)).length,
-            categories: categoryCounts,
-          });
-        }
-      } catch (err) {
-        if (controller.signal.aborted) return;
-
-        console.error(err);
-        setCounts(null);
-        setCountsError("Aantallen konden niet geladen worden.");
-      } finally {
-        if (!controller.signal.aborted) {
-          setCountsLoading(false);
-        }
-      }
-    }
-
-    void loadCounts();
-
-    return () => {
-      controller.abort();
-    };
-  }, [categories, loading, retry]);
-
-  const busy = loading || countsLoading;
+  const total = categories.reduce(
+    (sum, category) => sum + category.remaining_count,
+    0,
+  );
 
   return (
     <main className={styles.page}>
@@ -143,7 +62,6 @@ export default function CategorySelector({
 
             <div className={styles.headerInfo}>
               <h1 className={styles.pageTitle}>Stockcheck</h1>
-
               <p className={styles.pageSubtitle}>
                 Controleer de nieuwe levering
               </p>
@@ -161,11 +79,10 @@ export default function CategorySelector({
           <h2 className={styles.categoryTitle}>Wat wil je controleren?</h2>
 
           <p className={styles.categoryDescription}>
-            Kies een categorie. Het getal toont hoeveel producten je nog moet
-            controleren.
+            Kies een categorie. De aantallen worden gedeeld met alle toestellen.
           </p>
 
-          {busy && (
+          {loading && (
             <p className={buttons.loading} role="status">
               <LoaderCircle
                 size={17}
@@ -176,7 +93,7 @@ export default function CategorySelector({
             </p>
           )}
 
-          {!busy && counts && (
+          {!loading && !error && (
             <div
               className={buttons.grid}
               role="group"
@@ -187,7 +104,7 @@ export default function CategorySelector({
                 className={`${buttons.category} ${buttons.all}`}
                 onClick={() => onChange("all")}
                 aria-pressed={categoryId === "all"}
-                aria-label={`Alle categorieën: ${counts.all} producten te controleren`}
+                aria-label={`Alle categorieën: ${total} producten te controleren`}
               >
                 <span className={buttons.icon}>
                   <Layers3 size={21} aria-hidden="true" />
@@ -198,7 +115,7 @@ export default function CategorySelector({
                   <span className={buttons.hint}>Alles in één ronde</span>
                 </span>
 
-                <span className={buttons.count}>{counts.all}</span>
+                <span className={buttons.count}>{total}</span>
 
                 <ArrowUpRight
                   size={18}
@@ -208,7 +125,7 @@ export default function CategorySelector({
               </button>
 
               {categories.map((category) => {
-                const count = counts.categories[category.id] ?? 0;
+                const count = category.remaining_count;
 
                 return (
                   <button
@@ -239,20 +156,13 @@ export default function CategorySelector({
           )}
 
           {error && (
-            <p className={styles.categoryError} role="alert">
-              {error}
-            </p>
-          )}
-
-          {countsError && (
             <div className={buttons.error} role="alert">
-              <p>{countsError}</p>
+              <p>{error}</p>
 
               <button
                 type="button"
                 className={buttons.retry}
-                onClick={() => setRetry((value) => value + 1)}
-                disabled={busy}
+                onClick={() => window.location.reload()}
               >
                 <RotateCcw size={16} aria-hidden="true" />
                 Opnieuw proberen

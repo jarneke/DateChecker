@@ -15,13 +15,9 @@ import {
 import ProductCard, {
   type StockItem,
 } from "@/components/stockchecker/ProductCard";
+import StockFilters from "@/components/stockchecker/StockFilters";
 
-import StockFilters, {
-  type ControlFilter,
-  type DateFilterMode,
-  type SortOption,
-} from "@/components/stockchecker/StockFilters";
-
+import { useStockPreferences } from "./useStockPreferences";
 import styles from "./page.module.css";
 
 type ItemsResponse = {
@@ -77,55 +73,12 @@ export default function StockCheckerPage() {
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [search, setSearch] = useState("");
-
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState("");
-
-  const [controlFilter, setControlFilter] = useState<ControlFilter>("all");
-
-  const [sort, setSort] = useState<SortOption>("name_asc");
-
-  const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("exact");
-
-  const [exactDate, setExactDate] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-
-  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Categories
-
-  useEffect(() => {
-    async function loadCategories() {
-      try {
-        const response = await fetch("/api/settings", {
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          throw new Error("Categorieën konden niet geladen worden.");
-        }
-
-        const data = await response.json();
-
-        setCategories(Array.isArray(data.categories) ? data.categories : []);
-      } catch (err) {
-        console.error("Failed to load categories:", err);
-      }
-    }
-
-    loadCategories();
-  }, []);
-
-  // Reset pagination when filters change
-
-  useEffect(() => {
-    setPage(1);
-  }, [
+  const {
+    ready,
     search,
     categoryFilter,
     controlFilter,
@@ -134,11 +87,55 @@ export default function StockCheckerPage() {
     exactDate,
     fromDate,
     toDate,
-  ]);
-
-  // Fetch products
+    page,
+    setSearch,
+    setCategoryFilter,
+    setControlFilter,
+    setSort,
+    setDateFilterMode,
+    setExactDate,
+    setFromDate,
+    setToDate,
+    setPage,
+    clearFilters,
+  } = useStockPreferences();
 
   useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadCategories() {
+      try {
+        const response = await fetch("/api/settings", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Categorieën konden niet geladen worden.");
+        }
+
+        const data = await response.json();
+
+        if (!controller.signal.aborted) {
+          setCategories(Array.isArray(data.categories) ? data.categories : []);
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.error("Failed to load categories:", err);
+        }
+      }
+    }
+
+    void loadCategories();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+
     const controller = new AbortController();
 
     const timeout = window.setTimeout(async () => {
@@ -194,16 +191,21 @@ export default function StockCheckerPage() {
 
         if (controller.signal.aborted) return;
 
+        const availablePages = Math.max(1, data.totalPages);
+
+        if (page > availablePages) {
+          setPage(availablePages);
+          return;
+        }
+
         setItems(data.items);
         setTotal(data.total);
-        setTotalPages(Math.max(1, data.totalPages));
+        setTotalPages(availablePages);
       } catch (err) {
         if (controller.signal.aborted) return;
 
         console.error(err);
-
         setError("Producten konden niet geladen worden.");
-
         setItems([]);
         setTotal(0);
         setTotalPages(1);
@@ -218,7 +220,10 @@ export default function StockCheckerPage() {
       window.clearTimeout(timeout);
       controller.abort();
     };
+    // setPage wijzigt alleen de opgeslagen voorkeuren.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    ready,
     page,
     search,
     categoryFilter,
@@ -229,18 +234,6 @@ export default function StockCheckerPage() {
     fromDate,
     toDate,
   ]);
-
-  function clearFilters() {
-    setSearch("");
-    setCategoryFilter("");
-    setControlFilter("all");
-    setSort("name_asc");
-    setDateFilterMode("exact");
-    setExactDate("");
-    setFromDate("");
-    setToDate("");
-    setPage(1);
-  }
 
   function goToPage(nextPage: number) {
     if (nextPage < 1 || nextPage > totalPages || nextPage === page) {
@@ -256,16 +249,12 @@ export default function StockCheckerPage() {
   }
 
   const firstItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-
   const lastItem = Math.min(page * PAGE_SIZE, total);
-
   const pageNumbers = getPageNumbers(page, totalPages);
 
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        {/* Header */}
-
         <header className={styles.header}>
           <Link
             href="/"
@@ -296,8 +285,6 @@ export default function StockCheckerPage() {
           </Link>
         </header>
 
-        {/* Search */}
-
         <div className={styles.searchBox}>
           <Search size={20} className={styles.searchIcon} />
 
@@ -306,6 +293,7 @@ export default function StockCheckerPage() {
             placeholder="Zoek op naam..."
             aria-label="Zoek product"
             value={search}
+            disabled={!ready}
             onChange={(event) => setSearch(event.target.value)}
           />
 
@@ -321,28 +309,26 @@ export default function StockCheckerPage() {
           )}
         </div>
 
-        {/* Filters */}
-
-        <StockFilters
-          categories={categories}
-          categoryFilter={categoryFilter}
-          onCategoryFilterChange={setCategoryFilter}
-          controlFilter={controlFilter}
-          onControlFilterChange={setControlFilter}
-          sort={sort}
-          onSortChange={setSort}
-          dateFilterMode={dateFilterMode}
-          onDateFilterModeChange={setDateFilterMode}
-          exactDate={exactDate}
-          onExactDateChange={setExactDate}
-          fromDate={fromDate}
-          onFromDateChange={setFromDate}
-          toDate={toDate}
-          onToDateChange={setToDate}
-          onClearFilters={clearFilters}
-        />
-
-        {/* Products */}
+        {ready && (
+          <StockFilters
+            categories={categories}
+            categoryFilter={categoryFilter}
+            onCategoryFilterChange={setCategoryFilter}
+            controlFilter={controlFilter}
+            onControlFilterChange={setControlFilter}
+            sort={sort}
+            onSortChange={setSort}
+            dateFilterMode={dateFilterMode}
+            onDateFilterModeChange={setDateFilterMode}
+            exactDate={exactDate}
+            onExactDateChange={setExactDate}
+            fromDate={fromDate}
+            onFromDateChange={setFromDate}
+            toDate={toDate}
+            onToDateChange={setToDate}
+            onClearFilters={clearFilters}
+          />
+        )}
 
         <section className={styles.results}>
           <div className={styles.resultsHeader}>
@@ -363,14 +349,10 @@ export default function StockCheckerPage() {
             )}
           </div>
 
-          {/* Error */}
-
           {error && (
             <div className={styles.emptyState} role="alert">
               <Package size={42} />
-
               <h3>Er ging iets mis</h3>
-
               <p>{error}</p>
 
               <button
@@ -383,22 +365,16 @@ export default function StockCheckerPage() {
             </div>
           )}
 
-          {/* Loading */}
-
           {loading && (
             <div className={styles.loadingState} role="status">
               Producten laden...
             </div>
           )}
 
-          {/* Empty */}
-
           {!loading && !error && items.length === 0 && (
             <div className={styles.emptyState}>
               <Search size={43} />
-
               <h3>Geen producten gevonden</h3>
-
               <p>Probeer een andere zoekterm of pas je filters aan.</p>
 
               <button
@@ -411,8 +387,6 @@ export default function StockCheckerPage() {
             </div>
           )}
 
-          {/* Product cards */}
-
           {!loading && !error && items.length > 0 && (
             <>
               <div className={styles.productList}>
@@ -420,8 +394,6 @@ export default function StockCheckerPage() {
                   <ProductCard key={item.id} item={item} />
                 ))}
               </div>
-
-              {/* Pagination */}
 
               {totalPages > 1 && (
                 <nav className={styles.pagination} aria-label="Paginering">

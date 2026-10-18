@@ -78,7 +78,6 @@ export default function ItemDetailPage() {
 
   const [item, setItem] = useState<Item | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-
   const [photo, setPhoto] = useState<File | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
 
@@ -86,7 +85,6 @@ export default function ItemDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
-
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -114,9 +112,8 @@ export default function ItemDetailPage() {
 
         setItem({
           ...itemData,
-          expiry_date: getDateInputValue(itemData.expiry_date),
+          expiry_date: getDateInputValue(itemData.expiry_date) || null,
         });
-
         setCategories(categoriesData);
       } catch (caughtError) {
         if (!cancelled) {
@@ -133,7 +130,7 @@ export default function ItemDetailPage() {
       }
     }
 
-    load();
+    void load();
 
     return () => {
       cancelled = true;
@@ -141,16 +138,9 @@ export default function ItemDetailPage() {
   }, [id]);
 
   function updateItem(changes: Partial<Item>) {
-    setItem((current) =>
-      current
-        ? {
-            ...current,
-            ...changes,
-          }
-        : current,
-    );
-
+    setItem((current) => (current ? { ...current, ...changes } : current));
     setSaved(false);
+    setError("");
   }
 
   function handlePhotoChange(file: File | null, removed: boolean) {
@@ -169,11 +159,6 @@ export default function ItemDetailPage() {
 
     if (!item.category_id) {
       setError("Selecteer een categorie.");
-      return;
-    }
-
-    if (!item.expiry_date) {
-      setError("Vul een vervaldatum in.");
       return;
     }
 
@@ -197,27 +182,24 @@ export default function ItemDetailPage() {
           name: item.name.trim(),
           photo_url: photoUrl,
           category_id: item.category_id,
-          expiry_date: item.expiry_date,
+          expiry_date: item.expiry_date || null,
           sticker_30_percent: item.sticker_30_percent,
         }),
       });
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-
         throw new Error(data?.error || "Opslaan van het product mislukt.");
       }
 
-      const updatedItem = await response.json();
+      const updatedItem: Item = await response.json();
 
       setItem((current) =>
         current
           ? {
               ...current,
               ...updatedItem,
-              expiry_date: getDateInputValue(
-                updatedItem.expiry_date ?? current.expiry_date,
-              ),
+              expiry_date: getDateInputValue(updatedItem.expiry_date) || null,
               photo_url: photoUrl,
             }
           : current,
@@ -255,7 +237,6 @@ export default function ItemDetailPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-
         throw new Error(data?.error || "Verwijderen mislukt.");
       }
 
@@ -290,7 +271,7 @@ export default function ItemDetailPage() {
     return (
       <main className={styles.page}>
         <div className={styles.container}>
-          <Link href="/stockchecker" className={styles.backLink}>
+          <Link href={backHref} className={styles.backLink}>
             <ArrowLeft size={20} />
             Terug
           </Link>
@@ -361,11 +342,7 @@ export default function ItemDetailPage() {
                 id="product-name"
                 type="text"
                 value={item.name}
-                onChange={(event) =>
-                  updateItem({
-                    name: event.target.value,
-                  })
-                }
+                onChange={(event) => updateItem({ name: event.target.value })}
                 disabled={saving}
                 autoComplete="off"
               />
@@ -389,9 +366,7 @@ export default function ItemDetailPage() {
                   className={selectedCategory ? styles.categorySelect : ""}
                   value={item.category_id}
                   onChange={(event) =>
-                    updateItem({
-                      category_id: event.target.value,
-                    })
+                    updateItem({ category_id: event.target.value })
                   }
                   disabled={saving}
                 >
@@ -407,7 +382,7 @@ export default function ItemDetailPage() {
             </div>
 
             <div className={styles.field}>
-              <label htmlFor="product-expiry">Vervaldatum</label>
+              <label htmlFor="product-expiry">Vervaldatum — optioneel</label>
 
               <div className={styles.dateWrapper}>
                 <CalendarDays size={19} className={styles.dateIcon} />
@@ -418,12 +393,29 @@ export default function ItemDetailPage() {
                   value={item.expiry_date || ""}
                   onChange={(event) =>
                     updateItem({
-                      expiry_date: event.target.value,
+                      expiry_date: event.target.value || null,
                     })
                   }
                   disabled={saving}
+                  aria-describedby="product-expiry-hint"
                 />
               </div>
+
+              <small id="product-expiry-hint">
+                Geen datum betekent dat het product niet in stock is.
+              </small>
+
+              {item.expiry_date && (
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={() => updateItem({ expiry_date: null })}
+                  disabled={saving}
+                >
+                  <X size={17} />
+                  Geen stock / datum wissen
+                </button>
+              )}
             </div>
           </div>
         </section>
@@ -505,8 +497,8 @@ export default function ItemDetailPage() {
               </div>
 
               <p>
-                Weet je zeker dat je "{item.name}" wilt verwijderen? Dit kan
-                niet ongedaan gemaakt worden.
+                Weet je zeker dat je &quot;{item.name}&quot; wilt verwijderen?
+                Dit kan niet ongedaan gemaakt worden.
               </p>
 
               <div className={styles.deleteActions}>

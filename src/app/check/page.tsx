@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import CheckHeader from "./components/CheckHeader";
@@ -11,12 +11,9 @@ import CheckStates from "./components/CheckStates";
 import CategorySelector from "./components/CategorySelector";
 
 import { useCheckWorkflow } from "./hooks/useCheckWorkflow";
-
 import styles from "./page.module.css";
 
 function CheckContent() {
-  const workflow = useCheckWorkflow();
-
   const {
     type,
     config,
@@ -29,6 +26,7 @@ function CheckContent() {
     categoriesLoading,
     saving,
     error,
+    blocked,
     initialCount,
     completedCount,
     progressPercent,
@@ -44,31 +42,16 @@ function CheckContent() {
     canSwipe,
     changeCategory,
     setNextExpiryDate,
-    setShowDateInput,
     handleChecked,
     handleEveningNext,
+    handleBack,
     handleYes,
     handleNo,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
     handleTouchCancel,
-  } = workflow;
-
-  const editReturnUrl = useMemo(() => {
-    if (!type) return "/";
-
-    const params = new URLSearchParams({
-      type,
-      refresh: String(Date.now()),
-    });
-
-    if (type === "stock" && categoryId) {
-      params.set("categoryId", categoryId);
-    }
-
-    return `/check?${params.toString()}`;
-  }, [type, categoryId]);
+  } = useCheckWorkflow();
 
   if (!type || !config) {
     return <CheckStates state="invalid" />;
@@ -90,6 +73,28 @@ function CheckContent() {
     return <CheckStates state="loading" />;
   }
 
+  if (blocked) {
+    if (type === "sticker") {
+      return (
+        <CheckStates
+          state="completed"
+          description="De ochtendcontrole is afgerond. De avondcontrole is nu beschikbaar."
+        />
+      );
+    }
+
+    if (type === "evening" && blocked.includes("al afgerond")) {
+      return (
+        <CheckStates
+          state="completed"
+          description="De avondcontrole is afgerond."
+        />
+      );
+    }
+
+    return <CheckStates state="error" error={blocked} />;
+  }
+
   if (error && items.length === 0) {
     return <CheckStates state="error" error={error} />;
   }
@@ -108,6 +113,14 @@ function CheckContent() {
       />
     );
   }
+
+  const returnParams = new URLSearchParams({ type });
+
+  if (isStock && categoryId) {
+    returnParams.set("categoryId", categoryId);
+  }
+
+  const editReturnUrl = `/check?${returnParams.toString()}`;
 
   return (
     <main className={styles.page}>
@@ -180,23 +193,16 @@ function CheckContent() {
           onNo={handleNo}
           onSaveDate={() => void handleChecked()}
           onEveningNext={() => void handleEveningNext()}
-          onBack={() => {
-            setShowDateInput(false);
-            setNextExpiryDate("");
-          }}
+          onBack={() => void handleBack()}
         />
       </div>
     </main>
   );
 }
 
-function CheckPageFallback() {
-  return <CheckStates state="loading" />;
-}
-
 export default function CheckPage() {
   return (
-    <Suspense fallback={<CheckPageFallback />}>
+    <Suspense fallback={<CheckStates state="loading" />}>
       <CheckContent />
     </Suspense>
   );
