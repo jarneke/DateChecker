@@ -3,8 +3,8 @@
 import { CalendarDays, PackageCheck, Tag } from "lucide-react";
 
 import type { CheckType, DailyStep } from "../types";
-
 import { formatDate } from "../utils";
+
 import styles from "../page.module.css";
 
 type CheckQuestionProps = {
@@ -36,13 +36,12 @@ export default function CheckQuestion({
     return (
       <section className={styles.questionSection}>
         <div className={styles.questionHeading}>
-          <PackageCheck size={20} />
-          <h3>Controleer het product</h3>
+          <PackageCheck size={20} aria-hidden="true" />
+          <h3>Verwijder de gestickerde producten</h3>
         </div>
 
         <p className={styles.questionDescription}>
-          Haal de gestickerde producten die hiervoor in aanmerking komen uit de
-          winkel.
+          Verwijder de resterende exemplaren die vandaag een sticker kregen.
         </p>
       </section>
     );
@@ -54,20 +53,20 @@ export default function CheckQuestion({
         <span className={styles.stepBadge}>Stap 1 van 2</span>
 
         <div className={styles.questionHeading}>
-          <Tag size={20} />
-          <h3>Controleer en sticker</h3>
+          <Tag size={20} aria-hidden="true" />
+          <h3>Zijn er producten om te stickeren?</h3>
         </div>
 
         <p className={styles.questionDescription}>
-          Zoek dit product in het rayon. Controleer de producten met vervaldatum{" "}
+          Zoek de exemplaren met vervaldatum{" "}
           <strong className={styles.highlightDate}>
             {formatDate(expiryDate)}
-          </strong>{" "}
-          en geef deze een sticker.
+          </strong>
+          . Geef de aanwezige exemplaren een sticker.
         </p>
 
         <p className={styles.questionPrompt}>
-          Heb je een sticker moeten plakken?
+          Heb je minstens één exemplaar gestickerd?
         </p>
       </section>
     );
@@ -77,16 +76,20 @@ export default function CheckQuestion({
     return (
       <section className={styles.questionSection}>
         <div className={styles.questionHeading}>
-          <CalendarDays size={20} />
-          <h3>Nieuwe vervaldatum</h3>
+          <CalendarDays size={20} aria-hidden="true" />
+          <h3>Wat is de eerstvolgende vervaldatum?</h3>
         </div>
 
         <p className={styles.questionDescription}>
-          Vul de eerstvolgende vervaldatum van de nieuwe stock in.
+          {isDaily
+            ? "Vul de vroegste vervaldatum in van de exemplaren die later vervallen dan vandaag."
+            : "Vul de vroegste vervaldatum van de aanwezige verkoopbare voorraad in."}
         </p>
 
         <div className={styles.dateField}>
-          <label htmlFor="next-expiry-date">Eerstvolgende vervaldatum</label>
+          <label htmlFor="next-expiry-date">
+            Eerstvolgende vervaldatum
+          </label>
 
           <input
             id="next-expiry-date"
@@ -102,26 +105,44 @@ export default function CheckQuestion({
     );
   }
 
+  if (isDaily) {
+    return (
+      <section className={styles.questionSection}>
+        <span className={styles.stepBadge}>Stap 2 van 2</span>
+
+        <div className={styles.questionHeading}>
+          <PackageCheck size={20} aria-hidden="true" />
+          <h3>Zijn er ook exemplaren die later vervallen?</h3>
+        </div>
+
+        <p className={styles.questionDescription}>
+          Kijk of er nog exemplaren zijn met een vervaldatum na vandaag.
+          De exemplaren die vandaag vervallen tellen hier niet mee.
+        </p>
+
+        <p className={styles.questionPrompt}>
+          Ja: vul hun vroegste vervaldatum in. Nee: ga verder.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className={styles.questionSection}>
-      {isDaily && <span className={styles.stepBadge}>Stap 2 van 2</span>}
-
       <div className={styles.questionHeading}>
-        <PackageCheck size={20} />
+        <PackageCheck size={20} aria-hidden="true" />
 
         <h3>
           {isStock
             ? "Is dit product opnieuw in stock?"
-            : isDaily
-              ? "Nieuwe stock"
-              : "Controleer de stock"}
+            : "Is er nog verkoopbare voorraad aanwezig?"}
         </h3>
       </div>
 
       <p className={styles.questionDescription}>
         {isStock
-          ? "Controleer of dit product opnieuw geleverd is."
-          : "Is er nieuwe stock aanwezig met een latere vervaldatum?"}
+          ? "Controleer of dit product opnieuw in het rayon staat. Kies ja om de vroegste vervaldatum in te vullen."
+          : "Controleer de aanwezige exemplaren. Kies ja als er nog verkoopbare voorraad is en vul de vroegste vervaldatum in. Kies nee als er geen verkoopbare voorraad meer is."}
       </p>
     </section>
   );

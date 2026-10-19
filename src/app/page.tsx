@@ -255,7 +255,7 @@ export default function HomePage() {
 
             <CheckTile
               title="Over datum"
-              description="Bekijk producten waarvan de controle gemist is."
+              description="Controleer producten met een verstreken vervaldatum."
               icon={TriangleAlert}
               tone="overdue"
               href="/check?type=overdue"
@@ -290,7 +290,7 @@ export default function HomePage() {
               notice={
                 !monthlyCheckActive
                   ? data
-                    ? `Laatste ${data.monthCheckDaysBeforeEnd} dagen`
+                    ? data.monthCheckDaysBeforeEnd === 0 ? `Laatste dag` :  `Laatste ${data.monthCheckDaysBeforeEnd} dagen`
                     : "Controlevenster laden..."
                   : undefined
               }

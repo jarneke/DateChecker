@@ -105,7 +105,7 @@ function CheckContent() {
         state="completed"
         description={
           isStock && categoryId === "all"
-            ? "Alle producten uit alle categorieën zijn bekeken."
+            ? "Alle producten zonder stock zijn gecontroleerd."
             : config.emptyDescription
         }
         isStock={isStock}

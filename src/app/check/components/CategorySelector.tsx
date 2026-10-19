@@ -63,7 +63,7 @@ export default function CategorySelector({
             <div className={styles.headerInfo}>
               <h1 className={styles.pageTitle}>Stockcheck</h1>
               <p className={styles.pageSubtitle}>
-                Controleer de nieuwe levering
+                Controleer of producten opnieuw in stock zijn.
               </p>
             </div>
           </div>
