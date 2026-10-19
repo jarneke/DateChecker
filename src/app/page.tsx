@@ -14,6 +14,7 @@ import {
 
 import CheckTile from "@/components/home/CheckTile";
 import type { CheckSnapshot } from "./check/hooks/useCheckWorkflow";
+
 import styles from "./page.module.css";
 
 type SettingsResponse = {
@@ -38,6 +39,7 @@ function formatToday(value: string) {
 
 function daysUntilMonthEnd(value: string) {
   const today = new Date(`${value}T00:00:00Z`);
+
   const lastDay = new Date(
     Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0),
   );
@@ -143,31 +145,49 @@ export default function HomePage() {
   }, []);
 
   const state = data?.state;
-  const statusAvailable = Boolean(state) && !loadError;
+  const statusAvailable = data !== null && !loadError;
 
-  const morningCompleted = state?.morningCompleted ?? false;
-  const eveningCompleted = state?.eveningCompleted ?? false;
+  const morningRemaining = state?.morningRemaining ?? 0;
+  const eveningRemaining = state?.eveningRemaining ?? 0;
+  const overdueRemaining = data?.overdueCount ?? 0;
+  const monthlyRemaining = data?.monthlyCount ?? 0;
 
   const monthlyCheckActive =
     data !== null &&
     daysUntilMonthEnd(data.state.date) <= data.monthCheckDaysBeforeEnd;
 
+  const statusNotice = loadError
+    ? "Status niet beschikbaar"
+    : "Status laden...";
+
   const morningNotice = !statusAvailable
-    ? loadError
-      ? "Status niet beschikbaar"
-      : "Status laden..."
-    : morningCompleted
-      ? "Afgerond voor vandaag"
+    ? statusNotice
+    : morningRemaining === 0
+      ? "Geen openstaande controles"
+      : undefined;
+
+  const overdueNotice = !statusAvailable
+    ? statusNotice
+    : overdueRemaining === 0
+      ? "Geen openstaande controles"
       : undefined;
 
   const eveningNotice = !statusAvailable
-    ? loadError
-      ? "Status niet beschikbaar"
-      : "Status laden..."
-    : !morningCompleted
+    ? statusNotice
+    : morningRemaining > 0
       ? "Eerst de ochtendcontrole afronden"
-      : eveningCompleted
-        ? "Afgerond voor vandaag"
+      : eveningRemaining === 0
+        ? "Geen openstaande controles"
+        : undefined;
+
+  const monthlyNotice = !statusAvailable
+    ? statusNotice
+    : !monthlyCheckActive
+      ? data?.monthCheckDaysBeforeEnd === 0
+        ? "Op de laatste dag van de maand"
+        : `Vanaf ${data?.monthCheckDaysBeforeEnd} dagen vóór maandeinde`
+      : monthlyRemaining === 0
+        ? "Geen openstaande controles"
         : undefined;
 
   return (
@@ -232,24 +252,20 @@ export default function HomePage() {
 
           {loadError && (
             <p className={styles.error} role="alert">
-              De gedeelde status kon niet geladen worden. Ochtend- en
-              avondcontrole blijven gesloten tot de verbinding hersteld is.
+              De gedeelde status kon niet geladen worden. De controles zijn
+              tijdelijk niet beschikbaar. We proberen automatisch opnieuw.
             </p>
           )}
 
           <div className={styles.grid}>
             <CheckTile
               title="Ochtendcontrole"
-              description={
-                morningCompleted
-                  ? "De ochtendcontrole is afgerond."
-                  : "Controleer de vervaldatums en sticker producten."
-              }
+              description="Controleer de vervaldatums en sticker producten."
               icon={Tag}
               tone="morning"
               href="/check?type=sticker"
               count={state?.morningRemaining}
-              disabled={!statusAvailable || morningCompleted}
+              disabled={!statusAvailable || morningRemaining === 0}
               notice={morningNotice}
             />
 
@@ -260,21 +276,21 @@ export default function HomePage() {
               tone="overdue"
               href="/check?type=overdue"
               count={data?.overdueCount}
+              disabled={!statusAvailable || overdueRemaining === 0}
+              notice={overdueNotice}
             />
 
             <CheckTile
               title="Avondcontrole"
-              description={
-                eveningCompleted
-                  ? "De avondcontrole is afgerond."
-                  : "Haal gestickerde producten uit de winkel."
-              }
+              description="Haal de resterende gestickerde producten uit de winkel."
               icon={Moon}
               tone="evening"
               href="/check?type=evening"
               count={state?.eveningRemaining}
               disabled={
-                !statusAvailable || !morningCompleted || eveningCompleted
+                !statusAvailable ||
+                morningRemaining > 0 ||
+                eveningRemaining === 0
               }
               notice={eveningNotice}
             />
@@ -286,19 +302,17 @@ export default function HomePage() {
               tone="monthly"
               href="/check?type=monthly"
               count={data?.monthlyCount}
-              disabled={!monthlyCheckActive}
-              notice={
-                !monthlyCheckActive
-                  ? data
-                    ? data.monthCheckDaysBeforeEnd === 0 ? `Laatste dag` :  `Laatste ${data.monthCheckDaysBeforeEnd} dagen`
-                    : "Controlevenster laden..."
-                  : undefined
+              disabled={
+                !statusAvailable ||
+                !monthlyCheckActive ||
+                monthlyRemaining === 0
               }
+              notice={monthlyNotice}
             />
 
             <CheckTile
               title="Stockcheck"
-              description="Controleer nieuwe voorraad per categorie."
+              description="Controleer of producten opnieuw in stock zijn."
               icon={Package}
               tone="stock"
               href="/check?type=stock"
