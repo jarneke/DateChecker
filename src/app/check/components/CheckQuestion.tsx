@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { CalendarDays, PackageCheck, Tag } from "lucide-react";
 
 import type { CheckType, DailyStep } from "../types";
@@ -31,6 +32,30 @@ export default function CheckQuestion({
   const isDaily = type === "sticker";
   const isEvening = type === "evening";
   const isStock = type === "stock";
+
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const datePickerOpened = useRef(false);
+
+  useEffect(() => {
+    if (!showDateInput) {
+      datePickerOpened.current = false;
+      return;
+    }
+
+    if (saving || datePickerOpened.current) return;
+
+    const input = dateInputRef.current;
+    if (!input) return;
+
+    datePickerOpened.current = true;
+    input.focus();
+
+    try {
+      input.showPicker?.();
+    } catch {
+      // Als de browser automatisch openen blokkeert, blijft het veld gefocust.
+    }
+  }, [showDateInput, saving]);
 
   if (isEvening) {
     return (
@@ -87,11 +112,10 @@ export default function CheckQuestion({
         </p>
 
         <div className={styles.dateField}>
-          <label htmlFor="next-expiry-date">
-            Eerstvolgende vervaldatum
-          </label>
+          <label htmlFor="next-expiry-date">Eerstvolgende vervaldatum</label>
 
           <input
+            ref={dateInputRef}
             id="next-expiry-date"
             type="date"
             min={todayString}
@@ -116,12 +140,8 @@ export default function CheckQuestion({
         </div>
 
         <p className={styles.questionDescription}>
-          Kijk of er nog exemplaren zijn met een vervaldatum na vandaag.
-          De exemplaren die vandaag vervallen tellen hier niet mee.
-        </p>
-
-        <p className={styles.questionPrompt}>
-          Ja: vul hun vroegste vervaldatum in. Nee: ga verder.
+          Kijk of er nog exemplaren zijn met een vervaldatum na vandaag. De
+          exemplaren die vandaag vervallen tellen hier niet mee.
         </p>
       </section>
     );
