@@ -19,6 +19,9 @@ type CheckStatesProps = {
   description?: string;
   error?: string | null;
   isStock?: boolean;
+  saving?: boolean;
+  canGoBack?: boolean;
+  onBack?: () => void;
   onChangeCategory?: () => void;
 };
 
@@ -27,6 +30,9 @@ export default function CheckStates({
   description,
   error,
   isStock = false,
+  saving = false,
+  canGoBack = false,
+  onBack,
   onChangeCategory,
 }: CheckStatesProps) {
   const [restarting, setRestarting] = useState(false);
@@ -34,7 +40,7 @@ export default function CheckStates({
   const restartingRef = useRef(false);
 
   async function restartStockCheck() {
-    if (restartingRef.current) return;
+    if (restartingRef.current || saving) return;
 
     restartingRef.current = true;
     setRestarting(true);
@@ -118,19 +124,40 @@ export default function CheckStates({
             </p>
           )}
 
-          {restartError && (
+          {(error || restartError) && (
             <p className={styles.checkError} role="alert">
-              {restartError}
+              {error || restartError}
             </p>
           )}
 
           <div className={styles.stateActions}>
+            {canGoBack && onBack && (
+              <button
+                type="button"
+                className={styles.stateSecondaryButton}
+                onClick={onBack}
+                disabled={saving || restarting}
+              >
+                {saving ? (
+                  <LoaderCircle
+                    size={18}
+                    className={styles.stateSpinner}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <ArrowLeft size={18} aria-hidden="true" />
+                )}
+
+                {saving ? "Even geduld..." : "Terug naar vorig product"}
+              </button>
+            )}
+
             {isStock && (
               <button
                 type="button"
                 className={styles.statePrimaryButton}
                 onClick={() => void restartStockCheck()}
-                disabled={restarting}
+                disabled={restarting || saving}
               >
                 {restarting ? (
                   <LoaderCircle
@@ -153,7 +180,7 @@ export default function CheckStates({
                 type="button"
                 className={styles.stateSecondaryButton}
                 onClick={onChangeCategory}
-                disabled={restarting}
+                disabled={restarting || saving}
               >
                 <Layers3 size={18} aria-hidden="true" />
                 Andere categorie controleren

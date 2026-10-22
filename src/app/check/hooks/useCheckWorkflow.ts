@@ -64,6 +64,18 @@ type UpdatedTask = {
     version: number;
 };
 
+type CompletionEntry = {
+    historyId: string;
+    item: SharedItem;
+    version: number;
+};
+
+type ActionResult = {
+    task: UpdatedTask;
+    item: Item;
+    historyId: string | null;
+};
+
 export function useCheckWorkflow() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -79,8 +91,13 @@ export function useCheckWorkflow() {
     const [error, setError] = useState<string | null>(null);
     const [nextExpiryDate, setDateDraft] = useState("");
     const [swipeOffset, setSwipeOffset] = useState(0);
+    const [history, setHistory] = useState<CompletionEntry[]>([]);
 
     const snapshotRef = useRef<CheckSnapshot | null>(null);
+    const historyRef = useRef<CompletionEntry[]>([]);
+    const activeItemIdRef = useRef<string | null>(null);
+    const returnItemsRef = useRef<string[]>([]);
+    const loadedDayRef = useRef<string | null>(null);
     const savingRef = useRef(false);
     const requestIdRef = useRef(0);
     const mountedRef = useRef(false);
@@ -90,12 +107,44 @@ export function useCheckWorkflow() {
     const context = `${type ?? ""}:${categoryId}:${refreshToken ?? ""}`;
     contextRef.current = context;
 
-    const applySnapshot = useCallback((data: CheckSnapshot) => {
-        snapshotRef.current = data;
-        setSnapshot(data);
-        setDateDraft(data.items[0]?.draft_expiry_date ?? "");
-        setSwipeOffset(0);
+    const updateHistory = useCallback((entries: CompletionEntry[]) => {
+        historyRef.current = entries;
+        setHistory(entries);
     }, []);
+
+    const applySnapshot = useCallback(
+        (data: CheckSnapshot) => {
+            if (loadedDayRef.current !== data.date) {
+                loadedDayRef.current = data.date;
+                activeItemIdRef.current = null;
+                returnItemsRef.current = [];
+                updateHistory([]);
+            }
+
+            const preferred = data.items.find(
+                (item) => item.id === activeItemIdRef.current,
+            );
+
+            const orderedItems = preferred
+                ? [
+                    preferred,
+                    ...data.items.filter((item) => item.id !== preferred.id),
+                ]
+                : data.items;
+
+            const nextSnapshot = {
+                ...data,
+                items: orderedItems,
+            };
+
+            activeItemIdRef.current = orderedItems[0]?.id ?? null;
+            snapshotRef.current = nextSnapshot;
+            setSnapshot(nextSnapshot);
+            setDateDraft(orderedItems[0]?.draft_expiry_date ?? "");
+            setSwipeOffset(0);
+        },
+        [updateHistory],
+    );
 
     const loadSnapshot = useCallback(
         async (force = false): Promise<boolean> => {
@@ -141,7 +190,6 @@ export function useCheckWorkflow() {
                 applySnapshot(data as CheckSnapshot);
                 setError(null);
                 setLoading(false);
-
                 return true;
             } catch (caughtError) {
                 if (
@@ -166,8 +214,13 @@ export function useCheckWorkflow() {
     useEffect(() => {
         mountedRef.current = true;
         snapshotRef.current = null;
+        loadedDayRef.current = null;
+        activeItemIdRef.current = null;
+        returnItemsRef.current = [];
+        updateHistory([]);
         setSnapshot(null);
         setDateDraft("");
+        setSwipeOffset(0);
         setError(null);
         setLoading(Boolean(type));
 
@@ -193,7 +246,20 @@ export function useCheckWorkflow() {
             window.removeEventListener("focus", refresh);
             document.removeEventListener("visibilitychange", refresh);
         };
-    }, [type, loadSnapshot]);
+    }, [type, loadSnapshot, updateHistory]);
+
+    function selectReturnItem(remainingItems: SharedItem[]) {
+        while (returnItemsRef.current.length > 0) {
+            const candidate = returnItemsRef.current.pop();
+
+            if (remainingItems.some((item) => item.id === candidate)) {
+                activeItemIdRef.current = candidate ?? null;
+                return;
+            }
+        }
+
+        activeItemIdRef.current = null;
+    }
 
     async function performAction(
         action: CheckAction,
@@ -221,7 +287,7 @@ export function useCheckWorkflow() {
         setSwipeOffset(0);
 
         try {
-            const response = await fetch("/api/checks", {
+            const response = await fetch("/api/checks/action", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -251,25 +317,41 @@ export function useCheckWorkflow() {
                 return;
             }
 
-            const updatedTask = data.task as UpdatedTask;
-            const completed = updatedTask.stage === "completed";
+            const result = data as ActionResult;
+            const completed = result.task.stage === "completed";
 
-            // Gebruik de bevestigde serverversie meteen, ook als de
-            // daaropvolgende verversing tijdelijk mislukt.
+            const updatedItem: SharedItem = {
+                ...task,
+                ...result.item,
+                ...result.task,
+            };
+
+            const remainingItems = completed
+                ? currentSnapshot.items.filter((item) => item.id !== task.id)
+                : currentSnapshot.items.map((item) =>
+                    item.id === task.id ? updatedItem : item,
+                );
+
+            if (completed) {
+                if (result.historyId) {
+                    updateHistory([
+                        ...historyRef.current,
+                        {
+                            historyId: result.historyId,
+                            item: task,
+                            version: result.task.version,
+                        },
+                    ]);
+                }
+
+                selectReturnItem(remainingItems);
+            } else {
+                activeItemIdRef.current = task.id;
+            }
+
             applySnapshot({
                 ...currentSnapshot,
-                items: completed
-                    ? currentSnapshot.items.filter((item) => item.id !== task.id)
-                    : currentSnapshot.items.map((item) =>
-                        item.id === task.id
-                            ? {
-                                ...item,
-                                stage: updatedTask.stage,
-                                version: updatedTask.version,
-                                draft_expiry_date: updatedTask.draft_expiry_date,
-                            }
-                            : item,
-                    ),
+                items: remainingItems,
                 completedCount:
                     currentSnapshot.completedCount + Number(completed),
             });
@@ -284,6 +366,125 @@ export function useCheckWorkflow() {
                     caughtError instanceof Error
                         ? caughtError.message
                         : "De stap kon niet opgeslagen worden.";
+
+                await loadSnapshot(true);
+
+                if (
+                    mountedRef.current &&
+                    actionContext === contextRef.current
+                ) {
+                    setError(message);
+                }
+            }
+        } finally {
+            savingRef.current = false;
+
+            if (mountedRef.current) {
+                setSaving(false);
+            }
+        }
+    }
+
+    async function reopenPreviousItem() {
+        const currentSnapshot = snapshotRef.current;
+        const entry = historyRef.current[historyRef.current.length - 1];
+
+        if (
+            !type ||
+            !currentSnapshot ||
+            !entry ||
+            savingRef.current
+        ) {
+            return;
+        }
+
+        const actionContext = context;
+        const currentItemId = currentSnapshot.items[0]?.id;
+
+        savingRef.current = true;
+        requestIdRef.current += 1;
+        setSaving(true);
+        setError(null);
+        setSwipeOffset(0);
+
+        try {
+            const response = await fetch("/api/checks/action", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    date: currentSnapshot.date,
+                    type,
+                    itemId: entry.item.id,
+                    version: entry.version,
+                    action: "previous",
+                    historyId: entry.historyId,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (
+                    response.status === 409 &&
+                    mountedRef.current &&
+                    actionContext === contextRef.current
+                ) {
+                    updateHistory([]);
+                }
+
+                throw new Error(
+                    data?.error || "Het vorige product kon niet geopend worden.",
+                );
+            }
+
+            if (
+                !mountedRef.current ||
+                actionContext !== contextRef.current
+            ) {
+                return;
+            }
+
+            const result = data as ActionResult;
+            const restoredItem: SharedItem = {
+                ...entry.item,
+                ...result.item,
+                ...result.task,
+            };
+
+            if (currentItemId && currentItemId !== restoredItem.id) {
+                returnItemsRef.current.push(currentItemId);
+            }
+
+            updateHistory(historyRef.current.slice(0, -1));
+            activeItemIdRef.current = restoredItem.id;
+
+            applySnapshot({
+                ...currentSnapshot,
+                blocked: null,
+                items: [
+                    restoredItem,
+                    ...currentSnapshot.items.filter(
+                        (item) => item.id !== restoredItem.id,
+                    ),
+                ],
+                completedCount: Math.max(
+                    0,
+                    currentSnapshot.completedCount - 1,
+                ),
+            });
+
+            await loadSnapshot(true);
+        } catch (caughtError) {
+            if (
+                mountedRef.current &&
+                actionContext === contextRef.current
+            ) {
+                const message =
+                    caughtError instanceof Error
+                        ? caughtError.message
+                        : "Het vorige product kon niet geopend worden.";
 
                 await loadSnapshot(true);
 
@@ -332,6 +533,16 @@ export function useCheckWorkflow() {
 
     const showDateInput = currentItem?.stage === "date";
     const isStickerQuestion = isDaily && dailyStep === "sticker";
+
+    const canGoBack =
+        history.length > 0 ||
+        (
+            !snapshot?.blocked &&
+            (
+                showDateInput ||
+                (isDaily && currentItem?.stage === "new-stock")
+            )
+        );
 
     const missedCheck =
         currentItem?.expiry_date != null &&
@@ -396,7 +607,18 @@ export function useCheckWorkflow() {
     }
 
     function handleBack() {
-        return performAction("back");
+        if (savingRef.current) return;
+
+        const current = snapshotRef.current?.items[0];
+
+        if (
+            current?.stage === "date" ||
+            (type === "sticker" && current?.stage === "new-stock")
+        ) {
+            return performAction("back");
+        }
+
+        return reopenPreviousItem();
     }
 
     function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
@@ -423,7 +645,11 @@ export function useCheckWorkflow() {
     }
 
     function handleTouchMove(event: TouchEvent<HTMLDivElement>) {
-        if (!touchStart.current || !canSwipe || event.touches.length !== 1) {
+        if (
+            !touchStart.current ||
+            !canSwipe ||
+            event.touches.length !== 1
+        ) {
             return;
         }
 
@@ -491,6 +717,7 @@ export function useCheckWorkflow() {
         isStock,
         isStickerQuestion,
         canSwipe,
+        canGoBack,
         changeCategory,
         setNextExpiryDate: updateDateDraft,
         handleChecked,

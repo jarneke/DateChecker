@@ -40,6 +40,7 @@ function CheckContent() {
     isStock,
     isStickerQuestion,
     canSwipe,
+    canGoBack,
     changeCategory,
     setNextExpiryDate,
     handleChecked,
@@ -79,6 +80,10 @@ function CheckContent() {
         <CheckStates
           state="completed"
           description="De ochtendcontrole is afgerond. De avondcontrole is nu beschikbaar."
+          error={error}
+          saving={saving}
+          canGoBack={canGoBack}
+          onBack={() => void handleBack()}
         />
       );
     }
@@ -88,6 +93,10 @@ function CheckContent() {
         <CheckStates
           state="completed"
           description="De avondcontrole is afgerond."
+          error={error}
+          saving={saving}
+          canGoBack={canGoBack}
+          onBack={() => void handleBack()}
         />
       );
     }
@@ -95,7 +104,7 @@ function CheckContent() {
     return <CheckStates state="error" error={blocked} />;
   }
 
-  if (error && items.length === 0) {
+  if (error && items.length === 0 && initialCount === 0) {
     return <CheckStates state="error" error={error} />;
   }
 
@@ -108,7 +117,11 @@ function CheckContent() {
             ? "Alle producten zonder stock zijn gecontroleerd."
             : config.emptyDescription
         }
+        error={error}
         isStock={isStock}
+        saving={saving}
+        canGoBack={canGoBack}
+        onBack={() => void handleBack()}
         onChangeCategory={() => changeCategory("")}
       />
     );
@@ -189,6 +202,7 @@ function CheckContent() {
           nextExpiryDate={nextExpiryDate}
           todayString={todayString}
           saving={saving}
+          canGoBack={canGoBack}
           onYes={handleYes}
           onNo={handleNo}
           onSaveDate={() => void handleChecked()}

@@ -10,6 +10,7 @@ type CheckActionsProps = {
   nextExpiryDate: string;
   todayString: string;
   saving: boolean;
+  canGoBack: boolean;
   onYes: () => void;
   onNo: () => void;
   onSaveDate: () => void;
@@ -23,15 +24,18 @@ export default function CheckActions({
   nextExpiryDate,
   todayString,
   saving,
+  canGoBack,
   onYes,
   onNo,
   onSaveDate,
   onEveningNext,
   onBack,
 }: CheckActionsProps) {
-  if (isEvening) {
-    return (
-      <div className={styles.actionsContainer}>
+  const validDate = Boolean(nextExpiryDate) && nextExpiryDate >= todayString;
+
+  return (
+    <div className={styles.actionsContainer}>
+      {isEvening ? (
         <button
           type="button"
           className={styles.primaryAction}
@@ -46,15 +50,7 @@ export default function CheckActions({
 
           {saving ? "Opslaan..." : "Gecontroleerd — volgend item"}
         </button>
-      </div>
-    );
-  }
-
-  if (showDateInput) {
-    const validDate = Boolean(nextExpiryDate) && nextExpiryDate >= todayString;
-
-    return (
-      <div className={styles.actionsContainer}>
+      ) : showDateInput ? (
         <button
           type="button"
           className={styles.primaryAction}
@@ -69,7 +65,31 @@ export default function CheckActions({
 
           {saving ? "Opslaan..." : "Nieuwe datum opslaan"}
         </button>
+      ) : (
+        <div className={styles.actionRow}>
+          <button
+            type="button"
+            className={styles.secondaryAction}
+            onClick={onNo}
+            disabled={saving}
+          >
+            <X size={21} />
+            Nee
+          </button>
 
+          <button
+            type="button"
+            className={styles.primaryAction}
+            onClick={onYes}
+            disabled={saving}
+          >
+            <Check size={21} />
+            Ja
+          </button>
+        </div>
+      )}
+
+      {canGoBack && (
         <button
           type="button"
           className={styles.backAction}
@@ -79,33 +99,7 @@ export default function CheckActions({
           <ArrowLeft size={17} />
           Terug
         </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.actionsContainer}>
-      <div className={styles.actionRow}>
-        <button
-          type="button"
-          className={styles.secondaryAction}
-          onClick={onNo}
-          disabled={saving}
-        >
-          <X size={21} />
-          Nee
-        </button>
-
-        <button
-          type="button"
-          className={styles.primaryAction}
-          onClick={onYes}
-          disabled={saving}
-        >
-          <Check size={21} />
-          Ja
-        </button>
-      </div>
+      )}
     </div>
   );
 }
