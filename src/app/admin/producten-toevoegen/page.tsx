@@ -4,14 +4,33 @@ import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import Link from "next/link";
 import Script from "next/script";
-import { ArrowLeft, Camera, ScanText } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  ClipboardList,
+  CloudUpload,
+  ScanText,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { prepareImage, scanSlim, type OcrWorker } from "./scan-slim";
 import styles from "./page.module.css";
+import fastStyles from "../../fastadd/page.module.css";
 
 type Category = {
   id: string;
   name: string;
+};
+
+type DraftItem = {
+  id: string;
+  name: string;
+  photo: Blob | null;
+  categoryId: string;
+  sticker30Percent: boolean;
+  createdAt: number;
+  uploadedPhotoUrl?: string;
 };
 
 type OcrLibrary = {
@@ -24,9 +43,179 @@ type OcrLibrary = {
   ) => Promise<OcrWorker>;
 };
 
+type BatchResponse = {
+  inserted?: {
+    id: string;
+    name: string;
+  }[];
+  skippedNames?: string[];
+  error?: string;
+};
+
+const DB_NAME = "datechecker-slim-fastadd";
+const STORE_NAME = "items";
+const MAX_ITEMS = 250;
+
+function openDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+
+    request.onupgradeneeded = () => {
+      const database = request.result;
+
+      if (!database.objectStoreNames.contains(STORE_NAME)) {
+        database.createObjectStore(STORE_NAME, {
+          keyPath: "id",
+        });
+      }
+    };
+
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => database.close();
+      resolve(database);
+    };
+
+    request.onerror = () => {
+      reject(
+        request.error ?? new Error("De lokale lijst kon niet geopend worden."),
+      );
+    };
+  });
+}
+
+async function readDraft(): Promise<DraftItem[]> {
+  const database = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, "readonly");
+    const request = transaction.objectStore(STORE_NAME).getAll();
+
+    transaction.oncomplete = () => {
+      database.close();
+
+      const items = request.result as DraftItem[];
+      resolve(items.sort((a, b) => a.createdAt - b.createdAt));
+    };
+
+    transaction.onabort = () => {
+      database.close();
+
+      reject(
+        transaction.error ??
+          new Error("De lokale lijst kon niet gelezen worden."),
+      );
+    };
+  });
+}
+
+async function changeDraft(
+  savedItems: DraftItem[],
+  deletedIds: string[] = [],
+): Promise<void> {
+  const database = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+
+    for (const item of savedItems) {
+      store.put(item);
+    }
+
+    for (const id of deletedIds) {
+      store.delete(id);
+    }
+
+    transaction.oncomplete = () => {
+      database.close();
+      resolve();
+    };
+
+    transaction.onabort = () => {
+      database.close();
+
+      reject(
+        transaction.error ??
+          new Error("De lokale lijst kon niet opgeslagen worden."),
+      );
+    };
+  });
+}
+
+function useBlobPreview(blob: Blob | null): string {
+  const [preview, setPreview] = useState("");
+
+  useEffect(() => {
+    if (!blob) {
+      setPreview("");
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    setPreview(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [blob]);
+
+  return preview;
+}
+
+function QueuedProduct({
+  item,
+  categoryName,
+  disabled,
+  onRemove,
+}: {
+  item: DraftItem;
+  categoryName: string;
+  disabled: boolean;
+  onRemove: (id: string) => void;
+}) {
+  const preview = useBlobPreview(item.photo);
+
+  return (
+    <div className={fastStyles.listItem} role="listitem">
+      {preview ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={preview} alt={item.name} className={fastStyles.listPhoto} />
+      ) : (
+        <div className={fastStyles.listPlaceholder}>
+          <Camera size={23} />
+        </div>
+      )}
+
+      <div className={fastStyles.listDetails}>
+        <p className={fastStyles.listName}>{item.name}</p>
+
+        <div className={fastStyles.listMeta}>
+          <span>{categoryName}</span>
+        </div>
+
+        <div className={fastStyles.listMeta}>
+          <span>
+            {item.sticker30Percent ? "Dagelijks (30%)" : "Maandelijks"}
+          </span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className={fastStyles.removeItem}
+        onClick={() => onRemove(item.id)}
+        disabled={disabled}
+        aria-label={`${item.name} uit de lijst verwijderen`}
+      >
+        <Trash2 size={19} />
+      </button>
+    </div>
+  );
+}
+
 export default function AddProductsPage() {
   const productInput = useRef<HTMLInputElement>(null);
   const labelInput = useRef<HTMLInputElement>(null);
+  const nameInput = useRef<HTMLInputElement>(null);
   const workerPromise = useRef<Promise<OcrWorker> | null>(null);
   const operationLock = useRef(false);
   const mounted = useRef(true);
@@ -34,81 +223,68 @@ export default function AddProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [daily, setDaily] = useState(true);
+  const [items, setItems] = useState<DraftItem[]>([]);
+
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState<Blob | null>(null);
-  const [preview, setPreview] = useState("");
   const [scanImage, setScanImage] = useState<Blob | null>(null);
-  const [scanPreview, setScanPreview] = useState("");
-  const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState("");
+
   const [loading, setLoading] = useState(true);
+  const [draftReady, setDraftReady] = useState(false);
   const [ocrReady, setOcrReady] = useState(false);
   const [working, setWorking] = useState(false);
+
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const busy = loading || working;
+  const preview = useBlobPreview(photo);
+  const scanPreview = useBlobPreview(scanImage);
+  const busy = loading || working || !draftReady;
 
   useEffect(() => {
     const controller = new AbortController();
 
-    async function loadCategories() {
+    async function load() {
       try {
-        const response = await fetch("/api/categories", {
-          signal: controller.signal,
-        });
+        const [response, storedItems] = await Promise.all([
+          fetch("/api/categories", {
+            signal: controller.signal,
+          }),
+          readDraft(),
+        ]);
 
         if (!response.ok) {
           throw new Error("Categorieën konden niet geladen worden.");
         }
 
-        const data = (await response.json()) as Category[];
+        const loadedCategories = (await response.json()) as Category[];
 
-        if (!controller.signal.aborted) {
-          setCategories(data);
-          setCategoryId(data[0]?.id ?? "");
-        }
+        if (controller.signal.aborted) return;
+
+        setCategories(loadedCategories);
+        setCategoryId(loadedCategories[0]?.id ?? "");
+        setItems(storedItems);
+        setDraftReady(true);
       } catch (cause) {
         if (!controller.signal.aborted) {
           setError(
             cause instanceof Error
               ? cause.message
-              : "Categorieën konden niet geladen worden.",
+              : "De gegevens konden niet geladen worden.",
           );
         }
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
-    void loadCategories();
+    void load();
 
     return () => controller.abort();
   }, []);
-
-  useEffect(() => {
-    if (!photo) {
-      setPreview("");
-      return;
-    }
-
-    const url = URL.createObjectURL(photo);
-    setPreview(url);
-
-    return () => URL.revokeObjectURL(url);
-  }, [photo]);
-
-  useEffect(() => {
-    if (!scanImage) {
-      setScanPreview("");
-      return;
-    }
-
-    const url = URL.createObjectURL(scanImage);
-    setScanPreview(url);
-
-    return () => URL.revokeObjectURL(url);
-  }, [scanImage]);
 
   useEffect(() => {
     mounted.current = true;
@@ -157,40 +333,59 @@ export default function AddProductsPage() {
     return pending;
   }
 
-  async function handleProductPhoto(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file || operationLock.current) return;
+  function startOperation(message: string): boolean {
+    if (busy || operationLock.current) return false;
 
     operationLock.current = true;
     setWorking(true);
     setError("");
     setNotice("");
-    setProgress("Productfoto verwerken…");
+    setProgress(message);
+
+    return true;
+  }
+
+  function finishOperation() {
+    operationLock.current = false;
+
+    if (mounted.current) {
+      setWorking(false);
+      setProgress("");
+    }
+  }
+
+  function showError(cause: unknown, fallback: string) {
+    if (mounted.current) {
+      setError(cause instanceof Error ? cause.message : fallback);
+    }
+  }
+
+  async function handleProductPhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file || !startOperation("Productfoto verwerken…")) return;
 
     try {
       const prepared = await prepareImage(file, 1280);
 
       if (mounted.current) {
         setPhoto(prepared);
-        setUploadedPhotoUrl("");
       }
     } catch (cause) {
-      if (mounted.current) {
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "De productfoto kon niet verwerkt worden.",
-        );
-      }
+      showError(cause, "De productfoto kon niet verwerkt worden.");
     } finally {
-      operationLock.current = false;
+      finishOperation();
+    }
+  }
 
-      if (mounted.current) {
-        setWorking(false);
-        setProgress("");
-      }
+  function removeProductPhoto() {
+    if (busy || operationLock.current) return;
+
+    setPhoto(null);
+
+    if (productInput.current) {
+      productInput.current.value = "";
     }
   }
 
@@ -198,15 +393,10 @@ export default function AddProductsPage() {
     const file = event.target.files?.[0];
     event.target.value = "";
 
-    if (!file || operationLock.current) return;
+    if (!file || !startOperation("Etiketscanner voorbereiden…")) return;
 
-    operationLock.current = true;
-    setWorking(true);
-    setError("");
-    setNotice("");
     setName("");
     setScanImage(null);
-    setProgress("Etiketscanner voorbereiden…");
 
     try {
       const result = await scanSlim(
@@ -222,133 +412,277 @@ export default function AddProductsPage() {
 
       if (mounted.current) {
         setName(result.name);
-        setNotice(
-          "Naam van het etiket ingevuld. Controleer de naam voor je het product toevoegt.",
-        );
+        setNotice("Naam ingevuld. Je kunt hem hieronder corrigeren.");
       }
     } catch (cause) {
-      if (mounted.current) {
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "Het etiket kon niet gelezen worden.",
-        );
-      }
+      showError(cause, "Het slimmetje kon niet gelezen worden.");
     } finally {
-      operationLock.current = false;
-
-      if (mounted.current) {
-        setWorking(false);
-        setProgress("");
-      }
+      finishOperation();
     }
   }
 
-  async function saveProduct(event: FormEvent<HTMLFormElement>) {
+  async function addToList(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (operationLock.current || loading) return;
+    if (busy || operationLock.current) return;
 
-    if (!name.trim() || !categoryId || !photo) {
-      setError("Vul een naam en categorie in en neem een productfoto.");
+    const trimmedName = name.trim().toUpperCase();
+
+    if (!trimmedName) {
+      setError("Geef eerst een productnaam in of scan het slimmetje.");
+      nameInput.current?.focus();
       return;
     }
 
-    operationLock.current = true;
-    setWorking(true);
-    setError("");
-    setNotice("");
+    if (!categoryId) {
+      setError("Selecteer eerst een categorie.");
+      return;
+    }
+
+    if (items.length >= MAX_ITEMS) {
+      setError(
+        `Upload eerst de huidige lijst. Je kunt maximaal ${MAX_ITEMS} producten tegelijk verzamelen.`,
+      );
+      return;
+    }
+
+    if (items.some((item) => item.name === trimmedName)) {
+      setError("Dit product staat al in de huidige lijst.");
+      nameInput.current?.focus();
+      return;
+    }
+
+    if (!startOperation("Product aan de lijst toevoegen…")) return;
 
     try {
-      let photoUrl = uploadedPhotoUrl;
+      const item: DraftItem = {
+        id: crypto.randomUUID(),
+        name: trimmedName,
+        photo,
+        categoryId,
+        sticker30Percent: daily,
+        createdAt: Date.now(),
+      };
 
-      if (!photoUrl) {
-        setProgress("Productfoto opslaan…");
+      await changeDraft([item]);
 
-        const formData = new FormData();
-        formData.append(
-          "file",
-          new File([photo], "product.jpg", {
-            type: "image/jpeg",
-          }),
-        );
+      if (mounted.current) {
+        setItems((current) => [...current, item]);
+        setName("");
+        setPhoto(null);
+        setScanImage(null);
+        setNotice(`${trimmedName} staat in de lokale lijst.`);
+      }
+    } catch (cause) {
+      showError(cause, "Het product kon niet aan de lijst toegevoegd worden.");
+    } finally {
+      finishOperation();
+    }
+  }
 
-        const uploadResponse = await fetch("/api/github-upload", {
-          method: "POST",
-          body: formData,
-        });
+  async function removeFromList(id: string) {
+    if (!startOperation("Product uit de lijst verwijderen…")) return;
 
-        const uploadData = (await uploadResponse.json()) as {
-          url?: string;
-        };
+    try {
+      await changeDraft([], [id]);
 
-        if (!uploadResponse.ok || !uploadData.url) {
-          throw new Error(
-            "De productfoto kon niet opgeslagen worden. Probeer opnieuw.",
+      if (mounted.current) {
+        setItems((current) => current.filter((item) => item.id !== id));
+      }
+    } catch (cause) {
+      showError(cause, "Het product kon niet uit de lijst verwijderd worden.");
+    } finally {
+      finishOperation();
+    }
+  }
+
+  async function clearList() {
+    if (busy || operationLock.current || items.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Weet je zeker dat je alle ${items.length} producten uit deze lokale lijst wilt verwijderen?`,
+    );
+
+    if (!confirmed || !startOperation("Lijst wissen…")) return;
+
+    try {
+      await changeDraft(
+        [],
+        items.map((item) => item.id),
+      );
+
+      if (mounted.current) {
+        setItems([]);
+        setNotice("De lokale lijst is gewist.");
+      }
+    } catch (cause) {
+      showError(cause, "De lokale lijst kon niet gewist worden.");
+    } finally {
+      finishOperation();
+    }
+  }
+
+  async function uploadPhoto(item: DraftItem): Promise<string> {
+    if (item.uploadedPhotoUrl) return item.uploadedPhotoUrl;
+
+    if (!item.photo) {
+      throw new Error("Dit product heeft geen foto om te uploaden.");
+    }
+
+    const formData = new FormData();
+
+    formData.append(
+      "file",
+      new File([item.photo], `${item.id}.jpg`, {
+        type: item.photo.type || "image/jpeg",
+      }),
+    );
+
+    const response = await fetch("/api/github-upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = (await response.json()) as {
+      url?: string;
+      error?: string;
+    };
+
+    if (!response.ok || !data.url) {
+      throw new Error(
+        data.error || `De foto van ${item.name} kon niet geüpload worden.`,
+      );
+    }
+
+    return data.url;
+  }
+
+  async function uploadList() {
+    if (busy || operationLock.current) return;
+
+    if (items.length === 0) {
+      setError("Er staan nog geen producten in de lijst.");
+      return;
+    }
+
+    if (!startOperation("Upload voorbereiden…")) return;
+
+    const uploadingItems = [...items];
+
+    try {
+      for (let index = 0; index < uploadingItems.length; index++) {
+        const item = uploadingItems[index];
+
+        if (!item.photo || item.uploadedPhotoUrl) continue;
+
+        if (mounted.current) {
+          setProgress(
+            `Productfoto uploaden… ${index + 1}/${uploadingItems.length}`,
           );
         }
 
-        photoUrl = uploadData.url;
+        const uploadedPhotoUrl = await uploadPhoto(item);
+        const updatedItem = { ...item, uploadedPhotoUrl };
 
-        if (mounted.current) setUploadedPhotoUrl(photoUrl);
+        // Bewaar de upload-URL zodat opnieuw proberen de foto hergebruikt.
+        await changeDraft([updatedItem]);
+        uploadingItems[index] = updatedItem;
+
+        if (mounted.current) {
+          setItems([...uploadingItems]);
+        }
       }
 
-      if (mounted.current) setProgress("Product toevoegen…");
+      if (mounted.current) {
+        setProgress("Producten toevoegen aan DateCheck…");
+      }
 
-      const savedName = name.trim().toUpperCase();
-
-      const response = await fetch("/api/items", {
+      const response = await fetch("/api/items/batch", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: savedName,
-          photo_url: photoUrl,
-          category_id: categoryId,
-          expiry_date: "2020-01-01",
-          sticker_30_percent: daily,
-          paused: false,
+          items: uploadingItems.map((item) => ({
+            name: item.name,
+            photo_url: item.uploadedPhotoUrl ?? null,
+            category_id: item.categoryId,
+            sticker_30_percent: item.sticker30Percent,
+          })),
         }),
       });
 
-      if (!response.ok) {
-        const data = (await response.json()) as {
-          error?: string;
-        };
+      const data = (await response.json()) as BatchResponse;
 
+      if (!response.ok) {
         throw new Error(
-          data.error || "Het product kon niet toegevoegd worden.",
+          data.error || "De producten konden niet toegevoegd worden.",
         );
       }
 
+      const insertedNames = new Set(
+        (data.inserted ?? []).map((item) => item.name.trim().toUpperCase()),
+      );
+
+      const skippedNames = new Set(
+        (data.skippedNames ?? []).map((item) => item.trim().toUpperCase()),
+      );
+
+      const completed = uploadingItems.filter(
+        (item) => insertedNames.has(item.name) || skippedNames.has(item.name),
+      );
+
+      const remaining = uploadingItems.filter(
+        (item) => !insertedNames.has(item.name) && !skippedNames.has(item.name),
+      );
+
+      if (completed.length === 0) {
+        throw new Error(
+          "De server heeft geen producten bevestigd. De lokale lijst is behouden.",
+        );
+      }
+
+      // Verwijder uitsluitend producten die de server bevestigd heeft.
+      await changeDraft(
+        [],
+        completed.map((item) => item.id),
+      );
+
+      const insertedCount = completed.filter((item) =>
+        insertedNames.has(item.name),
+      ).length;
+
+      const skippedCount = completed.filter(
+        (item) => !insertedNames.has(item.name) && skippedNames.has(item.name),
+      ).length;
+
       if (mounted.current) {
-        setName("");
-        setPhoto(null);
-        setScanImage(null);
-        setUploadedPhotoUrl("");
-        setNotice(`${savedName} is toegevoegd aan je voorraad.`);
+        setItems(remaining);
+
+        setNotice(
+          `${insertedCount} product${insertedCount === 1 ? "" : "en"} toegevoegd.${
+            skippedCount > 0
+              ? ` ${skippedCount} overgeslagen omdat ze al bestaan.`
+              : ""
+          }${
+            remaining.length > 0
+              ? ` ${remaining.length} niet bevestigd en in de lijst behouden.`
+              : ""
+          }`,
+        );
       }
     } catch (cause) {
-      if (mounted.current) {
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "Het product kon niet toegevoegd worden.",
-        );
-      }
+      showError(
+        cause,
+        "De upload is niet voltooid. Je lokale lijst is behouden.",
+      );
     } finally {
-      operationLock.current = false;
-
-      if (mounted.current) {
-        setWorking(false);
-        setProgress("");
-      }
+      finishOperation();
     }
   }
 
   return (
-    <main className={styles.page}>
+    <main className={fastStyles.page}>
       <Script
         src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"
         strategy="afterInteractive"
@@ -360,38 +694,53 @@ export default function AddProductsPage() {
         }
       />
 
-      <div className={styles.container}>
-        <Link href="/admin" className={styles.backLink}>
+      <div className={fastStyles.container}>
+        <Link href="/admin" className={fastStyles.backLink}>
           <ArrowLeft size={20} />
           Beheer
         </Link>
 
-        <header className={styles.header}>
-          <h1>Product toevoegen</h1>
+        <header className={fastStyles.header}>
+          <h1>Snel toevoegen met slimscan</h1>
           <p>
-            Neem een productfoto en scan het slimmetje om de naam in te vullen.
+            Verzamel producten in een lokale lijst en upload ze samen naar
+            DateCheck.
           </p>
         </header>
 
         {error && (
-          <p className={styles.error} role="alert">
+          <p
+            className={`${fastStyles.message} ${fastStyles.error}`}
+            role="alert"
+          >
             {error}
           </p>
         )}
 
         {notice && (
-          <p className={styles.notice} role="status">
+          <p className={fastStyles.message} role="status">
             {notice}
           </p>
         )}
 
         {progress && (
-          <p className={styles.notice} role="status" aria-live="polite">
+          <p className={fastStyles.message} role="status" aria-live="polite">
             {progress}
           </p>
         )}
 
-        <form className={styles.card} onSubmit={saveProduct}>
+        <form className={fastStyles.card} onSubmit={addToList}>
+          <div className={fastStyles.cardHeader}>
+            <div className={fastStyles.cardIcon}>
+              <ScanText size={23} />
+            </div>
+
+            <div className={fastStyles.cardHeading}>
+              <h2>Product toevoegen</h2>
+              <p>Scan de naam en voeg het product toe aan je lijst.</p>
+            </div>
+          </div>
+
           <fieldset className={styles.fields} disabled={busy}>
             <label className={styles.field}>
               <span>Categorie</span>
@@ -422,36 +771,6 @@ export default function AddProductsPage() {
                 <option value="monthly">Maandelijks</option>
               </select>
             </label>
-
-            <div className={styles.photoSection}>
-              <button
-                type="button"
-                className={styles.photoButton}
-                onClick={() => productInput.current?.click()}
-              >
-                <Camera size={25} />
-                {photo ? "Productfoto wijzigen" : "Productfoto nemen"}
-              </button>
-
-              {preview && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={preview}
-                  alt="Productfoto die bij het product wordt bewaard"
-                  className={styles.preview}
-                />
-              )}
-
-              <input
-                ref={productInput}
-                className={styles.hidden}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                aria-label="Productfoto kiezen"
-                onChange={(event) => void handleProductPhoto(event)}
-              />
-            </div>
 
             <div className={styles.scanSection}>
               <button
@@ -496,6 +815,7 @@ export default function AddProductsPage() {
             <label className={styles.field}>
               <span>Productnaam</span>
               <input
+                ref={nameInput}
                 type="text"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -505,22 +825,136 @@ export default function AddProductsPage() {
               />
             </label>
 
+            <div className={styles.photoSection}>
+              <button
+                type="button"
+                className={styles.photoButton}
+                onClick={() => productInput.current?.click()}
+              >
+                <Camera size={25} />
+                {photo ? "Productfoto wijzigen" : "Productfoto nemen"}
+              </button>
+
+              {preview && (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={preview}
+                    alt="Productfoto die bij het product wordt bewaard"
+                    className={styles.preview}
+                  />
+
+                  <button
+                    type="button"
+                    className={fastStyles.clearButton}
+                    onClick={removeProductPhoto}
+                  >
+                    <X size={18} />
+                    Productfoto verwijderen
+                  </button>
+                </>
+              )}
+
+              <input
+                ref={productInput}
+                className={styles.hidden}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                aria-label="Productfoto kiezen"
+                onChange={(event) => void handleProductPhoto(event)}
+              />
+            </div>
+
             <button
               type="submit"
               className={styles.saveButton}
-              disabled={!photo || !name.trim() || !categoryId}
+              disabled={!name.trim() || !categoryId}
             >
-              Product toevoegen
+              Toevoegen aan lijst
             </button>
           </fieldset>
 
           <p className={styles.hint}>
-            Alleen de productfoto wordt bij het product opgeslagen. Toevoegen
-            bewaart het product meteen in je voorraad met 01/01/2020 als
-            startdatum, zoals bij Snel toevoegen. Categorie en controletype
-            blijven geselecteerd voor het volgende product.
+            De productfoto is optioneel. Alleen producten die je aan de lijst
+            toevoegt worden lokaal bewaard op dit apparaat, in deze browser.
+            Categorie en controletype blijven geselecteerd voor het volgende
+            product.
           </p>
         </form>
+
+        <section
+          className={`${fastStyles.card} ${fastStyles.listCard}`}
+          aria-labelledby="slim-list-heading"
+        >
+          <div className={fastStyles.listHeader}>
+            <div className={fastStyles.cardIcon}>
+              <ClipboardList size={22} />
+            </div>
+
+            <div className={fastStyles.cardHeading}>
+              <h2 id="slim-list-heading">Producten in de lijst</h2>
+              <p>
+                Deze lokale lijst hoort bij de slimscanner. Uploaden verwerkt de
+                producten in DateCheck.
+              </p>
+            </div>
+
+            <span className={fastStyles.count}>{items.length}</span>
+          </div>
+
+          {items.length === 0 ? (
+            <div className={fastStyles.emptyList}>
+              {loading ? "Producten laden…" : "Nog geen producten toegevoegd."}
+            </div>
+          ) : (
+            <div className={fastStyles.listItems} role="list">
+              {items.map((item) => (
+                <QueuedProduct
+                  key={item.id}
+                  item={item}
+                  categoryName={
+                    categories.find(
+                      (category) => category.id === item.categoryId,
+                    )?.name ?? "Onbekende categorie"
+                  }
+                  disabled={busy}
+                  onRemove={(id) => void removeFromList(id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {items.length > 0 && (
+            <div className={fastStyles.listActions}>
+              <button
+                type="button"
+                className={fastStyles.uploadButton}
+                onClick={() => void uploadList()}
+                disabled={busy}
+              >
+                <CloudUpload size={22} />
+                Alles uploaden naar DateCheck
+              </button>
+
+              <button
+                type="button"
+                className={fastStyles.clearButton}
+                onClick={() => void clearList()}
+                disabled={busy}
+              >
+                <Trash2 size={19} />
+                Lijst wissen
+              </button>
+
+              <p className={fastStyles.uploadHint}>
+                Producten krijgen 01/01/2020 als startdatum, zoals bij Snel
+                toevoegen. Bestaande productnamen worden overgeslagen. De
+                slimfoto wordt niet opgeslagen.
+              </p>
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
-const PAST_EXPIRY_DATE = "2020-01-01";
-
 type BatchItem = {
     name: string;
     photo_url?: string | null;
@@ -127,7 +125,7 @@ export async function POST(request: NextRequest) {
                 VALUES (
                     ${item.name},
                     ${item.photo_url},
-                    ${PAST_EXPIRY_DATE}::date,
+                    NULL,
                     ${item.sticker_30_percent},
                     ${item.category_id},
                     false,
