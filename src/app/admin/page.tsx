@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   ArrowUpRight,
   ImagePlus,
-  ScanText,
   Settings2,
   Shield,
 } from "lucide-react";
@@ -24,12 +23,6 @@ const adminLinks = [
     description: "Voeg ontbrekende foto's toe aan producten.",
     href: "/admin/imagelinker",
     icon: ImagePlus,
-  },
-  {
-    title: "Producten toevoegen met etiket",
-    description: "Neem een productfoto en laat de naam van het etiket lezen.",
-    href: "/admin/producten-toevoegen",
-    icon: ScanText,
   },
 ];
 
