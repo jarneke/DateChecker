@@ -6,18 +6,12 @@ import Link from "next/link";
 import Script from "next/script";
 import { ArrowLeft, Camera, ScanText } from "lucide-react";
 
+import { prepareImage, scanSlim, type OcrWorker } from "./scan-slim";
 import styles from "./page.module.css";
 
 type Category = {
   id: string;
   name: string;
-};
-
-type OcrWorker = {
-  recognize: (image: Blob) => Promise<{
-    data: { text: string };
-  }>;
-  terminate: () => Promise<unknown>;
 };
 
 type OcrLibrary = {
@@ -29,87 +23,6 @@ type OcrLibrary = {
     },
   ) => Promise<OcrWorker>;
 };
-
-function chooseProductName(text: string): string {
-  const candidates = text
-    .split(/\r?\n/)
-    .map((line) => line.replace(/[|_~]/g, " ").replace(/\s+/g, " ").trim())
-    .filter((line) => {
-      const letters = line.match(/\p{L}/gu)?.length ?? 0;
-
-      if (letters < 3) return false;
-
-      return !/€|\beur\b|\b(?:prijs|korting|houdbaar|barcode|artikelnummer|ean|www|http)\b/i.test(
-        line,
-      );
-    })
-    .map((line) => {
-      const letters = line.match(/\p{L}/gu)?.length ?? 0;
-      const digits = line.match(/\d/g)?.length ?? 0;
-      const words = line.split(/\s+/).length;
-
-      return {
-        line,
-        score:
-          Math.min(letters, 45) +
-          Math.min(words, 6) * 3 -
-          digits * 2 -
-          (line.length > 85 ? 30 : 0),
-      };
-    })
-    .sort((a, b) => b.score - a.score);
-
-  return candidates[0]?.line.toUpperCase() ?? "";
-}
-
-async function prepareImage(file: File, maxSize: number): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  const image = new Image();
-
-  try {
-    await new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve();
-      image.onerror = () =>
-        reject(new Error("Deze foto kon niet gelezen worden."));
-      image.src = url;
-    });
-
-    const scale = Math.min(
-      1,
-      maxSize / Math.max(image.naturalWidth, image.naturalHeight),
-    );
-
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-
-    const context = canvas.getContext("2d");
-
-    if (!context) {
-      throw new Error("De foto kon niet verwerkt worden.");
-    }
-
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-    return await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error("De foto kon niet verwerkt worden."));
-          }
-        },
-        "image/jpeg",
-        0.9,
-      );
-    });
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 export default function AddProductsPage() {
   const productInput = useRef<HTMLInputElement>(null);
@@ -124,6 +37,8 @@ export default function AddProductsPage() {
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [preview, setPreview] = useState("");
+  const [scanImage, setScanImage] = useState<Blob | null>(null);
+  const [scanPreview, setScanPreview] = useState("");
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [ocrReady, setOcrReady] = useState(false);
@@ -184,10 +99,23 @@ export default function AddProductsPage() {
   }, [photo]);
 
   useEffect(() => {
+    if (!scanImage) {
+      setScanPreview("");
+      return;
+    }
+
+    const url = URL.createObjectURL(scanImage);
+    setScanPreview(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [scanImage]);
+
+  useEffect(() => {
     mounted.current = true;
 
     return () => {
       mounted.current = false;
+
       const pending = workerPromise.current;
       workerPromise.current = null;
 
@@ -211,7 +139,9 @@ export default function AddProductsPage() {
     const pending = library.createWorker("nld+eng", 1, {
       logger: (message) => {
         if (mounted.current && message.status === "recognizing text") {
-          setProgress(`Etiket lezen… ${Math.round(message.progress * 100)}%`);
+          setProgress(
+            `Naamstrook lezen… ${Math.round(message.progress * 100)}%`,
+          );
         }
       },
     });
@@ -240,10 +170,6 @@ export default function AddProductsPage() {
     setProgress("Productfoto verwerken…");
 
     try {
-      if (!file.type.startsWith("image/")) {
-        throw new Error("Kies een geldige foto.");
-      }
-
       const prepared = await prepareImage(file, 1280);
 
       if (mounted.current) {
@@ -279,34 +205,26 @@ export default function AddProductsPage() {
     setError("");
     setNotice("");
     setName("");
-    setProgress("Tekstherkenning voorbereiden…");
+    setScanImage(null);
+    setProgress("Etiketscanner voorbereiden…");
 
     try {
-      if (!file.type.startsWith("image/")) {
-        throw new Error("Kies een geldige etiketfoto.");
-      }
-
-      const [worker, image] = await Promise.all([
+      const result = await scanSlim(
+        file,
         getWorker(),
-        prepareImage(file, 2200),
-      ]);
-
-      if (!mounted.current) return;
-
-      setProgress("Etiket lezen…");
-
-      const result = await worker.recognize(image);
-      const detectedName = chooseProductName(result.data.text);
-
-      if (!detectedName) {
-        throw new Error(
-          "Geen productnaam herkend. Neem een scherpere foto van het etiket of vul de naam in.",
-        );
-      }
+        (message) => {
+          if (mounted.current) setProgress(message);
+        },
+        (image) => {
+          if (mounted.current) setScanImage(image);
+        },
+      );
 
       if (mounted.current) {
-        setName(detectedName);
-        setNotice("Naam ingevuld. Je kunt hem hieronder corrigeren.");
+        setName(result.name);
+        setNotice(
+          "Naam van het etiket ingevuld. Controleer de naam voor je het product toevoegt.",
+        );
       }
     } catch (cause) {
       if (mounted.current) {
@@ -350,7 +268,9 @@ export default function AddProductsPage() {
         const formData = new FormData();
         formData.append(
           "file",
-          new File([photo], "product.jpg", { type: "image/jpeg" }),
+          new File([photo], "product.jpg", {
+            type: "image/jpeg",
+          }),
         );
 
         const uploadResponse = await fetch("/api/github-upload", {
@@ -376,9 +296,12 @@ export default function AddProductsPage() {
       if (mounted.current) setProgress("Product toevoegen…");
 
       const savedName = name.trim().toUpperCase();
+
       const response = await fetch("/api/items", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           name: savedName,
           photo_url: photoUrl,
@@ -390,7 +313,10 @@ export default function AddProductsPage() {
       });
 
       if (!response.ok) {
-        const data = (await response.json()) as { error?: string };
+        const data = (await response.json()) as {
+          error?: string;
+        };
+
         throw new Error(
           data.error || "Het product kon niet toegevoegd worden.",
         );
@@ -399,6 +325,7 @@ export default function AddProductsPage() {
       if (mounted.current) {
         setName("");
         setPhoto(null);
+        setScanImage(null);
         setUploadedPhotoUrl("");
         setNotice(`${savedName} is toegevoegd aan je voorraad.`);
       }
@@ -423,7 +350,7 @@ export default function AddProductsPage() {
   return (
     <main className={styles.page}>
       <Script
-        src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"
+        src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"
         strategy="afterInteractive"
         onReady={() => setOcrReady(true)}
         onError={() =>
@@ -442,7 +369,7 @@ export default function AddProductsPage() {
         <header className={styles.header}>
           <h1>Product toevoegen</h1>
           <p>
-            Neem een productfoto en scan het etiket om de naam in te vullen.
+            Neem een productfoto en scan het slimmetje om de naam in te vullen.
           </p>
         </header>
 
@@ -476,6 +403,7 @@ export default function AddProductsPage() {
                 <option value="" disabled>
                   {loading ? "Categorieën laden…" : "Kies een categorie"}
                 </option>
+
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -533,12 +461,12 @@ export default function AddProductsPage() {
                 onClick={() => labelInput.current?.click()}
               >
                 <ScanText size={25} />
-                {ocrReady ? "Etiket scannen" : "Scanner laden…"}
+                {ocrReady ? "Slimmetje scannen" : "Scanner laden…"}
               </button>
 
               <p>
-                Fotografeer het etiket van dichtbij. De naam wordt automatisch
-                ingevuld; de etiketfoto wordt niet bewaard.
+                Fotografeer één volledig slimmetje rechtop en van dichtbij. De
+                naamstrook wordt automatisch gezocht.
               </p>
 
               <input
@@ -547,9 +475,22 @@ export default function AddProductsPage() {
                 type="file"
                 accept="image/*"
                 capture="environment"
-                aria-label="Etiket fotograferen"
+                aria-label="Slimmetje fotograferen"
                 onChange={(event) => void handleLabelPhoto(event)}
               />
+
+              {scanPreview && (
+                <div className={styles.photoSection}>
+                  <p>Uitgelezen naamstrook</p>
+
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={scanPreview}
+                    alt="Automatisch uitgesneden naamstrook van het slimmetje"
+                    className={styles.preview}
+                  />
+                </div>
+              )}
             </div>
 
             <label className={styles.field}>
@@ -558,7 +499,7 @@ export default function AddProductsPage() {
                 type="text"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Scan het etiket of vul de naam in"
+                placeholder="Scan het slimmetje of vul de naam in"
                 autoComplete="off"
                 required
               />
@@ -574,8 +515,9 @@ export default function AddProductsPage() {
           </fieldset>
 
           <p className={styles.hint}>
-            Toevoegen bewaart het product meteen in je voorraad met 01/01/2020
-            als startdatum, zoals bij Snel toevoegen. Categorie en controletype
+            Alleen de productfoto wordt bij het product opgeslagen. Toevoegen
+            bewaart het product meteen in je voorraad met 01/01/2020 als
+            startdatum, zoals bij Snel toevoegen. Categorie en controletype
             blijven geselecteerd voor het volgende product.
           </p>
         </form>
