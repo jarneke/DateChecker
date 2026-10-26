@@ -7,9 +7,13 @@ import Script from "next/script";
 import {
   ArrowLeft,
   Camera,
+  CheckCircle2,
+  ChevronDown,
   ClipboardList,
   CloudUpload,
+  Plus,
   ScanText,
+  Tag,
   Trash2,
   X,
 } from "lucide-react";
@@ -21,6 +25,7 @@ import fastStyles from "../../fastadd/page.module.css";
 type Category = {
   id: string;
   name: string;
+  color?: string;
 };
 
 type DraftItem = {
@@ -161,14 +166,33 @@ function useBlobPreview(blob: Blob | null): string {
   return preview;
 }
 
+function CategoryDot({
+  color,
+  className,
+}: {
+  color?: string;
+  className: string;
+}) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 12 12"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="6" cy="6" r="6" fill={color || "#a3e635"} />
+    </svg>
+  );
+}
+
 function QueuedProduct({
   item,
-  categoryName,
+  category,
   disabled,
   onRemove,
 }: {
   item: DraftItem;
-  categoryName: string;
+  category?: Category;
   disabled: boolean;
   onRemove: (id: string) => void;
 }) {
@@ -189,10 +213,12 @@ function QueuedProduct({
         <p className={fastStyles.listName}>{item.name}</p>
 
         <div className={fastStyles.listMeta}>
-          <span>{categoryName}</span>
+          <CategoryDot className={fastStyles.metaDot} color={category?.color} />
+          <span>{category?.name || "Onbekende categorie"}</span>
         </div>
 
         <div className={fastStyles.listMeta}>
+          <Tag size={13} color="var(--dc-accent)" />
           <span>
             {item.sticker30Percent ? "Dagelijks (30%)" : "Maandelijks"}
           </span>
@@ -241,6 +267,10 @@ export default function AddProductsPage() {
   const preview = useBlobPreview(photo);
   const scanPreview = useBlobPreview(scanImage);
   const busy = loading || working || !draftReady;
+
+  const selectedCategory = categories.find(
+    (category) => category.id === categoryId,
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -584,7 +614,6 @@ export default function AddProductsPage() {
         const uploadedPhotoUrl = await uploadPhoto(item);
         const updatedItem = { ...item, uploadedPhotoUrl };
 
-        // Bewaar de upload-URL zodat opnieuw proberen de foto hergebruikt.
         await changeDraft([updatedItem]);
         uploadingItems[index] = updatedItem;
 
@@ -642,7 +671,6 @@ export default function AddProductsPage() {
         );
       }
 
-      // Verwijder uitsluitend producten die de server bevestigd heeft.
       await changeDraft(
         [],
         completed.map((item) => item.id),
@@ -697,167 +725,215 @@ export default function AddProductsPage() {
       <div className={fastStyles.container}>
         <Link href="/admin" className={fastStyles.backLink}>
           <ArrowLeft size={20} />
-          Beheer
+          Terug
         </Link>
 
         <header className={fastStyles.header}>
-          <h1>Snel toevoegen met slimscan</h1>
+          <h1>Snel toevoegen</h1>
           <p>
-            Verzamel producten in een lokale lijst en upload ze samen naar
-            DateCheck.
+            Voeg meerdere producten toe en upload ze in één keer naar DateCheck.
           </p>
         </header>
 
         {error && (
-          <p
+          <div
             className={`${fastStyles.message} ${fastStyles.error}`}
             role="alert"
           >
             {error}
-          </p>
+          </div>
         )}
 
-        {notice && (
-          <p className={fastStyles.message} role="status">
+        {notice && !error && (
+          <div className={fastStyles.message} role="status">
             {notice}
-          </p>
+          </div>
         )}
 
         {progress && (
-          <p className={fastStyles.message} role="status" aria-live="polite">
+          <div className={fastStyles.message} role="status" aria-live="polite">
             {progress}
-          </p>
+          </div>
         )}
 
         <form className={fastStyles.card} onSubmit={addToList}>
           <div className={fastStyles.cardHeader}>
             <div className={fastStyles.cardIcon}>
-              <ScanText size={23} />
+              <Tag size={22} />
             </div>
 
             <div className={fastStyles.cardHeading}>
               <h2>Product toevoegen</h2>
-              <p>Scan de naam en voeg het product toe aan je lijst.</p>
+              <p>Vul de gegevens in en voeg het product toe aan de lijst.</p>
             </div>
           </div>
 
-          <fieldset className={styles.fields} disabled={busy}>
-            <label className={styles.field}>
-              <span>Categorie</span>
-              <select
-                value={categoryId}
-                onChange={(event) => setCategoryId(event.target.value)}
-                required
-              >
-                <option value="" disabled>
-                  {loading ? "Categorieën laden…" : "Kies een categorie"}
-                </option>
+          <fieldset
+            className={`${fastStyles.fields} ${styles.fields}`}
+            disabled={busy}
+          >
+            <div className={fastStyles.field}>
+              <label htmlFor="slim-category">Categorie</label>
 
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className={styles.field}>
-              <span>Controle</span>
-              <select
-                value={daily ? "daily" : "monthly"}
-                onChange={(event) => setDaily(event.target.value === "daily")}
-              >
-                <option value="daily">Dagelijks (30%)</option>
-                <option value="monthly">Maandelijks</option>
-              </select>
-            </label>
-
-            <div className={styles.scanSection}>
-              <button
-                type="button"
-                className={styles.scanButton}
-                disabled={!ocrReady}
-                onClick={() => labelInput.current?.click()}
-              >
-                <ScanText size={25} />
-                {ocrReady ? "Slimmetje scannen" : "Scanner laden…"}
-              </button>
-
-              <p>
-                Fotografeer één volledig slimmetje rechtop en van dichtbij. De
-                naamstrook wordt automatisch gezocht.
-              </p>
-
-              <input
-                ref={labelInput}
-                className={styles.hidden}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                aria-label="Slimmetje fotograferen"
-                onChange={(event) => void handleLabelPhoto(event)}
-              />
-
-              {scanPreview && (
-                <div className={styles.photoSection}>
-                  <p>Uitgelezen naamstrook</p>
-
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={scanPreview}
-                    alt="Automatisch uitgesneden naamstrook van het slimmetje"
-                    className={styles.preview}
+              <div className={fastStyles.selectWrapper}>
+                {selectedCategory && (
+                  <CategoryDot
+                    className={fastStyles.categoryDot}
+                    color={selectedCategory.color}
                   />
-                </div>
-              )}
+                )}
+
+                <select
+                  id="slim-category"
+                  className={selectedCategory ? fastStyles.withDot : ""}
+                  value={categoryId}
+                  onChange={(event) => setCategoryId(event.target.value)}
+                  disabled={busy || categories.length === 0}
+                  required
+                >
+                  {categories.length === 0 && (
+                    <option value="">
+                      {loading ? "Categorieën laden…" : "Geen categorieën"}
+                    </option>
+                  )}
+
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+
+                <ChevronDown size={19} className={fastStyles.selectChevron} />
+              </div>
             </div>
 
-            <label className={styles.field}>
-              <span>Productnaam</span>
+            <div className={fastStyles.field}>
+              <span className={fastStyles.fieldLabel}>Controle</span>
+
+              <div
+                className={fastStyles.checkOptions}
+                role="group"
+                aria-label="Controle"
+              >
+                <button
+                  type="button"
+                  className={`${fastStyles.checkOption} ${
+                    daily ? fastStyles.checkOptionActive : ""
+                  }`}
+                  onClick={() => setDaily(true)}
+                  aria-pressed={daily}
+                >
+                  {daily && <CheckCircle2 size={17} />}
+                  Dagelijks (30%)
+                </button>
+
+                <button
+                  type="button"
+                  className={`${fastStyles.checkOption} ${
+                    !daily ? fastStyles.checkOptionActive : ""
+                  }`}
+                  onClick={() => setDaily(false)}
+                  aria-pressed={!daily}
+                >
+                  {!daily && <CheckCircle2 size={17} />}
+                  Maandelijks
+                </button>
+              </div>
+            </div>
+
+            <div className={fastStyles.field}>
+              <label htmlFor="slim-name">Naam</label>
+
+              <div className={styles.scanner}>
+                <button
+                  type="button"
+                  className={styles.scanButton}
+                  disabled={busy || !ocrReady}
+                  onClick={() => labelInput.current?.click()}
+                >
+                  <ScanText size={20} />
+                  {ocrReady ? "Slimmetje scannen" : "Scanner laden…"}
+                </button>
+
+                <input
+                  ref={labelInput}
+                  className={fastStyles.hiddenInput}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  aria-label="Slimmetje fotograferen"
+                  onChange={(event) => void handleLabelPhoto(event)}
+                />
+              </div>
+
               <input
                 ref={nameInput}
+                id="slim-name"
                 type="text"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Scan het slimmetje of vul de naam in"
+                placeholder="Naam van het product"
                 autoComplete="off"
                 required
               />
-            </label>
 
-            <div className={styles.photoSection}>
-              <button
-                type="button"
-                className={styles.photoButton}
-                onClick={() => productInput.current?.click()}
-              >
-                <Camera size={25} />
-                {photo ? "Productfoto wijzigen" : "Productfoto nemen"}
-              </button>
-
-              {preview && (
+              {scanPreview && (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={preview}
-                    alt="Productfoto die bij het product wordt bewaard"
-                    className={styles.preview}
+                    src={scanPreview}
+                    alt="Uitgelezen naamstrook van het slimmetje"
+                    className={styles.scanPreview}
                   />
 
-                  <button
-                    type="button"
-                    className={fastStyles.clearButton}
-                    onClick={removeProductPhoto}
-                  >
-                    <X size={18} />
-                    Productfoto verwijderen
-                  </button>
+                  <p className={styles.scanHelp}>
+                    Controleer de ingevulde naam. Deze strook wordt niet bij het
+                    product opgeslagen.
+                  </p>
                 </>
               )}
+            </div>
+
+            <div className={fastStyles.field}>
+              <span className={fastStyles.fieldLabel}>Foto</span>
+
+              <div className={fastStyles.photoArea}>
+                <button
+                  type="button"
+                  className={fastStyles.photoButton}
+                  onClick={() => productInput.current?.click()}
+                >
+                  <Camera size={28} />
+                  <span>{photo ? "Foto wijzigen" : "Foto nemen"}</span>
+                </button>
+
+                <div className={fastStyles.photoPreview}>
+                  {preview ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={preview} alt="Geselecteerde productfoto" />
+
+                      <button
+                        type="button"
+                        className={fastStyles.removePhoto}
+                        onClick={removeProductPhoto}
+                        aria-label="Productfoto verwijderen"
+                      >
+                        <X size={19} />
+                      </button>
+                    </>
+                  ) : (
+                    <div className={styles.photoPlaceholder}>
+                      <Camera size={26} />
+                    </div>
+                  )}
+                </div>
+              </div>
 
               <input
                 ref={productInput}
-                className={styles.hidden}
+                className={fastStyles.hiddenInput}
                 type="file"
                 accept="image/*"
                 capture="environment"
@@ -865,21 +941,20 @@ export default function AddProductsPage() {
                 onChange={(event) => void handleProductPhoto(event)}
               />
             </div>
-
-            <button
-              type="submit"
-              className={styles.saveButton}
-              disabled={!name.trim() || !categoryId}
-            >
-              Toevoegen aan lijst
-            </button>
           </fieldset>
 
-          <p className={styles.hint}>
-            De productfoto is optioneel. Alleen producten die je aan de lijst
-            toevoegt worden lokaal bewaard op dit apparaat, in deze browser.
-            Categorie en controletype blijven geselecteerd voor het volgende
-            product.
+          <button
+            type="submit"
+            className={fastStyles.addButton}
+            disabled={busy}
+          >
+            <Plus size={22} />
+            Toevoegen aan lijst
+          </button>
+
+          <p className={fastStyles.uploadHint}>
+            Producten in de lijst worden lokaal bewaard op dit apparaat, in deze
+            browser, tot je ze uploadt of zelf verwijdert.
           </p>
         </form>
 
@@ -894,10 +969,7 @@ export default function AddProductsPage() {
 
             <div className={fastStyles.cardHeading}>
               <h2 id="slim-list-heading">Producten in de lijst</h2>
-              <p>
-                Deze lokale lijst hoort bij de slimscanner. Uploaden verwerkt de
-                producten in DateCheck.
-              </p>
+              <p>Deze producten zijn nog niet toegevoegd aan DateCheck.</p>
             </div>
 
             <span className={fastStyles.count}>{items.length}</span>
@@ -913,11 +985,9 @@ export default function AddProductsPage() {
                 <QueuedProduct
                   key={item.id}
                   item={item}
-                  categoryName={
-                    categories.find(
-                      (category) => category.id === item.categoryId,
-                    )?.name ?? "Onbekende categorie"
-                  }
+                  category={categories.find(
+                    (category) => category.id === item.categoryId,
+                  )}
                   disabled={busy}
                   onRemove={(id) => void removeFromList(id)}
                 />
@@ -948,9 +1018,8 @@ export default function AddProductsPage() {
               </button>
 
               <p className={fastStyles.uploadHint}>
-                Producten krijgen 01/01/2020 als startdatum, zoals bij Snel
-                toevoegen. Bestaande productnamen worden overgeslagen. De
-                slimfoto wordt niet opgeslagen.
+                Nieuwe producten krijgen geen datum en tellen als niet in stock.
+                Bestaande productnamen worden overgeslagen.
               </p>
             </div>
           )}
