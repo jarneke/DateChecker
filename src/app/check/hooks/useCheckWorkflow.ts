@@ -76,6 +76,12 @@ type ActionResult = {
     historyId: string | null;
 };
 
+type LocalDateDraft = {
+    date: string;
+    itemId: string;
+    value: string;
+};
+
 export function useCheckWorkflow() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -98,6 +104,7 @@ export function useCheckWorkflow() {
     const activeItemIdRef = useRef<string | null>(null);
     const returnItemsRef = useRef<string[]>([]);
     const loadedDayRef = useRef<string | null>(null);
+    const localDateDraftRef = useRef<LocalDateDraft | null>(null);
     const savingRef = useRef(false);
     const requestIdRef = useRef(0);
     const mountedRef = useRef(false);
@@ -118,6 +125,7 @@ export function useCheckWorkflow() {
                 loadedDayRef.current = data.date;
                 activeItemIdRef.current = null;
                 returnItemsRef.current = [];
+                localDateDraftRef.current = null;
                 updateHistory([]);
             }
 
@@ -137,10 +145,26 @@ export function useCheckWorkflow() {
                 items: orderedItems,
             };
 
-            activeItemIdRef.current = orderedItems[0]?.id ?? null;
+            const nextItem = orderedItems[0];
+            const localDraft = localDateDraftRef.current;
+
+            const preserveLocalDraft =
+                localDraft !== null &&
+                localDraft.date === data.date &&
+                localDraft.itemId === nextItem?.id &&
+                nextItem?.stage === "date";
+
+            activeItemIdRef.current = nextItem?.id ?? null;
             snapshotRef.current = nextSnapshot;
             setSnapshot(nextSnapshot);
-            setDateDraft(orderedItems[0]?.draft_expiry_date ?? "");
+
+            if (preserveLocalDraft && localDraft) {
+                setDateDraft(localDraft.value);
+            } else {
+                localDateDraftRef.current = null;
+                setDateDraft(nextItem?.draft_expiry_date ?? "");
+            }
+
             setSwipeOffset(0);
         },
         [updateHistory],
@@ -217,6 +241,7 @@ export function useCheckWorkflow() {
         loadedDayRef.current = null;
         activeItemIdRef.current = null;
         returnItemsRef.current = [];
+        localDateDraftRef.current = null;
         updateHistory([]);
         setSnapshot(null);
         setDateDraft("");
@@ -590,10 +615,25 @@ export function useCheckWorkflow() {
     }
 
     function updateDateDraft(value: string) {
-        if (savingRef.current || !showDateInput) return;
+        const currentSnapshot = snapshotRef.current;
+        const task = currentSnapshot?.items[0];
+
+        if (
+            savingRef.current ||
+            !currentSnapshot ||
+            currentSnapshot.blocked ||
+            task?.stage !== "date"
+        ) {
+            return;
+        }
+
+        localDateDraftRef.current = {
+            date: currentSnapshot.date,
+            itemId: task.id,
+            value,
+        };
 
         setDateDraft(value);
-        void performAction("draft-date", value || null);
     }
 
     function handleChecked() {
