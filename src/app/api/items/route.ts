@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
@@ -56,6 +55,7 @@ export async function GET(request: NextRequest) {
         c.color AS category_color,
         i.expiry_date,
         i.sticker_30_percent,
+        i.stickered,
         i.paused,
         i.stickered_for_date,
         i.created_at,
@@ -269,6 +269,7 @@ export async function POST(request: NextRequest) {
         expiry_date,
         category_id,
         sticker_30_percent,
+        stickered,
         paused,
         stickered_for_date,
         created_at,

@@ -1,9 +1,12 @@
 "use client";
 
 import { ArrowLeft, Check, LoaderCircle, X } from "lucide-react";
+
+import type { CheckType } from "../types";
 import styles from "../page.module.css";
 
 type CheckActionsProps = {
+  type: CheckType;
   isEvening: boolean;
   isStickerQuestion: boolean;
   showDateInput: boolean;
@@ -19,6 +22,7 @@ type CheckActionsProps = {
 };
 
 export default function CheckActions({
+  type,
   isEvening,
   isStickerQuestion,
   showDateInput,
@@ -34,6 +38,9 @@ export default function CheckActions({
 }: CheckActionsProps) {
   const validDate = Boolean(nextExpiryDate) && nextExpiryDate >= todayString;
 
+  const stickerNoLabel =
+    type === "monthly" ? "Niet gestickerd" : "Niet aanwezig";
+
   return (
     <div className={styles.actionsContainer}>
       {isEvening ? (
@@ -42,13 +49,14 @@ export default function CheckActions({
           className={styles.primaryAction}
           onClick={onEveningNext}
           disabled={saving}
+          aria-label="Opgehaald of al verkocht, ga naar het volgende product"
         >
           {saving ? (
             <LoaderCircle size={20} className={styles.actionSpinner} />
           ) : (
             <Check size={20} />
           )}
-          {saving ? "Opslaan..." : "Opgehaald of al verkocht"}
+          {saving ? "Opslaan..." : "Volgend product"}
         </button>
       ) : showDateInput ? (
         <button
@@ -73,7 +81,7 @@ export default function CheckActions({
             disabled={saving}
           >
             <X size={21} />
-            {isStickerQuestion ? "Niet aanwezig" : "Geen voorraad"}
+            {isStickerQuestion ? stickerNoLabel : "Geen voorraad"}
           </button>
 
           <button

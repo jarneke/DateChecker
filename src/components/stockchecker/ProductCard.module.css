@@ -58,7 +58,16 @@
   gap: 6px;
 }
 
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
 .name {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   color: var(--dc-text);
   font-size: 12px;
@@ -70,6 +79,29 @@
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
+}
+
+.stickerMarker {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 1;
+  box-sizing: border-box;
+  display: block;
+  width: 12px;
+  aspect-ratio: 210 / 297;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 1px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+
+.sticker30 {
+  background: #ff3bac;
+}
+
+.sticker50 {
+  background: #ff8a00;
 }
 
 .categoryRow {

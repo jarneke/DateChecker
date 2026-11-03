@@ -11,6 +11,7 @@ type CheckQuestionProps = {
   type: CheckType;
   dailyStep: DailyStep;
   expiryDate: string | null;
+  stickered: boolean;
   isPickupQuestion: boolean;
   showDateInput: boolean;
   nextExpiryDate: string;
@@ -23,6 +24,7 @@ export default function CheckQuestion({
   type,
   dailyStep,
   expiryDate,
+  stickered,
   isPickupQuestion,
   showDateInput,
   nextExpiryDate,
@@ -64,6 +66,10 @@ export default function CheckQuestion({
       <section className={styles.questionSection}>
         {isDaily && <span className={styles.stepBadge}>Stap 2 van 2</span>}
 
+        {isForwardPickup && (
+          <span className={styles.stepBadge}>Ronde 2 van 2 · Voorraad</span>
+        )}
+
         <div className={styles.questionHeading}>
           <CalendarDays size={20} aria-hidden="true" />
           <h3>Wat is de eerstvolgende vervaldatum?</h3>
@@ -71,14 +77,15 @@ export default function CheckQuestion({
 
         <p className={styles.questionDescription}>
           {isDaily
-            ? "Vul de vroegste vervaldatum in van de exemplaren die na vandaag vervallen. De exemplaren die vandaag vervallen tellen hier niet mee."
+            ? "Vul de vroegste vervaldatum in van de exemplaren die na vandaag vervallen. De gestickerde exemplaren voor vandaag tellen hier niet mee."
             : isForwardPickup
-              ? "Vul de vroegste vervaldatum van de overblijvende voorraad in. Exemplaren die vandaag of eerder vervallen moeten uit de winkel."
-              : "Vul de vroegste vervaldatum van de aanwezige verkoopbare voorraad in."}
+              ? "Vul de vroegste vervaldatum in van de overblijvende voorraad die na vandaag vervalt."
+              : "Vul de vroegste vervaldatum in van de aanwezige verkoopbare voorraad."}
         </p>
 
         <div className={styles.dateField}>
           <label htmlFor="next-expiry-date">Eerstvolgende vervaldatum</label>
+
           <input
             ref={dateInputRef}
             id="next-expiry-date"
@@ -98,27 +105,39 @@ export default function CheckQuestion({
     return (
       <section className={styles.questionSection}>
         {isForwardPickup && (
-          <span className={styles.stepBadge}>Stap 1 van 2</span>
+          <span className={styles.stepBadge}>Ronde 1 van 2 · Ophalen</span>
         )}
 
         <div className={styles.questionHeading}>
           <PackageCheck size={20} aria-hidden="true" />
-          <h3>Haal de gestickerde exemplaren op</h3>
+          <h3>Verwijder de resterende gestickerde exemplaren</h3>
         </div>
 
         <p className={styles.questionDescription}>
-          Verwijder de resterende gestickerde exemplaren met vervaldatum{" "}
-          <strong className={styles.highlightDate}>
-            {formatDate(expiryDate)}
-          </strong>
-          .
+          {isForwardPickup ? (
+            <>
+              Haal de resterende exemplaren met een 50%-sticker en vervaldatum{" "}
+              <strong className={styles.highlightDate}>
+                {formatDate(expiryDate)}
+              </strong>{" "}
+              uit de voorraad.
+            </>
+          ) : (
+            "Haal alle resterende exemplaren met een 30%-sticker uit de voorraad. De opgeslagen datum van de overige voorraad verandert hierdoor niet."
+          )}
         </p>
 
         <p className={styles.questionPrompt}>
-          Klaar? Bevestig ook als deze exemplaren al verkocht zijn.
-          {type === "evening" &&
-            " De volgende voorraad­datum is al in de ochtendcontrole geregistreerd."}
+          Klik op Volgend product zodra deze exemplaren verwijderd zijn.
+          Bevestig ook wanneer alles al verkocht is.
         </p>
+
+        {isForwardPickup && (
+          <p className={styles.questionDescription}>
+            Haal eerst alle producten op. Daarna volgt een tweede ronde om de
+            overige voorraad bij te werken.
+          </p>
+        )}
       </section>
     );
   }
@@ -130,7 +149,11 @@ export default function CheckQuestion({
 
         <div className={styles.questionHeading}>
           <Tag size={20} aria-hidden="true" />
-          <h3>Sticker de exemplaren met deze datum</h3>
+          <h3>
+            {isDaily
+              ? "Zijn er exemplaren die vandaag vervallen?"
+              : "Heeft deze voorraad een 50%-sticker nodig?"}
+          </h3>
         </div>
 
         <p className={styles.questionDescription}>
@@ -138,13 +161,31 @@ export default function CheckQuestion({
           <strong className={styles.highlightDate}>
             {formatDate(expiryDate)}
           </strong>
-          . Geef de aanwezige exemplaren een sticker.
+          .
+          {isDaily
+            ? " Geef de aanwezige exemplaren een 30%-sticker."
+            : " Beoordeel de hoeveelheid en hoe snel het product verkoopt. Een goed verkopend product met weinig resterende voorraad hoeft mogelijk geen korting."}
         </p>
 
+        {type === "monthly" && stickered && (
+          <p className={styles.questionDescription}>
+            Er zijn al gestickerde exemplaren geregistreerd. Controleer of er
+            nog bijkomende exemplaren gestickerd moeten worden.
+          </p>
+        )}
+
         <p className={styles.questionPrompt}>
-          Kies Gestickerd als je minstens één exemplaar gestickerd hebt. Zijn er
-          geen exemplaren met deze datum? Kies Niet aanwezig.
+          {isDaily
+            ? "Kies Gestickerd als je exemplaren gestickerd hebt. Kies Niet aanwezig als er geen exemplaren met deze datum zijn."
+            : "Kies Gestickerd als je exemplaren gestickerd hebt. Kies Niet gestickerd als je geen nieuwe stickers hebt aangebracht."}
         </p>
+
+        {type === "monthly" && (
+          <p className={styles.questionDescription}>
+            Niet gestickerd wist een eerdere stickerregistratie niet. Klopt de
+            opgeslagen datum niet? Pas het product aan via het productmenu.
+          </p>
+        )}
       </section>
     );
   }
@@ -156,19 +197,18 @@ export default function CheckQuestion({
 
         <div className={styles.questionHeading}>
           <PackageCheck size={20} aria-hidden="true" />
-          <h3>Zijn er ook exemplaren die later vervallen?</h3>
+          <h3>Zijn er ook exemplaren die na vandaag vervallen?</h3>
         </div>
 
         <p className={styles.questionDescription}>
-          Kijk naar de exemplaren met een vervaldatum na vandaag. Kies Wel
-          voorraad om de vroegste datum in te vullen. Kies Geen voorraad als er
-          alleen nog exemplaren voor vandaag zijn of als het product helemaal op
-          is.
+          Kies Wel voorraad om de vroegste datum van die exemplaren in te
+          vullen. Kies Geen voorraad als er alleen exemplaren voor vandaag zijn
+          of als alles op is.
         </p>
 
         <p className={styles.questionPrompt}>
-          Gestickerde exemplaren voor vandaag blijven apart onthouden voor
-          Dagelijks ophalen.
+          Gestickerde exemplaren blijven apart onthouden voor Dagelijks ophalen,
+          ook als er geen latere voorraad is.
         </p>
       </section>
     );
@@ -177,36 +217,17 @@ export default function CheckQuestion({
   if (isForwardPickup) {
     return (
       <section className={styles.questionSection}>
-        <span className={styles.stepBadge}>Stap 2 van 2</span>
+        <span className={styles.stepBadge}>Ronde 2 van 2 · Voorraad</span>
 
         <div className={styles.questionHeading}>
           <PackageCheck size={20} aria-hidden="true" />
-          <h3>Is er nog verkoopbare voorraad?</h3>
+          <h3>Is er nog voorraad die na vandaag vervalt?</h3>
         </div>
 
         <p className={styles.questionDescription}>
-          Kijk naar de voorraad die na vandaag vervalt. Kies Wel voorraad om de
-          vroegste datum in te vullen, of Geen voorraad als alles weg is.
-        </p>
-      </section>
-    );
-  }
-
-  if (isStickerRound) {
-    return (
-      <section className={styles.questionSection}>
-        <div className={styles.questionHeading}>
-          <PackageCheck size={20} aria-hidden="true" />
-          <h3>Zijn er exemplaren met een andere datum?</h3>
-        </div>
-
-        <p className={styles.questionDescription}>
-          Er zijn geen exemplaren met vervaldatum{" "}
-          <strong className={styles.highlightDate}>
-            {formatDate(expiryDate)}
-          </strong>
-          . Kies Wel voorraad om de juiste vroegste datum in te vullen, of Geen
-          voorraad als het product niet meer aanwezig is.
+          De ophaalronde is afgerond. Controleer nu de overblijvende voorraad.
+          Kies Wel voorraad om de vroegste datum in te vullen, of Geen voorraad
+          als er niets meer overblijft.
         </p>
       </section>
     );
@@ -218,16 +239,23 @@ export default function CheckQuestion({
         <PackageCheck size={20} aria-hidden="true" />
         <h3>
           {isStock
-            ? "Is dit product opnieuw in stock?"
-            : "Is er nog verkoopbare voorraad aanwezig?"}
+            ? "Is dit product opnieuw in voorraad?"
+            : "Is er nog verkoopbare voorraad?"}
         </h3>
       </div>
 
       <p className={styles.questionDescription}>
         {isStock
-          ? "Controleer of dit product opnieuw in het rayon staat. Kies Wel voorraad om de vroegste vervaldatum in te vullen."
-          : "Verwijder de verlopen exemplaren. Kies Wel voorraad om de vroegste datum van de resterende verkoopbare voorraad in te vullen, of Geen voorraad als alles weg is."}
+          ? "Kijk of het product opnieuw in het rayon staat. Kies Wel voorraad om de vroegste vervaldatum in te vullen. Kies Geen voorraad als er nog niets geleverd is."
+          : "Verwijder alle verlopen exemplaren. Kies Wel voorraad om de vroegste datum van de resterende verkoopbare voorraad in te vullen, of Geen voorraad als alles weg is."}
       </p>
+
+      {isStock && stickered && (
+        <p className={styles.questionDescription}>
+          Exemplaren die al voor ophalen geregistreerd zijn, tellen niet mee als
+          nieuwe voorraad.
+        </p>
+      )}
     </section>
   );
 }

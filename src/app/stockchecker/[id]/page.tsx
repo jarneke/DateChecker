@@ -10,7 +10,6 @@ import {
   ChevronDown,
   LoaderCircle,
   Package,
-  Pause,
   Save,
   Tag,
   Trash2,
@@ -19,23 +18,15 @@ import {
 
 import ProductPhoto from "@/components/product/ProductPhoto";
 import { uploadProductPhoto } from "@/components/product/imageUtils";
+import AdvancedItemSettings, {
+  type EditableItem,
+} from "./AdvancedItemSettings";
 import styles from "./page.module.css";
 
 type Category = {
   id: string;
   name: string;
   color?: string;
-};
-
-type Item = {
-  id: string;
-  name: string;
-  photo_url: string | null;
-  category_id: string;
-  expiry_date: string | null;
-  sticker_30_percent: boolean;
-  paused: boolean;
-  category_name: string | null;
 };
 
 function getDateInputValue(value: string | null): string {
@@ -78,11 +69,10 @@ export default function ItemDetailPage() {
       ? returnTo
       : "/stockchecker";
 
-  const [item, setItem] = useState<Item | null>(null);
+  const [item, setItem] = useState<EditableItem | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [photo, setPhoto] = useState<File | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -95,8 +85,8 @@ export default function ItemDetailPage() {
     async function load() {
       try {
         const [itemResponse, categoriesResponse] = await Promise.all([
-          fetch(`/api/items/${id}`),
-          fetch("/api/categories"),
+          fetch(`/api/items/${id}`, { cache: "no-store" }),
+          fetch("/api/categories", { cache: "no-store" }),
         ]);
 
         if (!itemResponse.ok) {
@@ -107,7 +97,7 @@ export default function ItemDetailPage() {
           throw new Error("Categorieën konden niet geladen worden.");
         }
 
-        const itemData: Item = await itemResponse.json();
+        const itemData: EditableItem = await itemResponse.json();
         const categoriesData: Category[] = await categoriesResponse.json();
 
         if (cancelled) return;
@@ -139,7 +129,7 @@ export default function ItemDetailPage() {
     };
   }, [id]);
 
-  function updateItem(changes: Partial<Item>) {
+  function updateItem(changes: Partial<EditableItem>) {
     setItem((current) => (current ? { ...current, ...changes } : current));
     setSaved(false);
     setError("");
@@ -161,6 +151,13 @@ export default function ItemDetailPage() {
 
     if (!item.category_id) {
       setError("Selecteer een categorie.");
+      return;
+    }
+
+    if (!item.sticker_30_percent && item.stickered && !item.expiry_date) {
+      setError(
+        "Een vooruit gestickerd product heeft een vervaldatum nodig. Vul de datum in of zet Gestickerd uit bij Algemene instellingen.",
+      );
       return;
     }
 
@@ -186,7 +183,9 @@ export default function ItemDetailPage() {
           category_id: item.category_id,
           expiry_date: item.expiry_date || null,
           sticker_30_percent: item.sticker_30_percent,
+          stickered: item.stickered,
           paused: item.paused,
+          expected_edit_version: item.edit_version,
         }),
       });
 
@@ -195,7 +194,7 @@ export default function ItemDetailPage() {
         throw new Error(data?.error || "Opslaan van het product mislukt.");
       }
 
-      const updatedItem: Item = await response.json();
+      const updatedItem: EditableItem = await response.json();
 
       setItem((current) =>
         current
@@ -405,7 +404,9 @@ export default function ItemDetailPage() {
               </div>
 
               <small id="product-expiry-hint">
-                Geen datum betekent dat het product niet in stock is.
+                {item.sticker_30_percent && item.stickered
+                  ? "Bewaar hier de vroegste datum van de overige voorraad. Laat leeg als er geen latere voorraad is; de stickerstatus blijft behouden."
+                  : "Bewaar de vroegste vervaldatum van de aanwezige voorraad. Geen datum betekent dat er geen voorraad geregistreerd is."}
               </small>
 
               {item.expiry_date && (
@@ -416,93 +417,18 @@ export default function ItemDetailPage() {
                   disabled={saving}
                 >
                   <X size={17} />
-                  Geen stock / datum wissen
+                  Datum wissen
                 </button>
               )}
             </div>
           </div>
         </section>
 
-        <section className={styles.card}>
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionIcon}>
-              <CalendarDays size={22} />
-            </div>
-
-            <div>
-              <h2>Controle-instellingen</h2>
-              <p>Bepaal hoe dit product gecontroleerd wordt.</p>
-            </div>
-          </div>
-
-          <label className={styles.toggleRow}>
-            <span className={styles.toggleText}>
-              <strong>Dagelijkse controle (30%)</strong>
-
-              <span>
-                {item.sticker_30_percent
-                  ? "Toon dit product bij de dagelijkse controle."
-                  : "Dit product valt onder de maandelijkse controle."}
-              </span>
-            </span>
-
-            <input
-              type="checkbox"
-              className={styles.toggleInput}
-              checked={item.sticker_30_percent}
-              onChange={(event) =>
-                updateItem({
-                  sticker_30_percent: event.target.checked,
-                })
-              }
-              disabled={saving}
-            />
-
-            <span className={styles.toggleSwitch} aria-hidden="true" />
-          </label>
-        </section>
-
-        <section className={styles.card}>
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionIcon}>
-              <Pause size={22} />
-            </div>
-
-            <div>
-              <h2>Product pauzeren</h2>
-              <p>
-                Bewaar het product in Voorraad en sla de controles tijdelijk
-                over.
-              </p>
-            </div>
-          </div>
-
-          <label className={styles.toggleRow}>
-            <span className={styles.toggleText}>
-              <strong>Controles pauzeren</strong>
-
-              <span>
-                {item.paused
-                  ? "Na opslaan verschijnt dit product in geen enkele controleronde. Schakel dit uit om het weer mee te controleren."
-                  : "Schakel dit in om het product tijdelijk uit alle controlerondes te halen. Sla daarna je wijzigingen op."}
-              </span>
-            </span>
-
-            <input
-              type="checkbox"
-              className={styles.toggleInput}
-              checked={item.paused}
-              onChange={(event) =>
-                updateItem({
-                  paused: event.target.checked,
-                })
-              }
-              disabled={saving}
-            />
-
-            <span className={styles.toggleSwitch} aria-hidden="true" />
-          </label>
-        </section>
+        <AdvancedItemSettings
+          item={item}
+          disabled={saving}
+          onChange={updateItem}
+        />
 
         <button
           type="button"

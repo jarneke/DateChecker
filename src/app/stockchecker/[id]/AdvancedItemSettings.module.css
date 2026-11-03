@@ -1,0 +1,130 @@
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary:focus-visible {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: 5px;
+  border-radius: var(--dc-radius-sm);
+}
+
+.summaryText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.summaryText strong {
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.summaryText > span {
+  color: var(--dc-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--dc-text-secondary);
+  transition: transform 180ms ease;
+}
+
+details[open] > .summary .chevron {
+  transform: rotate(180deg);
+}
+
+.content {
+  display: grid;
+  gap: 17px;
+  min-width: 0;
+}
+
+.statusLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stickerSample {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  aspect-ratio: 210 / 297;
+  border-radius: 1px;
+}
+
+.pink {
+  background: #ff3bac;
+}
+
+.orange {
+  background: #ff8a00;
+}
+
+.notice,
+.invalid {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-md);
+  background: var(--dc-background);
+  color: var(--dc-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.invalid {
+  border-color: rgba(var(--dc-danger-rgb), 0.35);
+  background: rgba(var(--dc-danger-rgb), 0.08);
+  color: var(--dc-danger);
+}
+
+.metadata {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0 0;
+}
+
+.metadata > div {
+  min-width: 0;
+}
+
+.metadata dt {
+  margin-bottom: 4px;
+  color: var(--dc-text-secondary);
+  font-size: 11px;
+}
+
+.metadata dd {
+  margin: 0;
+  color: var(--dc-text);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.technicalHint {
+  margin: 17px 0 0;
+  color: var(--dc-text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

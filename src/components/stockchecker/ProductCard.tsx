@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CalendarDays, ChevronRight, Package, Pause } from "lucide-react";
@@ -13,6 +13,7 @@ export type StockItem = {
   photo_url: string | null;
   expiry_date: string | null;
   sticker_30_percent: boolean;
+  stickered: boolean;
   paused: boolean;
   category_id: string;
   category_name: string | null;
@@ -21,6 +22,12 @@ export type StockItem = {
 
 type ProductCardProps = {
   item: StockItem;
+};
+
+type ProductPhotoProps = {
+  src: string | null;
+  name: string;
+  children?: ReactNode;
 };
 
 function formatDate(date: string | null) {
@@ -42,7 +49,7 @@ function getCategoryColor(color: string | null) {
   return "#A3E635";
 }
 
-function ProductPhoto({ src, name }: { src: string | null; name: string }) {
+function ProductPhoto({ src, name, children }: ProductPhotoProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
   return (
@@ -60,6 +67,8 @@ function ProductPhoto({ src, name }: { src: string | null; name: string }) {
       ) : (
         <Package size={27} strokeWidth={1.5} className={styles.placeholder} />
       )}
+
+      {children}
     </div>
   );
 }
@@ -81,15 +90,32 @@ export default function ProductCard({ item }: ProductCardProps) {
     "--category-color": categoryColor,
   } as CSSProperties;
 
+  const stickerLabel = item.sticker_30_percent
+    ? "Gestickerd: 30%"
+    : "Gestickerd: 50%";
+
   return (
     <Link
       href={`/stockchecker/${item.id}`}
       className={`${styles.card} ${item.paused ? styles.pausedCard : ""}`}
     >
-      <ProductPhoto src={item.photo_url} name={item.name} />
+      <ProductPhoto src={item.photo_url} name={item.name}>
+        {item.stickered && (
+          <span
+            className={`${styles.stickerMarker} ${
+              item.sticker_30_percent ? styles.sticker30 : styles.sticker50
+            }`}
+            role="img"
+            aria-label={stickerLabel}
+            title={stickerLabel}
+          />
+        )}
+      </ProductPhoto>
 
       <div className={styles.info}>
-        <h3 className={styles.name}>{item.name}</h3>
+        <div className={styles.nameRow}>
+          <h3 className={styles.name}>{item.name}</h3>
+        </div>
 
         <div className={styles.categoryRow}>
           <span className={styles.categoryPill} style={categoryStyle}>
@@ -113,7 +139,7 @@ export default function ProductCard({ item }: ProductCardProps) {
           <span className={styles.separator}>·</span>
 
           <span className={styles.controlType}>
-            {item.sticker_30_percent ? "Dagelijks" : "Maandelijks"}
+            {item.sticker_30_percent ? "Dagelijks" : "Vooruit"}
           </span>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft, Layers3 } from "lucide-react";
+
 import type { CheckType } from "../types";
 import styles from "../page.module.css";
 
@@ -13,6 +14,7 @@ type CheckHeaderProps = {
   completedCount: number;
   initialCount: number;
   progressPercent: number;
+  progressLabel?: string;
   saving: boolean;
   onChangeCategory: () => void;
 };
@@ -25,6 +27,7 @@ export default function CheckHeader({
   completedCount,
   initialCount,
   progressPercent,
+  progressLabel = "Voortgang",
   saving,
   onChangeCategory,
 }: CheckHeaderProps) {
@@ -66,7 +69,7 @@ export default function CheckHeader({
           <div
             className={styles.progressTrack}
             role="progressbar"
-            aria-label="Voortgang controle"
+            aria-label={progressLabel}
             aria-valuemin={0}
             aria-valuemax={initialCount}
             aria-valuenow={completedCount}
@@ -78,7 +81,7 @@ export default function CheckHeader({
           </div>
 
           <div className={styles.progressLabels}>
-            <span>Voortgang</span>
+            <span>{progressLabel}</span>
             <span>
               <strong>{completedCount}</strong> van {initialCount} afgewerkt
             </span>

@@ -78,7 +78,7 @@ function CheckContent() {
     return <CheckStates state="error" error={blocked} />;
   }
 
-  if (error && items.length === 0 && initialCount === 0) {
+  if (error && items.length === 0) {
     return <CheckStates state="error" error={error} />;
   }
 
@@ -88,7 +88,7 @@ function CheckContent() {
         state="completed"
         description={
           isStock && categoryId === "all"
-            ? "Alle producten zonder stock zijn gecontroleerd."
+            ? "Alle producten zonder geregistreerde voorraad zijn gecontroleerd."
             : config.emptyDescription
         }
         error={error}
@@ -108,6 +108,10 @@ function CheckContent() {
   }
 
   const editReturnUrl = `/check?${returnParams.toString()}`;
+  const stickerNoLabel =
+    type === "monthly" ? "Niet gestickerd" : "Niet aanwezig";
+
+  const remainingCount = Math.max(items.length, initialCount - completedCount);
 
   return (
     <main className={styles.page}>
@@ -116,10 +120,13 @@ function CheckContent() {
           title={config.title}
           type={type}
           categoryName={isStock ? selectedCategory?.name : undefined}
-          remainingCount={items.length}
+          remainingCount={remainingCount}
           completedCount={completedCount}
           initialCount={initialCount}
           progressPercent={progressPercent}
+          progressLabel={
+            type === "monthly-pickup" ? "Voorraad bijgewerkt" : undefined
+          }
           saving={saving}
           onChangeCategory={() => changeCategory("")}
         />
@@ -151,6 +158,7 @@ function CheckContent() {
               expiryDate={
                 currentItem.target_expiry_date ?? currentItem.expiry_date
               }
+              stickered={currentItem.stickered}
               isPickupQuestion={isEvening}
               showDateInput={showDateInput}
               nextExpiryDate={nextExpiryDate}
@@ -163,14 +171,14 @@ function CheckContent() {
               <div className={styles.swipeHint}>
                 {isEvening ? (
                   <>
-                    <span>Swipe naar rechts: opgehaald of al verkocht</span>
+                    <span>Swipe naar rechts: klaar, volgend product</span>
                     <ArrowRight size={15} />
                   </>
                 ) : (
                   <>
                     <ArrowLeft size={15} />
                     <span>
-                      {isStickerQuestion ? "Niet aanwezig" : "Geen voorraad"}
+                      {isStickerQuestion ? stickerNoLabel : "Geen voorraad"}
                     </span>
                     <span className={styles.swipeDivider}>·</span>
                     <span>Swipe</span>
@@ -187,6 +195,7 @@ function CheckContent() {
         </div>
 
         <CheckActions
+          type={type}
           isEvening={isEvening}
           isStickerQuestion={isStickerQuestion}
           showDateInput={showDateInput}
