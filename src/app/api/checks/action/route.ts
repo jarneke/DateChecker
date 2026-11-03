@@ -69,9 +69,7 @@ export async function POST(request: NextRequest) {
         typeof data.action !== "string" ||
         !ACTIONS.some((action) => action === data.action) ||
         !isDate(data.date) ||
-        typeof data.itemId !== "string" ||
-        data.itemId.length === 0 ||
-        data.itemId.length > 100 ||
+        !isUuid(data.itemId) ||
         typeof data.version !== "number" ||
         !Number.isSafeInteger(data.version) ||
         data.version < 0 ||
@@ -84,6 +82,10 @@ export async function POST(request: NextRequest) {
         (
             data.action === "previous" &&
             !isUuid(data.historyId)
+        ) ||
+        (
+            data.action === "save-date" &&
+            !isDate(data.expiryDate)
         )
     ) {
         return NextResponse.json(
@@ -95,30 +97,25 @@ export async function POST(request: NextRequest) {
     const expiryDate =
         typeof data.expiryDate === "string" ? data.expiryDate : null;
 
-    try {
-        const result =
-            data.action === "previous"
-                ? await sql`
-            SELECT public.datecheck_reopen_completion(
-              ${data.date}::date,
-              ${data.type}::text,
-              ${data.itemId}::text,
-              ${data.version}::integer,
-              ${data.historyId as string}::uuid
-            ) AS result
-          `
-                : await sql`
-            SELECT public.datecheck_apply_recorded_action(
-              ${data.date}::date,
-              ${data.type}::text,
-              ${data.itemId}::text,
-              ${data.version}::integer,
-              ${data.action}::text,
-              ${expiryDate}::date
-            ) AS result
-          `;
+    const historyId =
+        data.action === "previous" && typeof data.historyId === "string"
+            ? data.historyId
+            : null;
 
-        return NextResponse.json(result[0].result, {
+    try {
+        const rows = await sql`
+      SELECT public.datecheck_live_action(
+        ${data.date}::date,
+        ${data.type}::text,
+        ${data.itemId}::text,
+        ${data.version}::integer,
+        ${data.action}::text,
+        ${expiryDate}::date,
+        ${historyId}::uuid
+      ) AS result
+    `;
+
+        return NextResponse.json(rows[0].result, {
             headers: {
                 "Cache-Control": "no-store",
             },
@@ -138,7 +135,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.error("Check action failed:", error);
+        console.error("Saving live check action failed:", error);
 
         return NextResponse.json(
             { error: "De controle kon niet bijgewerkt worden." },

@@ -39,14 +39,14 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const result = await sql`
-      SELECT datecheck_restart_stock(
+        const rows = await sql`
+      SELECT public.datecheck_live_restart_stock(
         ${categoryId}::text
       ) AS restarted_count
     `;
 
         return NextResponse.json(
-            { restartedCount: result[0].restarted_count },
+            { restartedCount: rows[0].restarted_count },
             {
                 headers: {
                     "Cache-Control": "no-store",
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.error("Stockcheck restart failed:", error);
+        console.error("Restarting live stockcheck failed:", error);
 
         return NextResponse.json(
             { error: "De stockcheck kon niet opnieuw gestart worden." },
