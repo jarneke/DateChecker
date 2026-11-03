@@ -33,7 +33,7 @@ function CheckContent() {
     dailyStep,
     showDateInput,
     nextExpiryDate,
-    todayString,
+    minimumExpiryDate,
     swipeOffset,
     missedCheck,
     isEvening,
@@ -75,32 +75,6 @@ function CheckContent() {
   }
 
   if (blocked) {
-    if (type === "sticker") {
-      return (
-        <CheckStates
-          state="completed"
-          description="De ochtendcontrole is afgerond. De avondcontrole is nu beschikbaar."
-          error={error}
-          saving={saving}
-          canGoBack={canGoBack}
-          onBack={() => void handleBack()}
-        />
-      );
-    }
-
-    if (type === "evening" && blocked.includes("al afgerond")) {
-      return (
-        <CheckStates
-          state="completed"
-          description="De avondcontrole is afgerond."
-          error={error}
-          saving={saving}
-          canGoBack={canGoBack}
-          onBack={() => void handleBack()}
-        />
-      );
-    }
-
     return <CheckStates state="error" error={blocked} />;
   }
 
@@ -174,23 +148,39 @@ function CheckContent() {
             <CheckQuestion
               type={type}
               dailyStep={dailyStep}
-              expiryDate={currentItem.expiry_date}
+              expiryDate={
+                currentItem.target_expiry_date ?? currentItem.expiry_date
+              }
+              isPickupQuestion={isEvening}
               showDateInput={showDateInput}
               nextExpiryDate={nextExpiryDate}
-              todayString={todayString}
+              todayString={minimumExpiryDate}
               saving={saving}
               onDateChange={setNextExpiryDate}
             />
 
             {canSwipe && (
               <div className={styles.swipeHint}>
-                <ArrowLeft size={15} />
-                <span>Nee</span>
-                <span className={styles.swipeDivider}>·</span>
-                <span>Swipe</span>
-                <span className={styles.swipeDivider}>·</span>
-                <span>Ja</span>
-                <ArrowRight size={15} />
+                {isEvening ? (
+                  <>
+                    <span>Swipe naar rechts: opgehaald of al verkocht</span>
+                    <ArrowRight size={15} />
+                  </>
+                ) : (
+                  <>
+                    <ArrowLeft size={15} />
+                    <span>
+                      {isStickerQuestion ? "Niet aanwezig" : "Geen voorraad"}
+                    </span>
+                    <span className={styles.swipeDivider}>·</span>
+                    <span>Swipe</span>
+                    <span className={styles.swipeDivider}>·</span>
+                    <span>
+                      {isStickerQuestion ? "Gestickerd" : "Wel voorraad"}
+                    </span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
               </div>
             )}
           </ProductCard>
@@ -198,9 +188,10 @@ function CheckContent() {
 
         <CheckActions
           isEvening={isEvening}
-          showDateInput={!isStickerQuestion && showDateInput}
+          isStickerQuestion={isStickerQuestion}
+          showDateInput={showDateInput}
           nextExpiryDate={nextExpiryDate}
-          todayString={todayString}
+          todayString={minimumExpiryDate}
           saving={saving}
           canGoBack={canGoBack}
           onYes={handleYes}

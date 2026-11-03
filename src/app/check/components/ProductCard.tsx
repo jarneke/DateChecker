@@ -10,6 +10,7 @@ import {
   ImageOff,
   Moon,
   Package,
+  PackageCheck,
   Pencil,
   Tag,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const icons = {
   overdue: ClipboardCheck,
   monthly: CalendarDays,
   evening: Moon,
+  "monthly-pickup": PackageCheck,
   stock: Package,
 };
 
@@ -47,6 +49,7 @@ export default function ProductCard({
   const [imageFailed, setImageFailed] = useState(false);
 
   const Icon = icons[type];
+  const isPickup = type === "evening" || type === "monthly-pickup";
 
   return (
     <article
@@ -63,9 +66,7 @@ export default function ProductCard({
 
         <div className={styles.productInfo}>
           <span className={styles.productEyebrow}>Huidig product</span>
-
           <h2 className={styles.productName}>{item.name}</h2>
-
           <p className={styles.productCategory}>{item.category_name}</p>
         </div>
 
@@ -122,10 +123,9 @@ export default function ProductCard({
         )}
       </div>
 
-      {missedCheck && type !== "evening" && (
+      {missedCheck && !isPickup && (
         <div className={styles.expiredWarning}>
           <AlertTriangle size={19} />
-
           <div>
             <strong>Vervaldatum verstreken</strong>
             <span>Vorige vervaldatum: {formatDate(item.expiry_date)}</span>

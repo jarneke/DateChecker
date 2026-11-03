@@ -13,6 +13,7 @@ import {
     CHECK_CONFIG,
     isCheckType,
     type Category,
+    type CheckType,
     type Item,
 } from "../types";
 import { getToday } from "../utils";
@@ -26,6 +27,7 @@ type CheckStage =
 
 type SharedItem = Item & {
     stage: CheckStage;
+    target_expiry_date: string | null;
     draft_expiry_date: string | null;
     version: number;
 };
@@ -41,6 +43,7 @@ export type CheckSnapshot = {
     eveningCompleted: boolean;
     morningRemaining: number;
     eveningRemaining: number;
+    remainingCounts: Record<CheckType, number>;
     blocked: string | null;
     items: SharedItem[];
     initialCount: number;
@@ -60,6 +63,7 @@ type CheckAction =
 
 type UpdatedTask = {
     stage: CheckStage;
+    target_expiry_date: string | null;
     draft_expiry_date: string | null;
     version: number;
 };
@@ -314,9 +318,7 @@ export function useCheckWorkflow() {
         try {
             const response = await fetch("/api/checks/action", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     date: currentSnapshot.date,
                     type,
@@ -435,9 +437,7 @@ export function useCheckWorkflow() {
         try {
             const response = await fetch("/api/checks/action", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     date: currentSnapshot.date,
                     type,
@@ -534,7 +534,11 @@ export function useCheckWorkflow() {
     const currentItem = items[0] ?? null;
 
     const isDaily = type === "sticker";
-    const isEvening = type === "evening";
+    const isStickerRound = type === "sticker" || type === "monthly";
+    const isPickupRound =
+        type === "evening" || type === "monthly-pickup";
+    const isEvening =
+        isPickupRound && currentItem?.stage === "evening";
     const isStock = type === "stock";
 
     const selectedCategory =
@@ -543,6 +547,13 @@ export function useCheckWorkflow() {
             : categories.find((category) => category.id === categoryId);
 
     const todayString = snapshot?.date ?? getToday();
+    const tomorrow = new Date(`${todayString}T00:00:00Z`);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+    const minimumExpiryDate = isDaily || isPickupRound
+        ? tomorrow.toISOString().slice(0, 10)
+        : todayString;
+
     const initialCount = snapshot?.initialCount ?? 0;
     const completedCount = snapshot?.completedCount ?? 0;
 
@@ -557,7 +568,8 @@ export function useCheckWorkflow() {
             : ("new-stock" as const);
 
     const showDateInput = currentItem?.stage === "date";
-    const isStickerQuestion = isDaily && dailyStep === "sticker";
+    const isStickerQuestion =
+        isStickerRound && currentItem?.stage === "sticker";
 
     const canGoBack =
         history.length > 0 ||
@@ -565,7 +577,10 @@ export function useCheckWorkflow() {
             !snapshot?.blocked &&
             (
                 showDateInput ||
-                (isDaily && currentItem?.stage === "new-stock")
+                (
+                    (isStickerRound || isPickupRound) &&
+                    currentItem?.stage === "new-stock"
+                )
             )
         );
 
@@ -579,8 +594,7 @@ export function useCheckWorkflow() {
         !loading &&
         !error &&
         !snapshot?.blocked &&
-        !showDateInput &&
-        !isEvening;
+        !showDateInput;
 
     function changeCategory(id: string) {
         if (savingRef.current) return;
@@ -601,15 +615,19 @@ export function useCheckWorkflow() {
     function handleYes() {
         if (isStickerQuestion) {
             void performAction("sticker-yes");
-        } else if (!isEvening && !showDateInput) {
+        } else if (isEvening) {
+            void performAction("evening-done");
+        } else if (!showDateInput) {
             void performAction("open-date");
         }
     }
 
     function handleNo() {
+        if (isEvening) return;
+
         if (isStickerQuestion) {
             void performAction("sticker-no");
-        } else if (!isEvening && !showDateInput) {
+        } else if (!showDateInput) {
             void performAction("no-stock");
         }
     }
@@ -637,8 +655,7 @@ export function useCheckWorkflow() {
     }
 
     function handleChecked() {
-        if (!nextExpiryDate || nextExpiryDate < todayString) return;
-
+        if (!nextExpiryDate || nextExpiryDate < minimumExpiryDate) return;
         return performAction("save-date", nextExpiryDate);
     }
 
@@ -653,7 +670,10 @@ export function useCheckWorkflow() {
 
         if (
             current?.stage === "date" ||
-            (type === "sticker" && current?.stage === "new-stock")
+            (
+                (isStickerRound || isPickupRound) &&
+                current?.stage === "new-stock"
+            )
         ) {
             return performAction("back");
         }
@@ -705,7 +725,6 @@ export function useCheckWorkflow() {
 
     function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
         const start = touchStart.current;
-
         touchStart.current = null;
         setSwipeOffset(0);
 
@@ -750,6 +769,7 @@ export function useCheckWorkflow() {
         showDateInput,
         nextExpiryDate,
         todayString,
+        minimumExpiryDate,
         swipeOffset,
         missedCheck,
         isDaily,

@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Moon,
   Package,
+  PackageCheck,
   Settings2,
   Tag,
   TriangleAlert,
@@ -14,7 +15,7 @@ import {
 
 import CheckTile from "@/components/home/CheckTile";
 import type { CheckSnapshot } from "./check/hooks/useCheckWorkflow";
-
+import type { CheckType } from "./check/types";
 import styles from "./page.module.css";
 
 type SettingsResponse = {
@@ -23,8 +24,6 @@ type SettingsResponse = {
 
 type HomeData = {
   state: CheckSnapshot;
-  overdueCount: number;
-  monthlyCount: number;
   monthCheckDaysBeforeEnd: number;
 };
 
@@ -35,16 +34,6 @@ function formatToday(value: string) {
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${value}T00:00:00Z`));
-}
-
-function daysUntilMonthEnd(value: string) {
-  const today = new Date(`${value}T00:00:00Z`);
-
-  const lastDay = new Date(
-    Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0),
-  );
-
-  return Math.round((lastDay.getTime() - today.getTime()) / 86400000);
 }
 
 async function readResponse<T>(response: Response): Promise<T> {
@@ -68,7 +57,6 @@ export default function HomePage() {
 
     async function refresh() {
       if (busy || controller.signal.aborted) return;
-
       busy = true;
 
       try {
@@ -79,24 +67,18 @@ export default function HomePage() {
 
         const responses = await Promise.all([
           fetch("/api/checks", options),
-          fetch("/api/checks?type=overdue", options),
-          fetch("/api/checks?type=monthly", options),
           fetch("/api/settings", options),
         ]);
 
-        const [state, overdue, monthly, settings] = await Promise.all([
+        const [state, settings] = await Promise.all([
           readResponse<CheckSnapshot>(responses[0]),
-          readResponse<CheckSnapshot>(responses[1]),
-          readResponse<CheckSnapshot>(responses[2]),
-          readResponse<SettingsResponse>(responses[3]),
+          readResponse<SettingsResponse>(responses[1]),
         ]);
 
         if (controller.signal.aborted) return;
 
         setData({
           state,
-          overdueCount: overdue.items.length,
-          monthlyCount: monthly.items.length,
           monthCheckDaysBeforeEnd: settings.monthCheckDaysBeforeEnd,
         });
 
@@ -111,7 +93,6 @@ export default function HomePage() {
         setGreeting(
           hour < 12 ? "Goedemorgen" : hour < 18 ? "Goedemiddag" : "Goedenavond",
         );
-
         setLoadError(false);
       } catch (error) {
         if (!controller.signal.aborted) {
@@ -132,7 +113,6 @@ export default function HomePage() {
     void refresh();
 
     const interval = window.setInterval(refreshWhenVisible, 5000);
-
     window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
 
@@ -147,48 +127,27 @@ export default function HomePage() {
   const state = data?.state;
   const statusAvailable = data !== null && !loadError;
 
-  const morningRemaining = state?.morningRemaining ?? 0;
-  const eveningRemaining = state?.eveningRemaining ?? 0;
-  const overdueRemaining = data?.overdueCount ?? 0;
-  const monthlyRemaining = data?.monthlyCount ?? 0;
+  function count(type: CheckType) {
+    return state?.remainingCounts?.[type] ?? 0;
+  }
 
-  const monthlyCheckActive =
-    data !== null &&
-    daysUntilMonthEnd(data.state.date) <= data.monthCheckDaysBeforeEnd;
+  function notice(type: CheckType) {
+    if (!statusAvailable) {
+      return loadError ? "Status niet beschikbaar" : "Status laden...";
+    }
 
-  const statusNotice = loadError
-    ? "Status niet beschikbaar"
-    : "Status laden...";
+    return count(type) === 0 ? "Geen openstaande controles" : undefined;
+  }
 
-  const morningNotice = !statusAvailable
-    ? statusNotice
-    : morningRemaining === 0
-      ? "Geen openstaande controles"
-      : undefined;
+  function disabled(type: CheckType) {
+    return !statusAvailable || count(type) === 0;
+  }
 
-  const overdueNotice = !statusAvailable
-    ? statusNotice
-    : overdueRemaining === 0
-      ? "Geen openstaande controles"
-      : undefined;
-
-  const eveningNotice = !statusAvailable
-    ? statusNotice
-    : morningRemaining > 0
-      ? "Eerst de ochtendcontrole afronden"
-      : eveningRemaining === 0
-        ? "Geen openstaande controles"
-        : undefined;
-
-  const monthlyNotice = !statusAvailable
-    ? statusNotice
-    : !monthlyCheckActive
-      ? data?.monthCheckDaysBeforeEnd === 0
-        ? "Op de laatste dag van de maand"
-        : `Vanaf ${data?.monthCheckDaysBeforeEnd} dagen vóór maandeinde`
-      : monthlyRemaining === 0
-        ? "Geen openstaande controles"
-        : undefined;
+  const aheadDescription = data
+    ? data.monthCheckDaysBeforeEnd === 0
+      ? "Sticker producten die vandaag vervallen."
+      : `Sticker producten die tussen vandaag en ${data.monthCheckDaysBeforeEnd} dagen vooruit vervallen.`
+    : "Sticker producten binnen de ingestelde periode.";
 
   return (
     <main className={styles.page}>
@@ -198,7 +157,6 @@ export default function HomePage() {
             <span className={styles.brandIcon}>
               <ClipboardCheck size={23} strokeWidth={2.2} />
             </span>
-
             <span>
               Date<span className={styles.brandAccent}>Check</span>
             </span>
@@ -223,13 +181,11 @@ export default function HomePage() {
 
           <div className={styles.heroContent}>
             <span className={styles.eyebrow}>{greeting}</span>
-
             <h1>
               Klaar voor
               <br />
               <span>de controle?</span>
             </h1>
-
             <p>
               Houd de winkel overzichtelijk en controleer wat vandaag aandacht
               nodig heeft.
@@ -259,55 +215,58 @@ export default function HomePage() {
 
           <div className={styles.grid}>
             <CheckTile
-              title="Ochtendcontrole"
-              description="Controleer de vervaldatums en sticker producten."
+              title="Dagelijks stickeren"
+              description="Sticker de exemplaren voor vandaag en registreer de volgende voorraaddatum."
               icon={Tag}
               tone="morning"
               href="/check?type=sticker"
-              count={state?.morningRemaining}
-              disabled={!statusAvailable || morningRemaining === 0}
-              notice={morningNotice}
+              count={state ? count("sticker") : undefined}
+              disabled={disabled("sticker")}
+              notice={notice("sticker")}
+            />
+
+            <CheckTile
+              title="Vooruit stickeren"
+              description={aheadDescription}
+              icon={CalendarDays}
+              tone="monthly"
+              href="/check?type=monthly"
+              count={state ? count("monthly") : undefined}
+              disabled={disabled("monthly")}
+              notice={notice("monthly")}
+            />
+
+            <CheckTile
+              title="Dagelijks ophalen"
+              description="Haal de resterende dagelijks gestickerde exemplaren uit de winkel."
+              icon={Moon}
+              tone="evening"
+              href="/check?type=evening"
+              count={state ? count("evening") : undefined}
+              disabled={disabled("evening")}
+              notice={notice("evening")}
+            />
+
+            <CheckTile
+              title="Vooruit gestickerde producten ophalen"
+              description="Haal vooruit gestickerde exemplaren op zodra hun vervaldag bereikt is."
+              icon={PackageCheck}
+              tone="evening"
+              href="/check?type=monthly-pickup"
+              count={state ? count("monthly-pickup") : undefined}
+              disabled={disabled("monthly-pickup")}
+              notice={notice("monthly-pickup")}
             />
 
             <CheckTile
               title="Over datum"
-              description="Controleer producten met een verstreken vervaldatum."
+              description="Verwijder verlopen exemplaren en controleer de resterende voorraad."
               icon={TriangleAlert}
               tone="overdue"
               href="/check?type=overdue"
-              count={data?.overdueCount}
-              disabled={!statusAvailable || overdueRemaining === 0}
-              notice={overdueNotice}
-            />
-
-            <CheckTile
-              title="Avondcontrole"
-              description="Haal de resterende gestickerde producten uit de winkel."
-              icon={Moon}
-              tone="evening"
-              href="/check?type=evening"
-              count={state?.eveningRemaining}
-              disabled={
-                !statusAvailable ||
-                morningRemaining > 0 ||
-                eveningRemaining === 0
-              }
-              notice={eveningNotice}
-            />
-
-            <CheckTile
-              title="Maandelijkse controle"
-              description="Controleer producten die deze maand vervallen."
-              icon={CalendarDays}
-              tone="monthly"
-              href="/check?type=monthly"
-              count={data?.monthlyCount}
-              disabled={
-                !statusAvailable ||
-                !monthlyCheckActive ||
-                monthlyRemaining === 0
-              }
-              notice={monthlyNotice}
+              count={state ? count("overdue") : undefined}
+              disabled={disabled("overdue")}
+              notice={notice("overdue")}
             />
 
             <CheckTile
@@ -316,7 +275,7 @@ export default function HomePage() {
               icon={Package}
               tone="stock"
               href="/check?type=stock"
-              wide
+              disabled={!statusAvailable}
             />
           </div>
         </section>
@@ -326,7 +285,6 @@ export default function HomePage() {
             <Package size={18} />
             Voorraad
           </Link>
-
           <Link href="/admin">
             <Settings2 size={18} />
             Beheer

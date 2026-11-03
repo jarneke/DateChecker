@@ -81,9 +81,7 @@ function SortableCategory({
     transform,
     transition,
     isDragging,
-  } = useSortable({
-    id: category.localId,
-  });
+  } = useSortable({ id: category.localId });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -157,7 +155,6 @@ export default function SettingsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState(DEFAULT_COLOR);
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -170,10 +167,7 @@ export default function SettingsPage() {
       activationConstraint: { distance: 8 },
     }),
     useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 150,
-        tolerance: 5,
-      },
+      activationConstraint: { delay: 150, tolerance: 5 },
     }),
   );
 
@@ -189,7 +183,6 @@ export default function SettingsPage() {
         }
 
         const data = await response.json();
-
         setDaysBeforeEnd(String(data.monthCheckDaysBeforeEnd));
         setCategories(mapCategories(data.categories));
       } catch (err) {
@@ -200,19 +193,17 @@ export default function SettingsPage() {
       }
     }
 
-    loadSettings();
+    void loadSettings();
   }, []);
 
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent) {
       if (!hasUnsavedChanges) return;
-
       event.preventDefault();
       event.returnValue = "";
     }
 
     window.addEventListener("beforeunload", handleBeforeUnload);
-
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
@@ -230,13 +221,11 @@ export default function SettingsPage() {
         category.localId === localId ? { ...category, color } : category,
       ),
     );
-
     markChanged();
   }
 
   function handleAddCategory() {
     const name = newCategory.trim();
-
     if (!name) return;
 
     const exists = categories.some(
@@ -266,7 +255,6 @@ export default function SettingsPage() {
 
   function handleDeleteCategory(localId: string) {
     const category = categories.find((item) => item.localId === localId);
-
     if (!category) return;
 
     if (category.item_count > 0) {
@@ -279,35 +267,26 @@ export default function SettingsPage() {
     setCategories((current) =>
       current
         .filter((item) => item.localId !== localId)
-        .map((item, index) => ({
-          ...item,
-          sort_order: index + 1,
-        })),
+        .map((item, index) => ({ ...item, sort_order: index + 1 })),
     );
-
     markChanged();
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-
     if (!over || active.id === over.id) return;
 
     setCategories((current) => {
       const oldIndex = current.findIndex((item) => item.localId === active.id);
-
       const newIndex = current.findIndex((item) => item.localId === over.id);
 
-      if (oldIndex === -1 || newIndex === -1) {
-        return current;
-      }
+      if (oldIndex === -1 || newIndex === -1) return current;
 
       return arrayMove(current, oldIndex, newIndex).map((item, index) => ({
         ...item,
         sort_order: index + 1,
       }));
     });
-
     markChanged();
   }
 
@@ -315,6 +294,7 @@ export default function SettingsPage() {
     const days = Number(daysBeforeEnd);
 
     if (
+      daysBeforeEnd === "" ||
       !Number.isInteger(days) ||
       days < 0 ||
       days > 31 ||
@@ -331,9 +311,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch("/api/settings", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           monthCheckDaysBeforeEnd: days,
           categories: categories.map((category) => ({
@@ -381,7 +359,6 @@ export default function SettingsPage() {
   }
 
   const days = Number(daysBeforeEnd);
-
   const isValid =
     daysBeforeEnd !== "" && Number.isInteger(days) && days >= 0 && days <= 31;
 
@@ -418,21 +395,22 @@ export default function SettingsPage() {
                 <div className={styles.sectionIcon}>
                   <CalendarDays size={19} />
                 </div>
-
                 <div>
-                  <h2>Maandelijkse controle</h2>
-                  <p>Bepaal wanneer de maandcontrole beschikbaar wordt.</p>
+                  <h2>Vooruit stickeren</h2>
+                  <p>
+                    Bepaal hoeveel dagen vooruit producten gestickerd worden.
+                  </p>
                 </div>
               </div>
 
               <div className={styles.daysControl}>
                 <div className={styles.daysText}>
                   <span className={styles.fieldLabel}>
-                    Dagen voor einde maand
+                    Aantal dagen vooruit
                   </span>
                   <span className={styles.fieldHint}>
-                    Ontgrendel de controle zoveel dagen vóór de laatste dag van
-                    de maand.
+                    Toon producten die tussen vandaag en dit aantal dagen
+                    vooruit vervallen. Beide dagen tellen mee.
                   </span>
                 </div>
 
@@ -446,13 +424,14 @@ export default function SettingsPage() {
                     markChanged();
                   }}
                   className={styles.daysInput}
-                  aria-label="Dagen voor einde maand"
+                  aria-label="Aantal dagen vooruit"
                 />
               </div>
 
               <p className={styles.example}>
-                Bijvoorbeeld: bij 5 dagen wordt de maandcontrole 5 dagen vóór
-                het einde van de maand ontgrendeld.
+                Bijvoorbeeld: bij 7 dagen sticker je producten die vandaag tot
+                en met over een week vervallen. Met 0 dagen toon je alleen
+                producten die vandaag vervallen.
               </p>
 
               {!isValid && (
@@ -473,7 +452,6 @@ export default function SettingsPage() {
                   <div className={styles.sectionIcon}>
                     <Palette size={19} />
                   </div>
-
                   <div>
                     <h2>Categorieën</h2>
                     <p>Volgorde en kleuren beheren</p>
@@ -523,9 +501,7 @@ export default function SettingsPage() {
                     <div className={styles.addFields}>
                       <div
                         className={styles.newColorPicker}
-                        style={{
-                          backgroundColor: newCategoryColor,
-                        }}
+                        style={{ backgroundColor: newCategoryColor }}
                       >
                         <input
                           type="color"

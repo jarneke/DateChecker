@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { sql } from "@/lib/db";
+import { isCheckType, type CheckType } from "@/app/check/types";
 
 export const dynamic = "force-dynamic";
-
-const CHECK_TYPES = [
-    "sticker",
-    "overdue",
-    "monthly",
-    "evening",
-    "stock",
-] as const;
 
 const ACTIONS = [
     "sticker-yes",
@@ -22,13 +15,6 @@ const ACTIONS = [
     "no-stock",
     "evening-done",
 ] as const;
-
-function isCheckType(value: unknown): value is string {
-    return (
-        typeof value === "string" &&
-        CHECK_TYPES.some((type) => type === value)
-    );
-}
 
 function isAction(value: unknown): value is string {
     return (
@@ -90,133 +76,127 @@ export async function GET(request: NextRequest) {
 
     try {
         const prepared = await sql`
-      SELECT datecheck_prepare_checks(${type})::text AS check_date
-    `;
+            SELECT public.datecheck_prepare_checks(${type})::text AS check_date
+        `;
 
         const day = prepared[0].check_date as string;
 
-        const [dayRows, itemRows, progressRows, categoryRows] =
+        const [dayRows, itemRows, progressRows, categoryRows, countRows] =
             await sql.transaction([
                 sql`
-          SELECT
-            d.check_date::text AS check_date,
-            d.morning_completed_at IS NOT NULL AS morning_completed,
-            d.evening_completed_at IS NOT NULL AS evening_completed,
-            (
-              SELECT COUNT(*)::int
-              FROM datecheck_check_items ci
-              WHERE ci.check_date = d.check_date
-                AND ci.check_type = 'sticker'
-                AND ci.completed_at IS NULL
-            ) AS morning_remaining,
-            (
-              SELECT COUNT(*)::int
-              FROM datecheck_check_items ci
-              WHERE ci.check_date = d.check_date
-                AND ci.check_type = 'evening'
-                AND ci.completed_at IS NULL
-            ) AS evening_remaining
-          FROM datecheck_check_days d
-          WHERE d.check_date = ${day}::date
-        `,
+                    SELECT
+                        check_date::text AS check_date,
+                        morning_completed_at IS NOT NULL AS morning_completed,
+                        evening_completed_at IS NOT NULL AS evening_completed
+                    FROM public.datecheck_check_days
+                    WHERE check_date = ${day}::date
+                `,
                 sql`
-          SELECT
-            i.id,
-            i.name,
-            i.photo_url,
-            i.expiry_date::text AS expiry_date,
-            i.sticker_30_percent,
-            i.category_id,
-            i.paused,
-            i.stickered_for_date::text AS stickered_for_date,
-            c.name AS category_name,
-            ci.stage,
-            ci.draft_expiry_date::text AS draft_expiry_date,
-            ci.version
-          FROM datecheck_check_items ci
-          INNER JOIN items i ON i.id::text = ci.item_id
-          INNER JOIN categories c ON c.id = i.category_id
-          WHERE ci.check_date = ${day}::date
-            AND ci.check_type = ${type}
-            AND ci.completed_at IS NULL
-            AND i.paused = FALSE
-            AND (
-              ${type}::text <> 'stock'
-              OR ${categoryId} = 'all'
-              OR i.category_id::text = ${categoryId}
-            )
-          ORDER BY
-            c.sort_order ASC,
-            i.expiry_date ASC NULLS LAST,
-            i.name ASC,
-            i.id ASC
-        `,
+                    SELECT
+                        i.id,
+                        i.name,
+                        i.photo_url,
+                        i.expiry_date::text AS expiry_date,
+                        i.sticker_30_percent,
+                        i.category_id,
+                        i.paused,
+                        i.stickered_for_date::text AS stickered_for_date,
+                        c.name AS category_name,
+                        ci.stage,
+                        ci.target_expiry_date::text AS target_expiry_date,
+                        ci.draft_expiry_date::text AS draft_expiry_date,
+                        ci.version
+                    FROM public.datecheck_check_items ci
+                    INNER JOIN public.items i ON i.id::text = ci.item_id
+                    INNER JOIN public.categories c ON c.id = i.category_id
+                    WHERE ci.check_date = ${day}::date
+                      AND ci.check_type = ${type}
+                      AND ci.completed_at IS NULL
+                      AND i.paused = FALSE
+                      AND (
+                          ${type}::text <> 'stock'
+                          OR ${categoryId} = 'all'
+                          OR i.category_id::text = ${categoryId}
+                      )
+                    ORDER BY
+                        c.sort_order ASC,
+                        ci.target_expiry_date ASC NULLS LAST,
+                        i.name ASC,
+                        i.id ASC
+                `,
                 sql`
-          SELECT
-            COUNT(*)::int AS initial_count,
-            COUNT(*) FILTER (
-              WHERE completed_at IS NOT NULL
-            )::int AS completed_count
-          FROM datecheck_check_items
-          WHERE check_date = ${day}::date
-            AND check_type = ${type}
-            AND (
-              ${type}::text <> 'stock'
-              OR ${categoryId} = 'all'
-              OR category_id = ${categoryId}
-            )
-        `,
+                    SELECT
+                        COUNT(*)::int AS initial_count,
+                        COUNT(*) FILTER (
+                            WHERE completed_at IS NOT NULL
+                        )::int AS completed_count
+                    FROM public.datecheck_check_items
+                    WHERE check_date = ${day}::date
+                      AND check_type = ${type}
+                      AND invalidated = FALSE
+                      AND (
+                          ${type}::text <> 'stock'
+                          OR ${categoryId} = 'all'
+                          OR category_id = ${categoryId}
+                      )
+                `,
                 sql`
-          SELECT
-            c.id,
-            c.name,
-            c.color,
-            COUNT(ci.item_id) FILTER (
-              WHERE ci.completed_at IS NULL
-            )::int AS remaining_count
-          FROM categories c
-          LEFT JOIN datecheck_check_items ci
-            ON ci.category_id = c.id::text
-            AND ci.check_date = ${day}::date
-            AND ci.check_type = 'stock'
-          GROUP BY c.id, c.name, c.color, c.sort_order
-          ORDER BY c.sort_order ASC, c.name ASC
-        `,
+                    SELECT
+                        c.id,
+                        c.name,
+                        c.color,
+                        COUNT(ci.item_id) FILTER (
+                            WHERE ci.completed_at IS NULL
+                        )::int AS remaining_count
+                    FROM public.categories c
+                    LEFT JOIN public.datecheck_check_items ci
+                        ON ci.category_id = c.id::text
+                        AND ci.check_date = ${day}::date
+                        AND ci.check_type = 'stock'
+                    GROUP BY c.id, c.name, c.color, c.sort_order
+                    ORDER BY c.sort_order ASC, c.name ASC
+                `,
+                sql`
+                    SELECT check_type, COUNT(*)::int AS remaining_count
+                    FROM public.datecheck_check_items
+                    WHERE check_date = ${day}::date
+                      AND completed_at IS NULL
+                    GROUP BY check_type
+                `,
             ]);
 
-        const state = dayRows[0];
+        const remainingCounts: Record<CheckType, number> = {
+            sticker: 0,
+            monthly: 0,
+            evening: 0,
+            "monthly-pickup": 0,
+            overdue: 0,
+            stock: 0,
+        };
 
-        const blocked =
-            type === "sticker"
-                ? state.morning_completed
-                    ? "De ochtendcontrole is al afgerond."
-                    : null
-                : type === "evening"
-                    ? !state.morning_completed
-                        ? "Rond eerst de ochtendcontrole af."
-                        : state.evening_completed
-                            ? "De avondcontrole is al afgerond."
-                            : null
-                    : null;
+        for (const row of countRows) {
+            if (isCheckType(row.check_type)) {
+                remainingCounts[row.check_type] = Number(row.remaining_count);
+            }
+        }
+
+        const state = dayRows[0];
 
         return NextResponse.json(
             {
                 date: day,
                 morningCompleted: state.morning_completed,
                 eveningCompleted: state.evening_completed,
-                morningRemaining: state.morning_remaining,
-                eveningRemaining: state.evening_remaining,
-                blocked,
-                items: blocked ? [] : itemRows,
+                morningRemaining: remainingCounts.sticker,
+                eveningRemaining: remainingCounts.evening,
+                remainingCounts,
+                blocked: null,
+                items: itemRows,
                 initialCount: progressRows[0]?.initial_count ?? 0,
                 completedCount: progressRows[0]?.completed_count ?? 0,
                 categories: categoryRows,
             },
-            {
-                headers: {
-                    "Cache-Control": "no-store",
-                },
-            },
+            { headers: { "Cache-Control": "no-store" } },
         );
     } catch (error) {
         return errorResponse(error);
@@ -245,6 +225,7 @@ export async function POST(request: NextRequest) {
     const data = body as Record<string, unknown>;
 
     if (
+        typeof data.type !== "string" ||
         !isCheckType(data.type) ||
         !isAction(data.action) ||
         !isDate(data.date) ||
@@ -272,23 +253,19 @@ export async function POST(request: NextRequest) {
 
     try {
         const result = await sql`
-      SELECT datecheck_apply_action(
-        ${data.date}::date,
-        ${data.type}::text,
-        ${data.itemId}::text,
-        ${data.version}::integer,
-        ${data.action}::text,
-        ${expiryDate}::date
-      ) AS task
-    `;
+            SELECT public.datecheck_apply_action(
+                ${data.date}::date,
+                ${data.type}::text,
+                ${data.itemId}::text,
+                ${data.version}::integer,
+                ${data.action}::text,
+                ${expiryDate}::date
+            ) AS task
+        `;
 
         return NextResponse.json(
             { task: result[0].task },
-            {
-                headers: {
-                    "Cache-Control": "no-store",
-                },
-            },
+            { headers: { "Cache-Control": "no-store" } },
         );
     } catch (error) {
         return errorResponse(error);

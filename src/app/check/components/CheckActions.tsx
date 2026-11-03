@@ -1,11 +1,11 @@
 "use client";
 
 import { ArrowLeft, Check, LoaderCircle, X } from "lucide-react";
-
 import styles from "../page.module.css";
 
 type CheckActionsProps = {
   isEvening: boolean;
+  isStickerQuestion: boolean;
   showDateInput: boolean;
   nextExpiryDate: string;
   todayString: string;
@@ -20,6 +20,7 @@ type CheckActionsProps = {
 
 export default function CheckActions({
   isEvening,
+  isStickerQuestion,
   showDateInput,
   nextExpiryDate,
   todayString,
@@ -47,8 +48,7 @@ export default function CheckActions({
           ) : (
             <Check size={20} />
           )}
-
-          {saving ? "Opslaan..." : "Gecontroleerd — volgend item"}
+          {saving ? "Opslaan..." : "Opgehaald of al verkocht"}
         </button>
       ) : showDateInput ? (
         <button
@@ -62,7 +62,6 @@ export default function CheckActions({
           ) : (
             <Check size={20} />
           )}
-
           {saving ? "Opslaan..." : "Nieuwe datum opslaan"}
         </button>
       ) : (
@@ -74,7 +73,7 @@ export default function CheckActions({
             disabled={saving}
           >
             <X size={21} />
-            Nee
+            {isStickerQuestion ? "Niet aanwezig" : "Geen voorraad"}
           </button>
 
           <button
@@ -84,7 +83,7 @@ export default function CheckActions({
             disabled={saving}
           >
             <Check size={21} />
-            Ja
+            {isStickerQuestion ? "Gestickerd" : "Wel voorraad"}
           </button>
         </div>
       )}
