@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowDown,
+  ArrowRight,
   CalendarDays,
   ClipboardCheck,
+  LoaderCircle,
   Moon,
   Package,
   PackageCheck,
   Settings2,
   Tag,
   TriangleAlert,
+  Truck,
 } from "lucide-react";
 
 import CheckTile from "@/components/home/CheckTile";
@@ -26,6 +29,25 @@ type SettingsResponse = {
 type HomeData = {
   state: CheckSnapshot;
   monthCheckDaysBeforeEnd: number;
+};
+
+type DeliveryOffer = {
+  deliveryId: string;
+  deliveryDate: string;
+  name: string;
+  reminder: boolean;
+  completed: boolean;
+  categoryNames: string[];
+};
+
+type DeliveryResponse = {
+  offers: DeliveryOffer[];
+};
+
+type DeliveryStartResponse = {
+  snapshot: {
+    runIds: string[];
+  };
 };
 
 function formatToday(value: string) {
@@ -48,9 +70,19 @@ async function readResponse<T>(response: Response): Promise<T> {
 }
 
 export default function HomePage() {
+  const router = useRouter();
+
   const [data, setData] = useState<HomeData | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [greeting, setGreeting] = useState("Welkom");
+
+  const [deliveryOffers, setDeliveryOffers] = useState<DeliveryOffer[] | null>(
+    null,
+  );
+  const [deliveryError, setDeliveryError] = useState("");
+  const [startingDelivery, setStartingDelivery] = useState(false);
+
+  const startingDeliveryRef = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -125,8 +157,114 @@ export default function HomePage() {
     };
   }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    let busy = false;
+
+    async function refreshDeliveries() {
+      if (busy || controller.signal.aborted || startingDeliveryRef.current) {
+        return;
+      }
+
+      busy = true;
+
+      try {
+        const response = await fetch("/api/delivery-checks", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        const result = await readResponse<DeliveryResponse>(response);
+
+        if (!controller.signal.aborted && !startingDeliveryRef.current) {
+          setDeliveryOffers(result.offers);
+          setDeliveryError("");
+        }
+      } catch (error) {
+        if (!controller.signal.aborted && !startingDeliveryRef.current) {
+          setDeliveryError(
+            error instanceof Error
+              ? error.message
+              : "De leveringen konden niet geladen worden.",
+          );
+        }
+      } finally {
+        busy = false;
+      }
+    }
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshDeliveries();
+      }
+    };
+
+    void refreshDeliveries();
+
+    const interval = window.setInterval(refreshWhenVisible, 5000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, []);
+
   const state = data?.state;
   const statusAvailable = data !== null && !loadError;
+
+  const pendingDeliveries =
+    deliveryOffers?.filter((offer) => !offer.completed) ?? [];
+
+  const deliveriesCompleted =
+    deliveryOffers !== null &&
+    deliveryOffers.length > 0 &&
+    pendingDeliveries.length === 0;
+
+  async function startDeliveryCheck() {
+    if (
+      startingDeliveryRef.current ||
+      pendingDeliveries.length === 0 ||
+      deliveryError
+    ) {
+      return;
+    }
+
+    startingDeliveryRef.current = true;
+    setStartingDelivery(true);
+    setDeliveryError("");
+
+    try {
+      const response = await fetch("/api/delivery-checks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "start",
+          restartCompleted: false,
+        }),
+      });
+
+      const result = await readResponse<DeliveryStartResponse>(response);
+
+      router.push(
+        `/check/delivery?runIds=${encodeURIComponent(
+          result.snapshot.runIds.join(","),
+        )}`,
+      );
+    } catch (error) {
+      setDeliveryError(
+        error instanceof Error
+          ? error.message
+          : "De leveringscheck kon niet gestart worden.",
+      );
+    } finally {
+      startingDeliveryRef.current = false;
+      setStartingDelivery(false);
+    }
+  }
 
   function count(type: CheckType) {
     return state?.remainingCounts?.[type] ?? 0;
@@ -143,10 +281,6 @@ export default function HomePage() {
   function disabled(type: CheckType) {
     return !statusAvailable || count(type) === 0;
   }
-
-  const stickerCount = count("sticker") + count("monthly");
-  const pickupCount = count("evening") + count("monthly-pickup");
-  const overdueCount = count("overdue");
 
   const aheadDescription = data
     ? data.monthCheckDaysBeforeEnd === 0
@@ -178,10 +312,7 @@ export default function HomePage() {
 
         <section className={styles.hero} aria-labelledby="today-overview-title">
           <div className={styles.heroTop}>
-            <div>
-              <span className={styles.eyebrow}>{greeting}</span>
-              <h1 id="today-overview-title">Vandaag in beeld</h1>
-            </div>
+            <h1 id="today-overview-title">{greeting}</h1>
 
             <div className={styles.dateLabel}>
               <CalendarDays size={13} aria-hidden="true" />
@@ -189,49 +320,68 @@ export default function HomePage() {
             </div>
           </div>
 
-          <dl className={styles.heroStats} aria-label="Openstaande controles">
-            <div>
-              <dt>Stickeren</dt>
-              <dd>{statusAvailable ? stickerCount : "—"}</dd>
+          <div className={styles.heroDeliveries}>
+            <div className={styles.deliveryHeading}>
+              <Truck size={17} aria-hidden="true" />
+              <h2>Leveringen nakijken</h2>
             </div>
 
-            <div>
-              <dt>Ophalen</dt>
-              <dd>{statusAvailable ? pickupCount : "—"}</dd>
-            </div>
-
-            <div>
-              <dt>Over datum</dt>
-              <dd
-                className={
-                  statusAvailable && overdueCount > 0
-                    ? styles.heroDanger
-                    : undefined
-                }
+            {deliveryError ? (
+              <p className={styles.deliveryError} role="alert">
+                {deliveryError} We proberen automatisch opnieuw.
+              </p>
+            ) : deliveryOffers === null ? (
+              <p className={styles.heroStatus} role="status">
+                Leveringen laden…
+              </p>
+            ) : pendingDeliveries.length > 0 ? (
+              <div
+                className={styles.deliveryList}
+                aria-label="Openstaande leveringen"
               >
-                {statusAvailable ? overdueCount : "—"}
-              </dd>
-            </div>
-          </dl>
+                {pendingDeliveries.map((delivery) => (
+                  <span
+                    key={`${delivery.deliveryId}:${delivery.deliveryDate}`}
+                    className={`${styles.deliveryBadge} ${
+                      delivery.reminder ? styles.deliveryReminder : ""
+                    }`}
+                    title={`Levering van ${formatToday(delivery.deliveryDate)}`}
+                  >
+                    {delivery.name}
+                    <span>{delivery.reminder ? "gisteren" : "vandaag"}</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className={styles.heroStatus}>
+                {deliveriesCompleted
+                  ? "De geplande leveringschecks zijn afgewerkt."
+                  : "Geen openstaande leveringschecks."}
+              </p>
+            )}
 
-          {!statusAvailable && (
-            <p className={styles.heroStatus}>
-              {loadError
-                ? "De controlestatus is tijdelijk niet beschikbaar."
-                : "De openstaande controles worden geladen…"}
-            </p>
-          )}
+            {pendingDeliveries.length > 0 && (
+              <button
+                type="button"
+                className={styles.deliveryButton}
+                onClick={() => void startDeliveryCheck()}
+                disabled={startingDelivery || Boolean(deliveryError)}
+              >
+                {startingDelivery ? (
+                  <LoaderCircle
+                    size={16}
+                    className={styles.spinner}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <ArrowRight size={16} aria-hidden="true" />
+                )}
 
-          <div className={styles.heroFooter}>
-            <a href="#controles" className={styles.heroLink}>
-              Controles bekijken
-              <ArrowDown size={14} aria-hidden="true" />
-            </a>
-
-            <Link href="/check?type=stock" className={styles.heroLink}>
-              <Package size={14} aria-hidden="true" />
-              Leveringen
-            </Link>
+                {startingDelivery
+                  ? "Controle openen…"
+                  : "Leveringscheck starten"}
+              </button>
+            )}
           </div>
         </section>
 
