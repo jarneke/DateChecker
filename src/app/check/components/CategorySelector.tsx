@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import type { SharedCategory } from "../hooks/useCheckWorkflow";
+import DeliverySuggestions from "./DeliverySuggestions";
 
 import styles from "../page.module.css";
 import buttons from "./CategorySelector.module.css";
@@ -69,6 +70,8 @@ export default function CategorySelector({
           </div>
         </header>
 
+        <DeliverySuggestions />
+
         <section className={styles.categoryCard}>
           <div className={styles.categoryIcon}>
             <PackageSearch size={30} aria-hidden="true" />
@@ -89,7 +92,7 @@ export default function CategorySelector({
                 className={styles.stateSpinner}
                 aria-hidden="true"
               />
-              Categorieën en aantallen laden...
+              Categorieën en aantallen laden…
             </p>
           )}
 
@@ -147,7 +150,9 @@ export default function CategorySelector({
                     <span className={buttons.hint}>
                       {count === 0
                         ? "Niets te controleren"
-                        : `${count} ${count === 1 ? "product" : "producten"} te controleren`}
+                        : `${count} ${
+                            count === 1 ? "product" : "producten"
+                          } te controleren`}
                     </span>
                   </button>
                 );

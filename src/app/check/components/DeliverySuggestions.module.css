@@ -1,0 +1,141 @@
+.section {
+  margin-bottom: 18px;
+  padding: 17px;
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-lg);
+  background: var(--dc-surface);
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.heading > svg {
+  flex-shrink: 0;
+  color: var(--dc-accent);
+}
+
+.heading h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.heading p {
+  margin: 5px 0 0;
+  color: var(--dc-text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.offer {
+  padding: 14px;
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-md);
+  background: var(--dc-background);
+}
+
+.reminder {
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--dc-accent);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.reminder .label {
+  color: #fbbf24;
+}
+
+.offer h3 {
+  margin: 0;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.date {
+  margin: 6px 0 0;
+  color: var(--dc-text-secondary);
+  font-size: 11px;
+}
+
+.hint {
+  margin: 10px 0 0;
+  color: var(--dc-text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.count {
+  margin: 10px 0 0;
+  color: var(--dc-text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  margin-top: 13px;
+  padding: 9px 12px;
+  border: 1px solid rgba(var(--dc-accent-rgb), 0.35);
+  border-radius: var(--dc-radius-sm);
+  background: rgba(var(--dc-accent-rgb), 0.08);
+  color: var(--dc-accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: 3px;
+}
+
+.error {
+  margin-top: 13px;
+  color: var(--dc-danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.error p {
+  margin: 0;
+}
+
+.spinner {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
