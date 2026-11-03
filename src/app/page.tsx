@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowDown,
   CalendarDays,
   ClipboardCheck,
   Moon,
@@ -143,6 +144,10 @@ export default function HomePage() {
     return !statusAvailable || count(type) === 0;
   }
 
+  const stickerCount = count("sticker") + count("monthly");
+  const pickupCount = count("evening") + count("monthly-pickup");
+  const overdueCount = count("overdue");
+
   const aheadDescription = data
     ? data.monthCheckDaysBeforeEnd === 0
       ? "Sticker producten die vandaag vervallen."
@@ -171,34 +176,66 @@ export default function HomePage() {
           </Link>
         </header>
 
-        <section className={styles.hero}>
-          <div className={styles.heroGlow} />
+        <section className={styles.hero} aria-labelledby="today-overview-title">
+          <div className={styles.heroTop}>
+            <div>
+              <span className={styles.eyebrow}>{greeting}</span>
+              <h1 id="today-overview-title">Vandaag in beeld</h1>
+            </div>
 
-          <div className={styles.dateLabel}>
-            <CalendarDays size={14} />
-            <span>{state ? formatToday(state.date) : "Vandaag"}</span>
+            <div className={styles.dateLabel}>
+              <CalendarDays size={13} aria-hidden="true" />
+              <span>{state ? formatToday(state.date) : "Vandaag"}</span>
+            </div>
           </div>
 
-          <div className={styles.heroContent}>
-            <span className={styles.eyebrow}>{greeting}</span>
-            <h1>
-              Klaar voor
-              <br />
-              <span>de controle?</span>
-            </h1>
-            <p>
-              Houd de winkel overzichtelijk en controleer wat vandaag aandacht
-              nodig heeft.
+          <dl className={styles.heroStats} aria-label="Openstaande controles">
+            <div>
+              <dt>Stickeren</dt>
+              <dd>{statusAvailable ? stickerCount : "—"}</dd>
+            </div>
+
+            <div>
+              <dt>Ophalen</dt>
+              <dd>{statusAvailable ? pickupCount : "—"}</dd>
+            </div>
+
+            <div>
+              <dt>Over datum</dt>
+              <dd
+                className={
+                  statusAvailable && overdueCount > 0
+                    ? styles.heroDanger
+                    : undefined
+                }
+              >
+                {statusAvailable ? overdueCount : "—"}
+              </dd>
+            </div>
+          </dl>
+
+          {!statusAvailable && (
+            <p className={styles.heroStatus}>
+              {loadError
+                ? "De controlestatus is tijdelijk niet beschikbaar."
+                : "De openstaande controles worden geladen…"}
             </p>
-          </div>
+          )}
 
-          <div className={styles.heroDecoration}>
-            <div className={styles.heroRing} />
-            <ClipboardCheck size={96} strokeWidth={0.8} />
+          <div className={styles.heroFooter}>
+            <a href="#controles" className={styles.heroLink}>
+              Controles bekijken
+              <ArrowDown size={14} aria-hidden="true" />
+            </a>
+
+            <Link href="/check?type=stock" className={styles.heroLink}>
+              <Package size={14} aria-hidden="true" />
+              Leveringen
+            </Link>
           </div>
         </section>
 
-        <section className={styles.section}>
+        <section id="controles" className={styles.section}>
           <div className={styles.sectionHeading}>
             <div>
               <span className={styles.sectionEyebrow}>JOUW WERKOVERZICHT</span>
