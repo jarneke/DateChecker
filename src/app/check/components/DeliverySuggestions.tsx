@@ -24,7 +24,7 @@ export default function DeliverySuggestions() {
   const [offers, setOffers] = useState<DeliveryOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [startingKey, setStartingKey] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
   const startingRef = useRef(false);
@@ -95,13 +95,21 @@ export default function DeliverySuggestions() {
     };
   }, [reloadToken]);
 
-  async function startDelivery(offer: DeliveryOffer) {
-    if (startingRef.current) return;
+  const pendingOffers = offers.filter((offer) => !offer.completed);
+  const completedOffers = offers.filter((offer) => offer.completed);
+  const allCompleted = offers.length > 0 && pendingOffers.length === 0;
 
-    const key = `${offer.deliveryId}:${offer.deliveryDate}`;
+  const displayedOffers = allCompleted ? completedOffers : pendingOffers;
+
+  const categoryNames = [
+    ...new Set(displayedOffers.flatMap((offer) => offer.categoryNames)),
+  ].sort((a, b) => a.localeCompare(b, "nl-BE"));
+
+  async function startDeliveryCheck() {
+    if (startingRef.current || displayedOffers.length === 0) return;
 
     startingRef.current = true;
-    setStartingKey(key);
+    setStarting(true);
     setError("");
 
     try {
@@ -110,8 +118,7 @@ export default function DeliverySuggestions() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "start",
-          deliveryId: offer.deliveryId,
-          deliveryDate: offer.deliveryDate,
+          restartCompleted: allCompleted,
         }),
       });
 
@@ -124,7 +131,9 @@ export default function DeliverySuggestions() {
       }
 
       router.push(
-        `/check/delivery?runId=${encodeURIComponent(data.snapshot.id)}`,
+        `/check/delivery?runIds=${encodeURIComponent(
+          data.snapshot.runIds.join(","),
+        )}`,
       );
     } catch (caughtError) {
       setError(
@@ -134,7 +143,7 @@ export default function DeliverySuggestions() {
       );
     } finally {
       startingRef.current = false;
-      setStartingKey(null);
+      setStarting(false);
     }
   }
 
@@ -146,17 +155,22 @@ export default function DeliverySuggestions() {
     <section className={styles.section}>
       <div className={styles.heading}>
         <Truck size={21} aria-hidden="true" />
+
         <div>
-          <h2>Leveringschecks</h2>
-          <p>De leveringen van vandaag en openstaande checks van gisteren.</p>
+          <h2>Leveringscheck</h2>
+          <p>
+            {loading
+              ? "Leveringen laden…"
+              : allCompleted
+                ? "Alle leveringschecks voor vandaag zijn afgerond."
+                : `${pendingOffers.length} ${
+                    pendingOffers.length === 1 ? "levering" : "leveringen"
+                  } · ${categoryNames.length} ${
+                    categoryNames.length === 1 ? "categorie" : "categorieën"
+                  } · één gezamenlijke ronde`}
+          </p>
         </div>
       </div>
-
-      {loading && (
-        <p className={styles.hint} role="status">
-          Leveringen laden…
-        </p>
-      )}
 
       {error && (
         <div className={styles.error} role="alert">
@@ -164,78 +178,71 @@ export default function DeliverySuggestions() {
 
           <button
             type="button"
-            className={styles.button}
+            className={styles.retry}
             onClick={() => setReloadToken((value) => value + 1)}
-            disabled={startingKey !== null}
+            disabled={starting}
           >
             Opnieuw laden
           </button>
         </div>
       )}
 
-      <div className={styles.list}>
-        {offers.map((offer) => {
-          const key = `${offer.deliveryId}:${offer.deliveryDate}`;
-          const starting = startingKey === key;
-
-          return (
-            <article
-              key={key}
-              className={`${styles.offer} ${
-                offer.reminder ? styles.reminder : ""
-              }`}
-            >
-              <span className={styles.label}>
-                {offer.completed
-                  ? "Afgerond"
-                  : offer.reminder
-                    ? "Herinnering · gisteren"
-                    : "Levering vandaag"}
-              </span>
-
-              <h3>{offer.name}</h3>
-
-              <p className={styles.date}>
-                Levering van {formatDate(offer.deliveryDate)}
-              </p>
-
-              <p className={styles.hint}>{offer.categoryNames.join(", ")}</p>
-
-              {!offer.completed && (
-                <p className={styles.count}>
-                  {offer.remainingCount} producten zonder geregistreerde
-                  voorraad te controleren
-                </p>
-              )}
-
-              <button
-                type="button"
-                className={styles.button}
-                onClick={() => void startDelivery(offer)}
-                disabled={startingKey !== null || Boolean(error)}
+      {!loading && displayedOffers.length > 0 && (
+        <>
+          <div
+            className={styles.deliveries}
+            aria-label="Leveringen in deze controle"
+          >
+            {displayedOffers.map((offer) => (
+              <span
+                key={`${offer.deliveryId}:${offer.deliveryDate}`}
+                className={`${styles.delivery} ${
+                  offer.reminder ? styles.reminder : ""
+                }`}
+                title={`Levering van ${formatDate(offer.deliveryDate)}`}
               >
-                {starting ? (
-                  <LoaderCircle
-                    size={16}
-                    className={styles.spinner}
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <ArrowRight size={16} aria-hidden="true" />
-                )}
+                {offer.name}
+                <span className={styles.day}>
+                  {offer.reminder ? "gisteren" : "vandaag"}
+                </span>
+              </span>
+            ))}
+          </div>
 
-                {starting
-                  ? "Openen…"
-                  : offer.completed
-                    ? "Bekijken"
-                    : offer.runId
-                      ? "Verder controleren"
-                      : "Controle starten"}
-              </button>
-            </article>
-          );
-        })}
-      </div>
+          <p className={styles.categories}>{categoryNames.join(" · ")}</p>
+
+          {!allCompleted && completedOffers.length > 0 && (
+            <p className={styles.hint}>
+              {completedOffers.length} andere{" "}
+              {completedOffers.length === 1 ? "levering is" : "leveringen zijn"}{" "}
+              al afgewerkt.
+            </p>
+          )}
+
+          <button
+            type="button"
+            className={styles.button}
+            onClick={() => void startDeliveryCheck()}
+            disabled={starting || Boolean(error)}
+          >
+            {starting ? (
+              <LoaderCircle
+                size={17}
+                className={styles.spinner}
+                aria-hidden="true"
+              />
+            ) : (
+              <ArrowRight size={17} aria-hidden="true" />
+            )}
+
+            {starting
+              ? "Controle openen…"
+              : allCompleted
+                ? "Opnieuw controleren"
+                : "Deze controle starten"}
+          </button>
+        </>
+      )}
     </section>
   );
 }

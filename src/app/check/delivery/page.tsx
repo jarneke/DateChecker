@@ -20,12 +20,16 @@ type DeliveryItem = Item & {
 };
 
 type DeliverySnapshot = {
-  id: string;
+  runIds: string[];
   name: string;
   today: string;
-  deliveryDate: string;
+  deliveries: {
+    name: string;
+    deliveryDate: string;
+    completed: boolean;
+  }[];
   categoryNames: string[];
-  version: number;
+  version: string;
   completedAt: string | null;
   canRestart: boolean;
   completedCount: number;
@@ -48,7 +52,8 @@ type DeliveryAction = "answer" | "previous" | "finish" | "restart";
 function DeliveryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const runId = searchParams.get("runId");
+
+  const context = searchParams.get("runIds") ?? searchParams.get("runId") ?? "";
 
   const [snapshot, setSnapshot] = useState<DeliverySnapshot | null>(null);
   const [draft, setDraft] = useState<DateDraft | null>(null);
@@ -62,9 +67,9 @@ function DeliveryContent() {
   const mountedRef = useRef(false);
   const savingRef = useRef(false);
   const requestIdRef = useRef(0);
-  const contextRef = useRef(runId);
+  const contextRef = useRef(context);
 
-  contextRef.current = runId;
+  contextRef.current = context;
 
   const setLocalDraft = useCallback((value: DateDraft | null) => {
     draftRef.current = value;
@@ -103,14 +108,14 @@ function DeliveryContent() {
 
   const loadSnapshot = useCallback(
     async (force = false): Promise<boolean> => {
-      if (!runId || (!force && savingRef.current)) return false;
+      if (!context || (!force && savingRef.current)) return false;
 
       const requestId = ++requestIdRef.current;
-      const requestContext = runId;
+      const requestContext = context;
 
       try {
         const response = await fetch(
-          `/api/delivery-checks?runId=${encodeURIComponent(runId)}`,
+          `/api/delivery-checks?runIds=${encodeURIComponent(context)}`,
           { cache: "no-store" },
         );
 
@@ -155,7 +160,7 @@ function DeliveryContent() {
         return false;
       }
     },
-    [runId, applySnapshot],
+    [context, applySnapshot],
   );
 
   useEffect(() => {
@@ -167,9 +172,9 @@ function DeliveryContent() {
     setLocalDraft(null);
     setSaving(false);
     setError("");
-    setLoading(Boolean(runId));
+    setLoading(Boolean(context));
 
-    if (runId) {
+    if (context) {
       void loadSnapshot();
     }
 
@@ -190,7 +195,7 @@ function DeliveryContent() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [runId, loadSnapshot, setLocalDraft]);
+  }, [context, loadSnapshot, setLocalDraft]);
 
   async function performAction(
     action: DeliveryAction,
@@ -203,7 +208,7 @@ function DeliveryContent() {
     if (action === "answer" && !currentItem) return;
     if (action === "previous" && !currentSnapshot.previous) return;
 
-    const requestContext = runId;
+    const requestContext = context;
 
     savingRef.current = true;
     requestIdRef.current += 1;
@@ -216,7 +221,7 @@ function DeliveryContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
-          runId: currentSnapshot.id,
+          runIds: currentSnapshot.runIds,
           version: currentSnapshot.version,
           itemId: currentItem?.id,
           itemVersion: currentItem?.version,
@@ -266,7 +271,7 @@ function DeliveryContent() {
     }
   }
 
-  if (!runId) {
+  if (!context) {
     return <CheckStates state="invalid" />;
   }
 
@@ -286,6 +291,12 @@ function DeliveryContent() {
   const currentItem = snapshot.items[0] ?? null;
   const completed = snapshot.completedAt !== null;
   const interactionBlocked = saving || Boolean(error);
+
+  const deliveryDescription = snapshot.deliveries
+    .map(
+      (delivery) => `${delivery.name} (${formatDate(delivery.deliveryDate)})`,
+    )
+    .join(", ");
 
   const errorNotice = error ? (
     <div className={styles.checkError} role="alert">
@@ -315,14 +326,12 @@ function DeliveryContent() {
               : "Geen producten meer te controleren"}
           </h1>
 
-          <p className={styles.stateDescription}>
-            {snapshot.name} · levering van {formatDate(snapshot.deliveryDate)}
-          </p>
+          <p className={styles.stateDescription}>{deliveryDescription}</p>
 
           <p className={styles.stateDescription}>
             {completed
-              ? "Deze levering is afgevinkt. Er verschijnt morgen geen herinnering meer voor deze leveringsdatum."
-              : "Er zijn geen resterende producten zonder geregistreerde voorraad. Bevestig dit om de levering af te vinken."}
+              ? "Deze leveringen zijn afgevinkt. Voor deze leveringsdatums volgt geen herinnering meer."
+              : "Er zijn geen resterende producten zonder geregistreerde voorraad. Bevestig dit om de opgenomen leveringen af te vinken."}
           </p>
 
           {errorNotice}
@@ -423,13 +432,18 @@ function DeliveryContent() {
     }
   }
 
+  const returnContext = snapshot.runIds.join(",");
+
   return (
     <main className={styles.page}>
       <div className={styles.container}>
         <CheckHeader
           title={snapshot.name}
           type="stock"
-          categoryName={`Levering ${formatDate(snapshot.deliveryDate)}`}
+          categoryName={
+            `${snapshot.deliveries.length} leveringen · ` +
+            `${snapshot.categoryNames.length} categorieën`
+          }
           remainingCount={snapshot.items.length}
           completedCount={snapshot.completedCount}
           initialCount={snapshot.initialCount}
@@ -444,7 +458,7 @@ function DeliveryContent() {
             item={currentItem}
             type="stock"
             missedCheck={false}
-            editReturnUrl={`/check/delivery?runId=${encodeURIComponent(runId)}`}
+            editReturnUrl={`/check/delivery?runIds=${encodeURIComponent(returnContext)}`}
             swipeOffset={0}
           >
             {errorNotice}

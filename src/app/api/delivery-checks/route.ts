@@ -13,7 +13,7 @@ function isUuid(value: unknown): value is string {
     );
 }
 
-function isVersion(value: unknown): value is number {
+function isItemVersion(value: unknown): value is number {
     return (
         typeof value === "number" &&
         Number.isSafeInteger(value) &&
@@ -36,6 +36,19 @@ function isDate(value: unknown): value is string {
         Number.isFinite(date.getTime()) &&
         date.toISOString().slice(0, 10) === value
     );
+}
+
+function isRunIds(value: unknown): value is string[] {
+    return (
+        Array.isArray(value) &&
+        value.length > 0 &&
+        value.length <= 100 &&
+        value.every(isUuid)
+    );
+}
+
+function normalizeRunIds(values: string[]): string[] {
+    return [...new Set(values.map((value) => value.toLowerCase()))].sort();
 }
 
 function errorResponse(error: unknown) {
@@ -62,20 +75,31 @@ function errorResponse(error: unknown) {
 }
 
 export async function GET(request: NextRequest) {
-    const runId = request.nextUrl.searchParams.get("runId");
-
-    if (runId !== null && !isUuid(runId)) {
-        return NextResponse.json(
-            { error: "Ongeldige leveringscheck." },
-            { status: 400 },
-        );
-    }
+    const rawRunIds =
+        request.nextUrl.searchParams.get("runIds") ??
+        request.nextUrl.searchParams.get("runId");
 
     try {
-        if (runId) {
+        if (rawRunIds !== null) {
+            const requestedIds = rawRunIds.split(",");
+
+            if (!isRunIds(requestedIds)) {
+                return NextResponse.json(
+                    { error: "Ongeldige leveringscheck." },
+                    { status: 400 },
+                );
+            }
+
+            const runIds = normalizeRunIds(requestedIds);
+
             const rows = await sql`
-        SELECT public.datecheck_delivery_snapshot(
-          ${runId}::uuid
+        SELECT public.datecheck_delivery_group_snapshot(
+          ARRAY(
+            SELECT value::uuid
+            FROM jsonb_array_elements_text(
+              ${JSON.stringify(runIds)}::jsonb
+            )
+          )
         ) AS snapshot
       `;
 
@@ -128,17 +152,21 @@ export async function POST(request: NextRequest) {
 
     try {
         if (body.action === "start") {
-            if (!isUuid(body.deliveryId) || !isDate(body.deliveryDate)) {
+            if (
+                body.restartCompleted !== undefined &&
+                typeof body.restartCompleted !== "boolean"
+            ) {
                 return NextResponse.json(
-                    { error: "Ongeldige levering of leveringsdatum." },
+                    { error: "Ongeldige startactie." },
                     { status: 400 },
                 );
             }
 
+            const restartCompleted = body.restartCompleted === true;
+
             const rows = await sql`
-        SELECT public.datecheck_delivery_start(
-          ${body.deliveryId}::uuid,
-          ${body.deliveryDate}::date
+        SELECT public.datecheck_delivery_group_start(
+          ${restartCompleted}::boolean
         ) AS snapshot
       `;
 
@@ -153,8 +181,10 @@ export async function POST(request: NextRequest) {
         if (
             typeof body.action !== "string" ||
             !actions.includes(body.action) ||
-            !isUuid(body.runId) ||
-            !isVersion(body.version)
+            !isRunIds(body.runIds) ||
+            typeof body.version !== "string" ||
+            body.version.length === 0 ||
+            body.version.length > 10000
         ) {
             return NextResponse.json(
                 { error: "Ongeldige controlegegevens." },
@@ -166,7 +196,7 @@ export async function POST(request: NextRequest) {
             body.action === "answer" &&
             (
                 !isUuid(body.itemId) ||
-                !isVersion(body.itemVersion) ||
+                !isItemVersion(body.itemVersion) ||
                 (
                     body.expiryDate !== null &&
                     !isDate(body.expiryDate)
@@ -186,6 +216,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const runIds = normalizeRunIds(body.runIds);
+
         const itemId =
             body.action === "answer" ? (body.itemId as string) : null;
 
@@ -201,9 +233,14 @@ export async function POST(request: NextRequest) {
             body.action === "previous" ? (body.historyId as string) : null;
 
         const rows = await sql`
-      SELECT public.datecheck_delivery_action(
-        ${body.runId}::uuid,
-        ${body.version}::integer,
+      SELECT public.datecheck_delivery_group_action(
+        ARRAY(
+          SELECT value::uuid
+          FROM jsonb_array_elements_text(
+            ${JSON.stringify(runIds)}::jsonb
+          )
+        ),
+        ${body.version}::text,
         ${body.action}::text,
         ${itemId}::uuid,
         ${itemVersion}::integer,
