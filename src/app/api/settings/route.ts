@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
@@ -17,10 +16,10 @@ function isValidColor(color: string): boolean {
 export async function GET() {
     try {
         const settingsResult = await sql`
-            SELECT month_check_days_before_end
-            FROM settings
-            WHERE id = 1
-        `;
+      SELECT month_check_days_before_end
+      FROM settings
+      WHERE id = 1
+    `;
 
         if (settingsResult.length === 0) {
             return NextResponse.json(
@@ -30,17 +29,17 @@ export async function GET() {
         }
 
         const categoriesResult = await sql`
-            SELECT
-                c.id,
-                c.name,
-                c.color,
-                c.sort_order,
-                COUNT(i.id)::int AS item_count
-            FROM categories c
-            LEFT JOIN items i ON i.category_id = c.id
-            GROUP BY c.id, c.name, c.color, c.sort_order
-            ORDER BY c.sort_order ASC, c.name ASC
-        `;
+      SELECT
+        c.id,
+        c.name,
+        c.color,
+        c.sort_order,
+        COUNT(i.id)::int AS item_count
+      FROM categories c
+      LEFT JOIN items i ON i.category_id = c.id
+      GROUP BY c.id, c.name, c.color, c.sort_order
+      ORDER BY c.sort_order ASC, c.name ASC
+    `;
 
         return NextResponse.json({
             monthCheckDaysBeforeEnd:
@@ -60,7 +59,6 @@ export async function GET() {
 export async function PATCH(request: Request) {
     try {
         const body = await request.json();
-
         const daysBeforeEnd = Number(body.monthCheckDaysBeforeEnd);
 
         const categories: CategoryInput[] = Array.isArray(body.categories)
@@ -87,9 +85,10 @@ export async function PATCH(request: Request) {
 
         const cleanedCategories = categories.map((category) => ({
             ...category,
-            name: typeof category.name === "string"
-                ? category.name.trim()
-                : "",
+            name:
+                typeof category.name === "string"
+                    ? category.name.trim()
+                    : "",
             color: category.color ?? DEFAULT_CATEGORY_COLOR,
         }));
 
@@ -107,7 +106,8 @@ export async function PATCH(request: Request) {
         ) {
             return NextResponse.json(
                 {
-                    error: "Elke categorie moet een geldige hexkleur hebben (#RRGGBB).",
+                    error:
+                        "Elke categorie moet een geldige hexkleur hebben (#RRGGBB).",
                 },
                 { status: 400 },
             );
@@ -117,10 +117,7 @@ export async function PATCH(request: Request) {
             category.name.toLowerCase(),
         );
 
-        const hasDuplicateNames =
-            new Set(categoryNames).size !== categoryNames.length;
-
-        if (hasDuplicateNames) {
+        if (new Set(categoryNames).size !== categoryNames.length) {
             return NextResponse.json(
                 { error: "Elke categorie moet een unieke naam hebben." },
                 { status: 400 },
@@ -128,9 +125,9 @@ export async function PATCH(request: Request) {
         }
 
         const existingCategories = await sql`
-            SELECT id, name, color
-            FROM categories
-        `;
+      SELECT id, name, color
+      FROM categories
+    `;
 
         const submittedIds = cleanedCategories
             .filter((category) => category.id)
@@ -142,30 +139,56 @@ export async function PATCH(request: Request) {
 
         for (const category of categoriesToDelete) {
             const itemsResult = await sql`
-                SELECT COUNT(*)::int AS item_count
-                FROM items
-                WHERE category_id = ${category.id}
-            `;
+        SELECT COUNT(*)::int AS item_count
+        FROM items
+        WHERE category_id = ${category.id}
+      `;
 
             const itemCount = Number(itemsResult[0].item_count);
 
             if (itemCount > 0) {
                 return NextResponse.json(
                     {
-                        error: `Categorie "${category.name}" kan niet verwijderd worden omdat er nog ${itemCount} ${itemCount === 1 ? "item" : "items"} aan gekoppeld ${itemCount === 1 ? "is" : "zijn"}. Pas eerst de categorie van deze ${itemCount === 1 ? "item" : "items"} aan.`,
+                        error:
+                            `Categorie "${category.name}" kan niet verwijderd worden ` +
+                            `omdat er nog ${itemCount} producten aan gekoppeld zijn. ` +
+                            "Pas eerst de categorie van deze producten aan.",
                     },
                     { status: 400 },
+                );
+            }
+
+            const linkedDeliveries = await sql`
+        SELECT d.name
+        FROM public.datecheck_delivery_categories dc
+        INNER JOIN public.datecheck_deliveries d
+          ON d.id = dc.delivery_id
+        WHERE dc.category_id = ${category.id}
+          AND d.deleted_at IS NULL
+        ORDER BY d.name
+        LIMIT 1
+      `;
+
+            if (linkedDeliveries.length > 0) {
+                return NextResponse.json(
+                    {
+                        error:
+                            `Categorie "${category.name}" is gekoppeld aan levering ` +
+                            `"${linkedDeliveries[0].name}". ` +
+                            "Pas die levering eerst aan voordat je de categorie verwijdert.",
+                    },
+                    { status: 409 },
                 );
             }
         }
 
         await sql`
-            UPDATE settings
-            SET
-                month_check_days_before_end = ${daysBeforeEnd},
-                updated_at = NOW()
-            WHERE id = 1
-        `;
+      UPDATE settings
+      SET
+        month_check_days_before_end = ${daysBeforeEnd},
+        updated_at = NOW()
+      WHERE id = 1
+    `;
 
         for (let index = 0; index < cleanedCategories.length; index++) {
             const category = cleanedCategories[index];
@@ -173,64 +196,58 @@ export async function PATCH(request: Request) {
 
             if (category.id) {
                 const result = await sql`
-                    UPDATE categories
-                    SET
-                        name = ${category.name},
-                        color = ${category.color},
-                        sort_order = ${sortOrder}
-                    WHERE id = ${category.id}
-                    RETURNING id
-                `;
+          UPDATE categories
+          SET
+            name = ${category.name},
+            color = ${category.color},
+            sort_order = ${sortOrder}
+          WHERE id = ${category.id}
+          RETURNING id
+        `;
 
                 if (result.length === 0) {
                     return NextResponse.json(
-                        {
-                            error: `Categorie ${category.id} werd niet gevonden.`,
-                        },
+                        { error: `Categorie ${category.id} werd niet gevonden.` },
                         { status: 404 },
                     );
                 }
             } else {
                 await sql`
-                    INSERT INTO categories (
-                        name,
-                        color,
-                        sort_order
-                    )
-                    VALUES (
-                        ${category.name},
-                        ${category.color},
-                        ${sortOrder}
-                    )
-                `;
+          INSERT INTO categories (name, color, sort_order)
+          VALUES (
+            ${category.name},
+            ${category.color},
+            ${sortOrder}
+          )
+        `;
             }
         }
 
         for (const category of categoriesToDelete) {
             await sql`
-                DELETE FROM categories
-                WHERE id = ${category.id}
-            `;
+        DELETE FROM categories
+        WHERE id = ${category.id}
+      `;
         }
 
         const updatedCategories = await sql`
-            SELECT
-                c.id,
-                c.name,
-                c.color,
-                c.sort_order,
-                COUNT(i.id)::int AS item_count
-            FROM categories c
-            LEFT JOIN items i ON i.category_id = c.id
-            GROUP BY c.id, c.name, c.color, c.sort_order
-            ORDER BY c.sort_order ASC, c.name ASC
-        `;
+      SELECT
+        c.id,
+        c.name,
+        c.color,
+        c.sort_order,
+        COUNT(i.id)::int AS item_count
+      FROM categories c
+      LEFT JOIN items i ON i.category_id = c.id
+      GROUP BY c.id, c.name, c.color, c.sort_order
+      ORDER BY c.sort_order ASC, c.name ASC
+    `;
 
         const updatedSettings = await sql`
-            SELECT month_check_days_before_end
-            FROM settings
-            WHERE id = 1
-        `;
+      SELECT month_check_days_before_end
+      FROM settings
+      WHERE id = 1
+    `;
 
         return NextResponse.json({
             monthCheckDaysBeforeEnd:
@@ -239,6 +256,21 @@ export async function PATCH(request: Request) {
         });
     } catch (error) {
         console.error("Failed to update settings:", error);
+
+        if (
+            error &&
+            typeof error === "object" &&
+            "code" in error &&
+            error.code === "23503"
+        ) {
+            return NextResponse.json(
+                {
+                    error:
+                        "Een categorie wordt nog gebruikt door een product of levering. Vernieuw de instellingen.",
+                },
+                { status: 409 },
+            );
+        }
 
         return NextResponse.json(
             { error: "Instellingen konden niet opgeslagen worden." },

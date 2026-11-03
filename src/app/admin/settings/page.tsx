@@ -31,6 +31,8 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+
+import DeliveryPlanner from "./DeliveryPlanner";
 import styles from "./page.module.css";
 
 type Category = {
@@ -204,6 +206,7 @@ export default function SettingsPage() {
     }
 
     window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
@@ -287,6 +290,7 @@ export default function SettingsPage() {
         sort_order: index + 1,
       }));
     });
+
     markChanged();
   }
 
@@ -374,7 +378,7 @@ export default function SettingsPage() {
           <div>
             <h1 className={styles.title}>Instellingen</h1>
             <p className={styles.subtitle}>
-              Beheer je voorkeuren en categorieën.
+              Beheer je voorkeuren, categorieën en leveringsplanning.
             </p>
           </div>
         </header>
@@ -395,6 +399,7 @@ export default function SettingsPage() {
                 <div className={styles.sectionIcon}>
                   <CalendarDays size={19} />
                 </div>
+
                 <div>
                   <h2>Vooruit stickeren</h2>
                   <p>
@@ -452,6 +457,7 @@ export default function SettingsPage() {
                   <div className={styles.sectionIcon}>
                     <Palette size={19} />
                   </div>
+
                   <div>
                     <h2>Categorieën</h2>
                     <p>Volgorde en kleuren beheren</p>
@@ -578,6 +584,13 @@ export default function SettingsPage() {
                 </>
               )}
             </button>
+
+            <DeliveryPlanner
+              categories={categories.flatMap((category) =>
+                category.id ? [{ id: category.id, name: category.name }] : [],
+              )}
+              disabled={saving || hasUnsavedChanges}
+            />
           </>
         )}
       </div>
