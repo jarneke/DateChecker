@@ -3,7 +3,7 @@
 import { useState, type CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Package } from "lucide-react";
+import { CalendarDays, ChevronRight, Package, Pause } from "lucide-react";
 
 import styles from "./ProductCard.module.css";
 
@@ -13,6 +13,7 @@ export type StockItem = {
   photo_url: string | null;
   expiry_date: string | null;
   sticker_30_percent: boolean;
+  paused: boolean;
   category_id: string;
   category_name: string | null;
   category_color: string | null;
@@ -81,7 +82,10 @@ export default function ProductCard({ item }: ProductCardProps) {
   } as CSSProperties;
 
   return (
-    <Link href={`/stockchecker/${item.id}`} className={styles.card}>
+    <Link
+      href={`/stockchecker/${item.id}`}
+      className={`${styles.card} ${item.paused ? styles.pausedCard : ""}`}
+    >
       <ProductPhoto src={item.photo_url} name={item.name} />
 
       <div className={styles.info}>
@@ -91,6 +95,13 @@ export default function ProductCard({ item }: ProductCardProps) {
           <span className={styles.categoryPill} style={categoryStyle}>
             {item.category_name ?? "Geen categorie"}
           </span>
+
+          {item.paused && (
+            <span className={styles.pausedBadge}>
+              <Pause size={11} aria-hidden="true" />
+              Gepauzeerd
+            </span>
+          )}
         </div>
 
         <div className={styles.meta}>

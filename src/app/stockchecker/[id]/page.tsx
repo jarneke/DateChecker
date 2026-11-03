@@ -10,6 +10,7 @@ import {
   ChevronDown,
   LoaderCircle,
   Package,
+  Pause,
   Save,
   Tag,
   Trash2,
@@ -33,6 +34,7 @@ type Item = {
   category_id: string;
   expiry_date: string | null;
   sticker_30_percent: boolean;
+  paused: boolean;
   category_name: string | null;
 };
 
@@ -184,6 +186,7 @@ export default function ItemDetailPage() {
           category_id: item.category_id,
           expiry_date: item.expiry_date || null,
           sticker_30_percent: item.sticker_30_percent,
+          paused: item.paused,
         }),
       });
 
@@ -450,6 +453,48 @@ export default function ItemDetailPage() {
               onChange={(event) =>
                 updateItem({
                   sticker_30_percent: event.target.checked,
+                })
+              }
+              disabled={saving}
+            />
+
+            <span className={styles.toggleSwitch} aria-hidden="true" />
+          </label>
+        </section>
+
+        <section className={styles.card}>
+          <div className={styles.sectionHeader}>
+            <div className={styles.sectionIcon}>
+              <Pause size={22} />
+            </div>
+
+            <div>
+              <h2>Product pauzeren</h2>
+              <p>
+                Bewaar het product in Voorraad en sla de controles tijdelijk
+                over.
+              </p>
+            </div>
+          </div>
+
+          <label className={styles.toggleRow}>
+            <span className={styles.toggleText}>
+              <strong>Controles pauzeren</strong>
+
+              <span>
+                {item.paused
+                  ? "Na opslaan verschijnt dit product in geen enkele controleronde. Schakel dit uit om het weer mee te controleren."
+                  : "Schakel dit in om het product tijdelijk uit alle controlerondes te halen. Sla daarna je wijzigingen op."}
+              </span>
+            </span>
+
+            <input
+              type="checkbox"
+              className={styles.toggleInput}
+              checked={item.paused}
+              onChange={(event) =>
+                updateItem({
+                  paused: event.target.checked,
                 })
               }
               disabled={saving}
