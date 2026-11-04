@@ -165,7 +165,7 @@ const QUESTIONS = [
   {
     question: "Waarom staat een product niet in een controle?",
     answer:
-      "Controleer de opgeslagen datum, de stickersoort en de instelling Controles pauzeren. Een product verschijnt alleen wanneer zijn actuele gegevens bij die controle passen. Een al beantwoord product kan voor de huidige ronde ook al afgewerkt zijn.",
+      "Controleer de opgeslagen datum, de stickersoort en de instelling Controles pauzeren. Een product verschijnt alleen wanneer zijn actuele gegevens bij die controle passen. Een al beantwoord product kan voor de huidige ronde ook al afgewerkt zijn. Controleer bij een leveringscheck ook je gekozen leveringen en categorieën.",
   },
   {
     question: "Hoe kan een product gestickerd zijn en toch geen datum hebben?",
@@ -195,12 +195,12 @@ const QUESTIONS = [
   {
     question: "Kan ik op een ander toestel verderwerken?",
     answer:
-      "Bevestigde controleantwoorden worden centraal opgeslagen. Open de controle op het andere toestel en laat de gegevens laden. Een datum die je alleen hebt geselecteerd maar nog niet opgeslagen hebt, is nog niet verwerkt.",
+      "Bevestigde controleantwoorden worden centraal opgeslagen. Open de controle op het andere toestel en laat de gegevens laden. Kies bij een leveringscheck de betreffende leveringen en categorieën opnieuw. Een datum die je alleen hebt geselecteerd maar nog niet opgeslagen hebt, is nog niet verwerkt.",
   },
   {
     question: "Waarom kan ik een vorig antwoord niet herstellen?",
     answer:
-      "Een herstel kan geweigerd worden als het product of de controle ondertussen gewijzigd is. Zo overschrijft een oud scherm geen nieuwere gegevens. Herlaad de controle en controleer de huidige toestand. Gebruik Product bewerken voor een bewuste correctie.",
+      "Een herstel kan geweigerd worden als het product of de controle ondertussen gewijzigd is. Zo overschrijft een oud scherm geen nieuwere gegevens. Bij een leveringscheck moet het vorige antwoord ook binnen de huidige categorieselectie vallen. Herlaad de controle en controleer de huidige toestand. Gebruik Product bewerken voor een bewuste correctie.",
   },
   {
     question: "Waarom zie ik geen leveringsherinnering meer?",
@@ -210,7 +210,13 @@ const QUESTIONS = [
   {
     question: "De levering kwam pas na mijn eerste controle aan. Wat nu?",
     answer:
-      "Open Stockcheck en gebruik Opnieuw controleren bij de afgeronde leveringschecks. Zo kun je de producten zonder geregistreerde voorraad opnieuw nakijken. Producten die al een datum hebben, corrigeer je rechtstreeks in Voorraad wanneer de nieuwe levering een vroegere datum heeft.",
+      "Open de leveringsselectie via Stockcheck en kies Opnieuw controleren. Vink de afgeronde leveringen en de gewenste categorieën aan. Dit start een nieuwe ronde voor de gekozen leveringen; eerdere antwoorden blijven in de historie. Producten die al een datum hebben, corrigeer je rechtstreeks in Voorraad wanneer de nieuwe levering een vroegere datum heeft.",
+  },
+  {
+    question:
+      "Is de hele levering klaar als mijn gekozen categorieën klaar zijn?",
+    answer:
+      "Alleen wanneer er voor die levering geen andere producten meer openstaan. Niet-gekozen categorieën met resterende producten blijven beschikbaar. Kies Andere categorieën kiezen om die later te controleren.",
   },
   {
     question: "Waarom staat mijn nieuwe product nog niet in Voorraad?",
@@ -254,15 +260,12 @@ export default function GuidePage() {
           <div className={styles.headerIcon}>
             <BookOpen size={27} aria-hidden="true" />
           </div>
-
           <span className={styles.eyebrow}>HANDLEIDING</span>
           <h1>Hoe werkt DateCheck?</h1>
-
           <p>
             Houd de vroegste voorraaddatum bij, registreer gestickerde
             exemplaren en werk de passende controles af.
           </p>
-
           <p className={styles.small}>
             Voer de rondes uit op de momenten die in de winkel afgesproken zijn.
           </p>
@@ -297,8 +300,8 @@ export default function GuidePage() {
               <span className={styles.stepNumber}>02</span>
               <strong>Na een levering</strong>
               <span>
-                Start de gezamenlijke leveringscheck. Werk ook vroegere datums
-                bij van producten die al een datum hadden.
+                Kies de leveringen en categorieën die je wilt nakijken. Werk ook
+                vroegere datums bij van producten die al een datum hadden.
               </span>
             </a>
 
@@ -343,7 +346,6 @@ export default function GuidePage() {
                 voorraad die na vandaag vervalt.
               </dd>
             </div>
-
             <div>
               <dt>Stickersoort</dt>
               <dd>
@@ -351,7 +353,6 @@ export default function GuidePage() {
                 gebruikt 50%-stickers.
               </dd>
             </div>
-
             <div>
               <dt>Gestickerd</dt>
               <dd>
@@ -360,7 +361,6 @@ export default function GuidePage() {
                 overige voorraad.
               </dd>
             </div>
-
             <div>
               <dt>Geen datum</dt>
               <dd>
@@ -394,7 +394,6 @@ export default function GuidePage() {
 
         <section id="controles" className={styles.section}>
           <h2>De controles, stap voor stap</h2>
-
           <p>
             De actuele productgegevens bepalen welke producten je te zien
             krijgt. Bevestigde antwoorden worden bewaard. Een datum wordt
@@ -418,7 +417,6 @@ export default function GuidePage() {
                 </span>
 
                 <h3>{guide.title}</h3>
-
                 <p className={styles.selection}>
                   <strong>Welke producten?</strong> {guide.selection}
                 </p>
@@ -460,33 +458,46 @@ export default function GuidePage() {
             volgende dag aan als de controle nog niet afgerond is.
           </p>
 
+          <p>
+            Op de startpagina verschijnt bij openstaande leveringen een knop
+            Leveringscheck starten met een belletje. De leveringsnamen staan op
+            het keuzescherm, zodat de startpagina overzichtelijk blijft. Je kunt
+            de selectie ook via Stockcheck openen.
+          </p>
+
           <Illustration
             src="/images/guide/deliveries.png"
             alt="Twee leveringsdozen met deels dezelfde producten en één gezamenlijke controlelijst op de voorgrond."
-            caption="Meerdere leveringen worden samengebracht in één ronde. Overlappende categorieën en producten worden maar één keer gecontroleerd."
+            caption="Kies één of meerdere leveringen en bepaal welke gekoppelde categorieën je controleert. Overlappende producten krijg je één keer in de gezamenlijke ronde."
           />
 
           <ol className={styles.steps}>
             <li>
-              Bekijk de openstaande leveringen op de startpagina of bij
-              Stockcheck. Gisteren duidt een openstaande herinnering aan.
+              Kies Leveringscheck starten. Je opent eerst het keuzescherm; er
+              begint nog geen controle.
             </li>
             <li>
-              Kies Leveringscheck starten of Deze controle starten. De app
-              combineert de openstaande leveringen.
+              Vink de openstaande leveringen aan die je nu wilt nakijken. Een
+              herinnering duidt een openstaande levering van gisteren aan.
             </li>
             <li>
-              Controleer de producten zonder opgeslagen datum binnen de
-              gekoppelde categorieën.
+              De gekoppelde categorieën worden voorgeselecteerd. Vink
+              categorieën uit die je later wilt doen. Kies voor iedere
+              aangevinkte levering minstens één categorie.
             </li>
             <li>
-              Kies Wel voorraad en sla de vroegste datum op, of kies Geen
-              voorraad wanneer het product nog niet aanwezig is.
+              Kies Controle starten. De app combineert de geselecteerde
+              categorieën in één ronde en toont ieder product maar één keer.
             </li>
             <li>
-              Na het laatste antwoord worden de betrokken leveringen afgewerkt.
-              Zijn er vanaf het begin geen producten te controleren? Bevestig
-              dan met Leveringscheck afronden.
+              Controleer de producten zonder opgeslagen datum. Kies Wel voorraad
+              en sla de vroegste datum op, of kies Geen voorraad wanneer het
+              product nog niet aanwezig is.
+            </li>
+            <li>
+              Wanneer jouw selectie klaar is, zie je het eindscherm. Kies indien
+              gevraagd Selectie afronden. Categorieën met nog openstaande
+              producten blijven beschikbaar.
             </li>
           </ol>
 
@@ -499,34 +510,64 @@ export default function GuidePage() {
             </p>
           </aside>
 
-          <h3>Onderbreken, hervatten en opnieuw controleren</h3>
-
+          <h3>Een levering in delen controleren</h3>
           <p>
-            Je bevestigde antwoorden blijven bewaard. Open de leveringscheck
-            opnieuw om verder te werken. De afronding hoort bij de
-            oorspronkelijke leveringsdatum: een maandaglevering die je dinsdag
-            afwerkt, blijft de controle van maandag.
+            Je hoeft niet alle categorieën tegelijk te doen. Controleer
+            bijvoorbeeld eerst de gekoelde producten en kies later de overige
+            categorieën. Bevestigde antwoorden blijven bewaard.
+          </p>
+          <p>
+            Gekozen categorieën gecontroleerd betekent dat jouw selectie klaar
+            is. Een levering is pas volledig afgerond wanneer er voor die
+            levering geen producten meer openstaan en de afronding verwerkt is.
+            Een categorie zonder te controleren producten voegt geen vragen toe.
+          </p>
+          <p>
+            Een antwoord telt alleen mee voor de geselecteerde leveringen
+            waarvan de productcategorie deel uitmaakt. Een niet-geselecteerde
+            levering wordt door jouw ronde niet automatisch afgevinkt.
           </p>
 
+          <h3>Onderbreken en hervatten</h3>
           <p>
-            Komt een levering pas na een eerdere controle aan? Open Stockcheck
-            en gebruik Opnieuw controleren bij de afgeronde leveringschecks.
-            Eerdere antwoorden worden daarbij niet uit de historie verwijderd.
+            Je bevestigde antwoorden blijven bewaard. Open het keuzescherm
+            opnieuw en selecteer de betreffende leveringen en categorieën. De
+            actuele productgegevens bepalen welke producten nog aan de beurt
+            zijn.
+          </p>
+          <p>
+            Een maandaglevering die je dinsdag afwerkt, blijft de controle van
+            maandag. De suggestie verschijnt op de leveringsdag en, zolang de
+            levering openstaat, op de dag erna.
+          </p>
+          <p>
+            De gekoppelde categorieën van de levering worden bij de eerste start
+            vastgelegd. Binnen die categorieën kies je wat je nu wilt
+            controleren. Een latere wijziging aan de planning verandert een
+            reeds gestarte levering niet.
           </p>
 
+          <h3>Opnieuw controleren</h3>
           <p>
-            De categorieën van een leveringscheck worden bij de start
-            vastgelegd. De productgegevens binnen die categorieën blijven
-            actueel. Een latere wijziging aan de planning wijzigt een reeds
-            gestarte ronde niet.
+            Komt een levering pas na een eerdere controle aan? Open de
+            leveringsselectie via Stockcheck en kies Opnieuw controleren. Vink
+            de afgeronde leveringen en de gewenste categorieën aan en start de
+            controle.
+          </p>
+          <p>
+            Dit opent een nieuwe ronde voor de geselecteerde leveringen. De
+            voortgang van hun vorige ronde telt niet meer als afgewerkt in de
+            nieuwe ronde; de eerdere antwoorden blijven wel in de historie
+            staan. Alleen producten zonder opgeslagen datum worden opnieuw
+            gevraagd.
           </p>
 
           <Link
-            href="/check?type=stock"
+            href="/check/delivery/select"
             className={styles.actionLink}
             prefetch={false}
           >
-            Naar Stockcheck
+            Leveringen en categorieën kiezen
             <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </section>
@@ -688,7 +729,6 @@ export default function GuidePage() {
             versleepicoon om de winkelroute te ordenen en kies herkenbare
             kleuren. Sla je wijzigingen op.
           </p>
-
           <p>
             Een categorie met producten kan niet verwijderd worden. Een
             categorie die aan een levering hangt, moet je eerst uit die levering
@@ -712,6 +752,11 @@ export default function GuidePage() {
             Controleer de planning wanneer leveringsdagen of assortimentsgroepen
             veranderen. Zet een levering inactief als ze tijdelijk niet meer
             voorgesteld moet worden.
+          </p>
+          <p>
+            De planning bepaalt welke categorieën bij een levering horen. Bij
+            het starten van een controle kies je welke daarvan je op dat moment
+            wilt nakijken.
           </p>
 
           <h3>Een korte onderhoudsronde</h3>
@@ -754,7 +799,6 @@ export default function GuidePage() {
                     aria-hidden="true"
                   />
                 </summary>
-
                 <p>{item.answer}</p>
               </details>
             ))}

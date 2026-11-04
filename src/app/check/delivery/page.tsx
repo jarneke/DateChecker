@@ -28,9 +28,11 @@ type DeliverySnapshot = {
     deliveryDate: string;
     completed: boolean;
   }[];
+  categoryIds: string[];
   categoryNames: string[];
   version: string;
   completedAt: string | null;
+  selectionCompleted: boolean;
   canRestart: boolean;
   completedCount: number;
   initialCount: number;
@@ -47,13 +49,21 @@ type DateDraft = {
   value: string;
 };
 
-type DeliveryAction = "answer" | "previous" | "finish" | "restart";
+type DeliveryAction = "answer" | "previous" | "finish";
 
 function DeliveryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const context = searchParams.get("runIds") ?? searchParams.get("runId") ?? "";
+  const runIds = searchParams.get("runIds") ?? searchParams.get("runId") ?? "";
+  const categoryIds = searchParams.get("categoryIds");
+
+  const contextParams = new URLSearchParams();
+
+  if (runIds) contextParams.set("runIds", runIds);
+  if (categoryIds !== null) contextParams.set("categoryIds", categoryIds);
+
+  const context = runIds ? contextParams.toString() : "";
 
   const [snapshot, setSnapshot] = useState<DeliverySnapshot | null>(null);
   const [draft, setDraft] = useState<DateDraft | null>(null);
@@ -114,10 +124,9 @@ function DeliveryContent() {
       const requestContext = context;
 
       try {
-        const response = await fetch(
-          `/api/delivery-checks?runIds=${encodeURIComponent(context)}`,
-          { cache: "no-store" },
-        );
+        const response = await fetch(`/api/delivery-selection?${context}`, {
+          cache: "no-store",
+        });
 
         const data = await response.json();
 
@@ -127,7 +136,11 @@ function DeliveryContent() {
           );
         }
 
-        if (!data.snapshot || !Array.isArray(data.snapshot.items)) {
+        if (
+          !data.snapshot ||
+          !Array.isArray(data.snapshot.items) ||
+          !Array.isArray(data.snapshot.categoryIds)
+        ) {
           throw new Error("Ongeldige controlegegevens ontvangen.");
         }
 
@@ -168,20 +181,17 @@ function DeliveryContent() {
     savingRef.current = false;
     snapshotRef.current = null;
     activeItemRef.current = null;
+
     setSnapshot(null);
     setLocalDraft(null);
     setSaving(false);
     setError("");
     setLoading(Boolean(context));
 
-    if (context) {
-      void loadSnapshot();
-    }
+    if (context) void loadSnapshot();
 
     const refresh = () => {
-      if (document.visibilityState === "visible") {
-        void loadSnapshot();
-      }
+      if (document.visibilityState === "visible") void loadSnapshot();
     };
 
     const interval = window.setInterval(refresh, 5000);
@@ -216,12 +226,13 @@ function DeliveryContent() {
     setError("");
 
     try {
-      const response = await fetch("/api/delivery-checks", {
+      const response = await fetch("/api/delivery-selection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
           runIds: currentSnapshot.runIds,
+          categoryIds: currentSnapshot.categoryIds,
           version: currentSnapshot.version,
           itemId: currentItem?.id,
           itemVersion: currentItem?.version,
@@ -236,6 +247,14 @@ function DeliveryContent() {
         throw new Error(data?.error || "De stap kon niet opgeslagen worden.");
       }
 
+      if (
+        !data.snapshot ||
+        !Array.isArray(data.snapshot.items) ||
+        !Array.isArray(data.snapshot.categoryIds)
+      ) {
+        throw new Error("Ongeldige controlegegevens ontvangen.");
+      }
+
       if (!mountedRef.current || requestContext !== contextRef.current) {
         return;
       }
@@ -247,6 +266,14 @@ function DeliveryContent() {
 
       setLocalDraft(null);
       applySnapshot(data.snapshot);
+
+      if (
+        action === "finish" &&
+        data.snapshot.completedAt === null &&
+        data.snapshot.selectionCompleted
+      ) {
+        router.push("/check/delivery/select");
+      }
     } catch (caughtError) {
       if (mountedRef.current && requestContext === contextRef.current) {
         const message =
@@ -263,21 +290,13 @@ function DeliveryContent() {
     } finally {
       if (requestContext === contextRef.current) {
         savingRef.current = false;
-
-        if (mountedRef.current) {
-          setSaving(false);
-        }
+        if (mountedRef.current) setSaving(false);
       }
     }
   }
 
-  if (!context) {
-    return <CheckStates state="invalid" />;
-  }
-
-  if (loading) {
-    return <CheckStates state="loading" />;
-  }
+  if (!context) return <CheckStates state="invalid" />;
+  if (loading) return <CheckStates state="loading" />;
 
   if (!snapshot) {
     return (
@@ -323,15 +342,19 @@ function DeliveryContent() {
           <h1 className={styles.stateTitle}>
             {completed
               ? "Leveringscheck afgerond"
-              : "Geen producten meer te controleren"}
+              : "Gekozen categorieën gecontroleerd"}
           </h1>
 
           <p className={styles.stateDescription}>{deliveryDescription}</p>
 
           <p className={styles.stateDescription}>
+            {snapshot.categoryNames.join(" · ")}
+          </p>
+
+          <p className={styles.stateDescription}>
             {completed
-              ? "Deze leveringen zijn afgevinkt. Voor deze leveringsdatums volgt geen herinnering meer."
-              : "Er zijn geen resterende producten zonder geregistreerde voorraad. Bevestig dit om de opgenomen leveringen af te vinken."}
+              ? "Deze leveringen zijn afgewerkt. Voor deze leveringsdatums volgt geen herinnering meer."
+              : "Er zijn geen resterende producten binnen jouw selectie. Rond de selectie af. Categorieën met nog openstaande producten blijven beschikbaar in de leveringscheck."}
           </p>
 
           {errorNotice}
@@ -344,7 +367,7 @@ function DeliveryContent() {
                 onClick={() => void performAction("finish")}
                 disabled={interactionBlocked}
               >
-                {saving ? "Opslaan…" : "Leveringscheck afronden"}
+                {saving ? "Opslaan…" : "Selectie afronden"}
               </button>
             )}
 
@@ -359,16 +382,14 @@ function DeliveryContent() {
               </button>
             )}
 
-            {completed && snapshot.canRestart && (
-              <button
-                type="button"
-                className={styles.stateSecondaryButton}
-                onClick={() => void performAction("restart")}
-                disabled={interactionBlocked}
-              >
-                Opnieuw controleren
-              </button>
-            )}
+            <Link
+              href="/check/delivery/select"
+              className={styles.stateSecondaryButton}
+            >
+              {completed
+                ? "Leveringschecks bekijken"
+                : "Andere categorieën kiezen"}
+            </Link>
 
             <Link
               href="/check?type=stock"
@@ -416,7 +437,16 @@ function DeliveryContent() {
   }
 
   function saveDate() {
-    if (!nextExpiryDate || nextExpiryDate < snapshot!.today) return;
+    const currentSnapshot = snapshotRef.current;
+
+    if (
+      !currentSnapshot ||
+      !nextExpiryDate ||
+      nextExpiryDate < currentSnapshot.today
+    ) {
+      return;
+    }
+
     void performAction("answer", nextExpiryDate);
   }
 
@@ -432,7 +462,13 @@ function DeliveryContent() {
     }
   }
 
-  const returnContext = snapshot.runIds.join(",");
+  const returnParams = new URLSearchParams({
+    runIds: snapshot.runIds.join(","),
+    categoryIds: snapshot.categoryIds.join(","),
+  });
+
+  const deliveryCount = snapshot.deliveries.length;
+  const categoryCount = snapshot.categoryNames.length;
 
   return (
     <main className={styles.page}>
@@ -441,15 +477,15 @@ function DeliveryContent() {
           title={snapshot.name}
           type="stock"
           categoryName={
-            `${snapshot.deliveries.length} leveringen · ` +
-            `${snapshot.categoryNames.length} categorieën`
+            `${deliveryCount} ${deliveryCount === 1 ? "levering" : "leveringen"} · ` +
+            `${categoryCount} ${categoryCount === 1 ? "categorie" : "categorieën"}`
           }
           remainingCount={snapshot.items.length}
           completedCount={snapshot.completedCount}
           initialCount={snapshot.initialCount}
           progressPercent={progressPercent}
           saving={saving}
-          onChangeCategory={() => router.push("/check?type=stock")}
+          onChangeCategory={() => router.push("/check/delivery/select")}
         />
 
         <div className={styles.checkBody}>
@@ -458,7 +494,7 @@ function DeliveryContent() {
             item={currentItem}
             type="stock"
             missedCheck={false}
-            editReturnUrl={`/check/delivery?runIds=${encodeURIComponent(returnContext)}`}
+            editReturnUrl={`/check/delivery?${returnParams.toString()}`}
             swipeOffset={0}
           >
             {errorNotice}

@@ -1,21 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
+  Bell,
   BookOpen,
   CalendarDays,
   ClipboardCheck,
-  LoaderCircle,
   Moon,
   Package,
   PackageCheck,
   Settings2,
   Tag,
   TriangleAlert,
-  Truck,
 } from "lucide-react";
 
 import CheckTile from "@/components/home/CheckTile";
@@ -32,23 +29,10 @@ type HomeData = {
   monthCheckDaysBeforeEnd: number;
 };
 
-type DeliveryOffer = {
-  deliveryId: string;
-  deliveryDate: string;
-  name: string;
-  reminder: boolean;
-  completed: boolean;
-  categoryNames: string[];
-};
-
 type DeliveryResponse = {
-  offers: DeliveryOffer[];
-};
-
-type DeliveryStartResponse = {
-  snapshot: {
-    runIds: string[];
-  };
+  offers: {
+    completed: boolean;
+  }[];
 };
 
 function formatToday(value: string) {
@@ -71,25 +55,45 @@ async function readResponse<T>(response: Response): Promise<T> {
 }
 
 export default function HomePage() {
-  const router = useRouter();
-
   const [data, setData] = useState<HomeData | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [greeting, setGreeting] = useState("Welkom");
-
-  const [deliveryOffers, setDeliveryOffers] = useState<DeliveryOffer[] | null>(
-    null,
-  );
-  const [deliveryError, setDeliveryError] = useState("");
-  const [startingDelivery, setStartingDelivery] = useState(false);
-
-  const startingDeliveryRef = useRef(false);
+  const [todayLabel, setTodayLabel] = useState("Vandaag");
+  const [hasPendingDelivery, setHasPendingDelivery] = useState(false);
+  const [deliveryError, setDeliveryError] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
     let busy = false;
 
+    function updateClock() {
+      const now = new Date();
+
+      const hour = Number(
+        new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Europe/Brussels",
+          hour: "numeric",
+          hourCycle: "h23",
+        }).format(now),
+      );
+
+      setGreeting(
+        hour < 12 ? "Goedemorgen" : hour < 18 ? "Goedemiddag" : "Goedenavond",
+      );
+
+      setTodayLabel(
+        new Intl.DateTimeFormat("nl-BE", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          timeZone: "Europe/Brussels",
+        }).format(now),
+      );
+    }
+
     async function refresh() {
+      updateClock();
+
       if (busy || controller.signal.aborted) return;
       busy = true;
 
@@ -115,18 +119,6 @@ export default function HomePage() {
           state,
           monthCheckDaysBeforeEnd: settings.monthCheckDaysBeforeEnd,
         });
-
-        const hour = Number(
-          new Intl.DateTimeFormat("en-GB", {
-            timeZone: "Europe/Brussels",
-            hour: "numeric",
-            hourCycle: "h23",
-          }).format(new Date()),
-        );
-
-        setGreeting(
-          hour < 12 ? "Goedemorgen" : hour < 18 ? "Goedemiddag" : "Goedenavond",
-        );
         setLoadError(false);
       } catch (error) {
         if (!controller.signal.aborted) {
@@ -139,9 +131,7 @@ export default function HomePage() {
     }
 
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") {
-        void refresh();
-      }
+      if (document.visibilityState === "visible") void refresh();
     };
 
     void refresh();
@@ -163,10 +153,7 @@ export default function HomePage() {
     let busy = false;
 
     async function refreshDeliveries() {
-      if (busy || controller.signal.aborted || startingDeliveryRef.current) {
-        return;
-      }
-
+      if (busy || controller.signal.aborted) return;
       busy = true;
 
       try {
@@ -177,17 +164,20 @@ export default function HomePage() {
 
         const result = await readResponse<DeliveryResponse>(response);
 
-        if (!controller.signal.aborted && !startingDeliveryRef.current) {
-          setDeliveryOffers(result.offers);
-          setDeliveryError("");
+        if (!Array.isArray(result.offers)) {
+          throw new Error("Ongeldige leveringsgegevens ontvangen.");
+        }
+
+        if (!controller.signal.aborted) {
+          setHasPendingDelivery(
+            result.offers.some((offer) => !offer.completed),
+          );
+          setDeliveryError(false);
         }
       } catch (error) {
-        if (!controller.signal.aborted && !startingDeliveryRef.current) {
-          setDeliveryError(
-            error instanceof Error
-              ? error.message
-              : "De leveringen konden niet geladen worden.",
-          );
+        if (!controller.signal.aborted) {
+          console.error(error);
+          setDeliveryError(true);
         }
       } finally {
         busy = false;
@@ -195,9 +185,7 @@ export default function HomePage() {
     }
 
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") {
-        void refreshDeliveries();
-      }
+      if (document.visibilityState === "visible") void refreshDeliveries();
     };
 
     void refreshDeliveries();
@@ -216,56 +204,6 @@ export default function HomePage() {
 
   const state = data?.state;
   const statusAvailable = data !== null && !loadError;
-
-  const pendingDeliveries =
-    deliveryOffers?.filter((offer) => !offer.completed) ?? [];
-
-  const deliveriesCompleted =
-    deliveryOffers !== null &&
-    deliveryOffers.length > 0 &&
-    pendingDeliveries.length === 0;
-
-  async function startDeliveryCheck() {
-    if (
-      startingDeliveryRef.current ||
-      pendingDeliveries.length === 0 ||
-      deliveryError
-    ) {
-      return;
-    }
-
-    startingDeliveryRef.current = true;
-    setStartingDelivery(true);
-    setDeliveryError("");
-
-    try {
-      const response = await fetch("/api/delivery-checks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "start",
-          restartCompleted: false,
-        }),
-      });
-
-      const result = await readResponse<DeliveryStartResponse>(response);
-
-      router.push(
-        `/check/delivery?runIds=${encodeURIComponent(
-          result.snapshot.runIds.join(","),
-        )}`,
-      );
-    } catch (error) {
-      setDeliveryError(
-        error instanceof Error
-          ? error.message
-          : "De leveringscheck kon niet gestart worden.",
-      );
-    } finally {
-      startingDeliveryRef.current = false;
-      setStartingDelivery(false);
-    }
-  }
 
   function count(type: CheckType) {
     return state?.remainingCounts?.[type] ?? 0;
@@ -317,82 +255,49 @@ export default function HomePage() {
 
             <div className={styles.dateLabel}>
               <CalendarDays size={13} aria-hidden="true" />
-              <span>{state ? formatToday(state.date) : "Vandaag"}</span>
+              <span>
+                {state && !loadError ? formatToday(state.date) : todayLabel}
+              </span>
             </div>
           </div>
 
-          <div className={styles.heroDeliveries}>
-            <div className={styles.deliveryHeading}>
-              <Truck size={17} aria-hidden="true" />
-              <h2>Leveringen nakijken</h2>
-            </div>
-
-            {deliveryError ? (
-              <p className={styles.deliveryError} role="alert">
-                {deliveryError} We proberen automatisch opnieuw.
-              </p>
-            ) : deliveryOffers === null ? (
-              <p className={styles.heroStatus} role="status">
-                Leveringen laden…
-              </p>
-            ) : pendingDeliveries.length > 0 ? (
-              <div
-                className={styles.deliveryList}
-                aria-label="Openstaande leveringen"
-              >
-                {pendingDeliveries.map((delivery) => (
-                  <span
-                    key={`${delivery.deliveryId}:${delivery.deliveryDate}`}
-                    className={`${styles.deliveryBadge} ${
-                      delivery.reminder ? styles.deliveryReminder : ""
-                    }`}
-                    title={`Levering van ${formatToday(delivery.deliveryDate)}`}
-                  >
-                    {delivery.name}
-                    <span>{delivery.reminder ? "gisteren" : "vandaag"}</span>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.heroStatus}>
-                {deliveriesCompleted
-                  ? "De geplande leveringschecks zijn afgewerkt."
-                  : "Geen openstaande leveringschecks."}
-              </p>
-            )}
-
-            {pendingDeliveries.length > 0 && (
-              <button
-                type="button"
-                className={styles.deliveryButton}
-                onClick={() => void startDeliveryCheck()}
-                disabled={startingDelivery || Boolean(deliveryError)}
-              >
-                {startingDelivery ? (
-                  <LoaderCircle
-                    size={16}
-                    className={styles.spinner}
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <ArrowRight size={16} aria-hidden="true" />
-                )}
-
-                {startingDelivery
-                  ? "Controle openen…"
-                  : "Leveringscheck starten"}
-              </button>
-            )}
-          </div>
-
-          <div className={styles.overviewFooter}>
-            <span>Stappenplannen en uitleg</span>
-
+          <nav
+            className={styles.quickLinks}
+            aria-label="Uitleg en leveringscheck"
+            style={{
+              gridTemplateColumns:
+                hasPendingDelivery || deliveryError
+                  ? "repeat(2, minmax(0, 1fr))"
+                  : "minmax(0, 1fr)",
+            }}
+          >
             <Link href="/handleiding">
-              <BookOpen size={15} aria-hidden="true" />
-              Hoe werkt DateCheck?
+              <BookOpen size={17} aria-hidden="true" />
+              <span>Hoe werkt DateCheck?</span>
             </Link>
-          </div>
+
+            {(hasPendingDelivery || deliveryError) && (
+              <Link href="/check/delivery/select" prefetch={false}>
+                <Bell
+                  size={17}
+                  aria-hidden="true"
+                  style={{ color: "var(--dc-accent)", flexShrink: 0 }}
+                />
+                <span>
+                  {deliveryError
+                    ? "Leveringen bekijken"
+                    : "Leveringscheck starten"}
+                </span>
+              </Link>
+            )}
+          </nav>
+
+          {deliveryError && (
+            <p className={styles.deliveryError} role="alert">
+              De leveringsstatus kon niet geladen worden. We proberen
+              automatisch opnieuw.
+            </p>
+          )}
         </section>
 
         <section id="controles" className={styles.section}>
