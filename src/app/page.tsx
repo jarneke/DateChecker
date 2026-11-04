@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowRight,
+  BookOpen,
   CalendarDays,
   ClipboardCheck,
   LoaderCircle,
@@ -382,6 +383,15 @@ export default function HomePage() {
                   : "Leveringscheck starten"}
               </button>
             )}
+          </div>
+
+          <div className={styles.overviewFooter}>
+            <span>Stappenplannen en uitleg</span>
+
+            <Link href="/handleiding">
+              <BookOpen size={15} aria-hidden="true" />
+              Hoe werkt DateCheck?
+            </Link>
           </div>
         </section>
 
