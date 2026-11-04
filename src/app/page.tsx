@@ -16,9 +16,11 @@ import {
 } from "lucide-react";
 
 import CheckTile from "@/components/home/CheckTile";
+import HomeHeroGlass from "./HomeHeroGlass";
 import type { CheckSnapshot } from "./check/hooks/useCheckWorkflow";
 import type { CheckType } from "./check/types";
 import styles from "./page.module.css";
+import heroStyles from "./HomeHero.module.css";
 
 type SettingsResponse = {
   monthCheckDaysBeforeEnd: number;
@@ -249,40 +251,26 @@ export default function HomePage() {
           </Link>
         </header>
 
-        <section className={styles.hero} aria-labelledby="today-overview-title">
-          <div className={styles.heroTop}>
-            <h1 id="today-overview-title">{greeting}</h1>
+        <HomeHeroGlass>
+          <h1 id="today-overview-title" className={heroStyles.greeting}>
+            {greeting}
+          </h1>
 
-            <div className={styles.dateLabel}>
-              <CalendarDays size={13} aria-hidden="true" />
-              <span>
-                {state && !loadError ? formatToday(state.date) : todayLabel}
-              </span>
-            </div>
+          <div className={heroStyles.date}>
+            {state && !loadError ? formatToday(state.date) : todayLabel}
           </div>
 
           <nav
-            className={styles.quickLinks}
-            aria-label="Uitleg en leveringscheck"
-            style={{
-              gridTemplateColumns:
-                hasPendingDelivery || deliveryError
-                  ? "repeat(2, minmax(0, 1fr))"
-                  : "minmax(0, 1fr)",
-            }}
+            className={heroStyles.actions}
+            aria-label="Leveringscheck en handleiding"
           >
-            <Link href="/handleiding">
-              <BookOpen size={17} aria-hidden="true" />
-              <span>Hoe werkt DateCheck?</span>
-            </Link>
-
             {(hasPendingDelivery || deliveryError) && (
-              <Link href="/check/delivery/select" prefetch={false}>
-                <Bell
-                  size={17}
-                  aria-hidden="true"
-                  style={{ color: "var(--dc-accent)", flexShrink: 0 }}
-                />
+              <Link
+                href="/check/delivery/select"
+                className={heroStyles.delivery}
+                prefetch={false}
+              >
+                <Bell size={16} aria-hidden="true" />
                 <span>
                   {deliveryError
                     ? "Leveringen bekijken"
@@ -290,15 +278,20 @@ export default function HomePage() {
                 </span>
               </Link>
             )}
+
+            <Link href="/handleiding" className={heroStyles.guide}>
+              <BookOpen size={16} aria-hidden="true" />
+              <span>Hoe werkt DateCheck?</span>
+            </Link>
           </nav>
 
           {deliveryError && (
-            <p className={styles.deliveryError} role="alert">
+            <p className={heroStyles.error} role="alert">
               De leveringsstatus kon niet geladen worden. We proberen
               automatisch opnieuw.
             </p>
           )}
-        </section>
+        </HomeHeroGlass>
 
         <section id="controles" className={styles.section}>
           <div className={styles.sectionHeading}>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { ArrowUpRight, LockKeyhole } from "lucide-react";
+
+import CheckTileGlass from "./CheckTileGlass";
 import styles from "./CheckTile.module.css";
 
 export type TileTone = "morning" | "overdue" | "monthly" | "evening" | "stock";
@@ -39,9 +41,15 @@ export default function CheckTile({
 
   const content = (
     <>
+      <CheckTileGlass className={styles.glass} />
+
+      <span className={styles.decoration} aria-hidden="true">
+        <Icon size={132} strokeWidth={1.15} />
+      </span>
+
       <div className={styles.top}>
         <span className={styles.icon}>
-          <Icon size={25} strokeWidth={1.9} />
+          <Icon size={25} strokeWidth={1.9} aria-hidden="true" />
         </span>
 
         {count !== undefined && count !== null && (
@@ -65,9 +73,9 @@ export default function CheckTile({
 
         <span className={styles.arrow}>
           {disabled ? (
-            <LockKeyhole size={18} />
+            <LockKeyhole size={18} aria-hidden="true" />
           ) : (
-            <ArrowUpRight size={21} strokeWidth={2.2} />
+            <ArrowUpRight size={21} strokeWidth={2.2} aria-hidden="true" />
           )}
         </span>
       </div>

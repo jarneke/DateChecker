@@ -1,0 +1,225 @@
+.hero {
+  position: relative;
+  isolation: isolate;
+  padding: 21px 19px 16px;
+  border: 1.5px solid;
+  border-color: rgba(255, 255, 255, 0.55) rgba(255, 255, 255, 0.18)
+    rgba(255, 255, 255, 0.12) rgba(255, 255, 255, 0.35);
+  border-radius: var(--dc-radius-lg);
+  background: transparent;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.2),
+    0 2px 5px rgba(0, 0, 0, 0.12);
+}
+
+.hero::before,
+.hero::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+}
+
+.hero::before {
+  z-index: -2;
+  background: rgba(20, 23, 26, 0.16);
+  -webkit-backdrop-filter: blur(5px) saturate(115%);
+  backdrop-filter: blur(5px) saturate(115%);
+}
+
+.hero[data-glass-ready="true"]::before {
+  display: none;
+}
+
+.photo {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hero[data-glass-ready="true"] .photo {
+  opacity: 1;
+}
+
+.hero::after {
+  z-index: -1;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.12),
+      rgba(255, 255, 255, 0.025) 36%,
+      transparent 58%,
+      rgba(255, 255, 255, 0.045)
+    ),
+    rgba(12, 15, 18, 0.2);
+  box-shadow:
+    inset 2px 3px 2px -1px rgba(255, 255, 255, 0.5),
+    inset -2px -3px 2px -1px rgba(0, 0, 0, 0.4),
+    inset 5px 6px 5px -5px rgba(255, 255, 255, 0.55),
+    inset -5px -6px 5px -5px rgba(255, 255, 255, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.greeting {
+  margin: 0;
+  color: var(--dc-text-secondary);
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+
+.date {
+  display: block;
+  margin-top: 5px;
+  color: var(--dc-text);
+  font-size: clamp(23px, 6vw, 30px);
+  font-weight: 750;
+  letter-spacing: -0.9px;
+  line-height: 1.2;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.2);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 20px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.delivery {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid rgba(var(--dc-accent-rgb), 0.26);
+  border-radius: var(--dc-radius-sm);
+  background: rgba(var(--dc-accent-rgb), 0.11);
+  color: var(--dc-accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.delivery svg {
+  flex-shrink: 0;
+}
+
+.guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  margin-left: auto;
+  padding: 8px 0;
+  color: var(--dc-text-secondary);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.guide svg {
+  flex-shrink: 0;
+  color: var(--dc-accent);
+}
+
+.error {
+  margin: 10px 0 0;
+  color: var(--dc-danger);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.delivery:focus-visible,
+.guide:focus-visible {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: 4px;
+}
+
+.delivery:active {
+  background: rgba(var(--dc-accent-rgb), 0.2);
+}
+
+.guide:active {
+  color: var(--dc-text);
+}
+
+@media (hover: hover) {
+  .delivery:hover {
+    border-color: rgba(var(--dc-accent-rgb), 0.5);
+    background: rgba(var(--dc-accent-rgb), 0.17);
+  }
+
+  .guide:hover {
+    color: var(--dc-text);
+  }
+}
+
+@media (min-width: 600px) {
+  .hero {
+    padding: 24px 23px 17px;
+  }
+}
+
+@media (max-width: 380px) {
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .delivery {
+    justify-content: center;
+  }
+
+  .guide {
+    align-self: center;
+    margin-left: 0;
+  }
+}
+
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .hero::before {
+    background: rgba(18, 21, 24, 0.85);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .hero .photo {
+    display: none;
+  }
+
+  .hero::after {
+    background: #181c20;
+  }
+
+  .hero::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .delivery,
+  .guide {
+    transition: none;
+  }
+}
