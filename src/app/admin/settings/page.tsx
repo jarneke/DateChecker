@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
-  ArrowLeft,
   CalendarDays,
   Check,
   ChevronDown,
@@ -162,6 +161,10 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [pendingLink, setPendingLink] = useState<HTMLAnchorElement | null>(
+    null,
+  );
+  const confirmedLink = useRef<HTMLAnchorElement | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(true);
 
   const sensors = useSensors(
@@ -199,16 +202,52 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
     function handleBeforeUnload(event: BeforeUnloadEvent) {
-      if (!hasUnsavedChanges) return;
       event.preventDefault();
       event.returnValue = "";
     }
 
+    function handleNavigationClick(event: MouseEvent) {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        !(event.target instanceof Element)
+      ) {
+        return;
+      }
+
+      const link = event.target.closest<HTMLAnchorElement>("a[href]");
+
+      if (
+        !link ||
+        link.hasAttribute("download") ||
+        (link.target && link.target !== "_self") ||
+        link.origin !== window.location.origin ||
+        (link.pathname === window.location.pathname &&
+          link.search === window.location.search)
+      ) {
+        return;
+      }
+      if (link === confirmedLink.current) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      setPendingLink(link);
+    }
+
     window.addEventListener("beforeunload", handleBeforeUnload);
+    // Vraag bevestiging voordat de gedeelde terugknop de geschiedenis gebruikt.
+    document.addEventListener("click", handleNavigationClick, true);
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("click", handleNavigationClick, true);
     };
   }, [hasUnsavedChanges]);
 
@@ -350,38 +389,39 @@ export default function SettingsPage() {
     }
   }
 
-  function handleBack(event: React.MouseEvent<HTMLAnchorElement>) {
-    if (!hasUnsavedChanges) return;
-
-    if (
-      !window.confirm(
-        "Je hebt niet-opgeslagen wijzigingen. Wil je de pagina verlaten?",
-      )
-    ) {
-      event.preventDefault();
-    }
-  }
-
   const days = Number(daysBeforeEnd);
   const isValid =
     daysBeforeEnd !== "" && Number.isInteger(days) && days >= 0 && days <= 31;
 
   return (
     <main className={styles.page}>
-      <div className={styles.container}>
-        <Link href="/admin" className={styles.backLink} onClick={handleBack}>
-          <ArrowLeft size={17} />
-          Terug
-        </Link>
+      {" "}
+      {hasUnsavedChanges && pendingLink && (
+        <ConfirmDialog
+          tone="warning"
+          title="Niet-opgeslagen wijzigingen"
+          description="Als je deze pagina verlaat, gaan je wijzigingen verloren."
+          confirmLabel="Pagina verlaten"
+          onCancel={() => setPendingLink(null)}
+          onConfirm={() => {
+            setPendingLink(null);
+            if (!pendingLink.isConnected) return;
 
-        <header className={styles.header}>
-          <div>
-            <h1 className={styles.title}>Instellingen</h1>
-            <p className={styles.subtitle}>
-              Beheer je voorkeuren, categorieën en leveringsplanning.
-            </p>
-          </div>
-        </header>
+            confirmedLink.current = pendingLink;
+            try {
+              pendingLink.click();
+            } finally {
+              confirmedLink.current = null;
+            }
+          }}
+        />
+      )}
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <p className={styles.subtitle}>
+            Beheer je voorkeuren, categorieën en leveringsplanning.
+          </p>
+        </div>
 
         {loading ? (
           <div className={styles.loading}>Instellingen laden...</div>

@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import type { ChangeEvent, FormEvent } from "react";
-import Link from "next/link";
 import Script from "next/script";
 import {
-  ArrowLeft,
   Camera,
   CheckCircle2,
   ChevronDown,
@@ -264,6 +263,8 @@ export default function AddProductsPage() {
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  const [confirmClearList, setConfirmClearList] = useState(false);
 
   const preview = useBlobPreview(photo);
   const scanPreview = useBlobPreview(scanImage);
@@ -530,11 +531,7 @@ export default function AddProductsPage() {
   async function clearList() {
     if (busy || operationLock.current || items.length === 0) return;
 
-    const confirmed = window.confirm(
-      `Weet je zeker dat je alle ${items.length} producten uit deze lokale lijst wilt verwijderen?`,
-    );
-
-    if (!confirmed || !startOperation("Lijst wissen…")) return;
+    if (!startOperation("Lijst wissen…")) return;
 
     try {
       await changeDraft(
@@ -712,6 +709,20 @@ export default function AddProductsPage() {
 
   return (
     <main className={fastStyles.page}>
+      {" "}
+      {confirmClearList && (
+        <ConfirmDialog
+          tone="danger"
+          title="Lokale lijst wissen?"
+          description={`Je verwijdert alle producten uit deze lokale lijst (${items.length}).`}
+          confirmLabel="Lijst wissen"
+          onCancel={() => setConfirmClearList(false)}
+          onConfirm={() => {
+            setConfirmClearList(false);
+            void clearList();
+          }}
+        />
+      )}
       <Script
         src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"
         strategy="afterInteractive"
@@ -722,15 +733,8 @@ export default function AddProductsPage() {
           )
         }
       />
-
       <div className={fastStyles.container}>
-        <Link href="/stockchecker" className={fastStyles.backLink}>
-          <ArrowLeft size={20} />
-          Terug
-        </Link>
-
         <header className={fastStyles.header}>
-          <h1>Product toevoegen</h1>
           <p>
             Voeg meerdere producten toe en upload ze in één keer naar DateCheck.
           </p>
@@ -1011,7 +1015,7 @@ export default function AddProductsPage() {
               <button
                 type="button"
                 className={fastStyles.clearButton}
-                onClick={() => void clearList()}
+                onClick={() => setConfirmClearList(true)}
                 disabled={busy}
               >
                 <Trash2 size={19} />

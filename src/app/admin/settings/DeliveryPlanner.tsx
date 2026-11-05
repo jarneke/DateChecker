@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import settingsStyles from "./page.module.css";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import styles from "./DeliveryPlanner.module.css";
 
 type Delivery = {
@@ -73,6 +74,9 @@ export default function DeliveryPlanner({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [deliveryToDelete, setDeliveryToDelete] = useState<Delivery | null>(
+    null,
+  );
   const [message, setMessage] = useState("");
 
   const loadDeliveries = useCallback(async (signal?: AbortSignal) => {
@@ -216,14 +220,6 @@ export default function DeliveryPlanner({
   async function deleteDelivery(delivery: Delivery) {
     if (saving || disabled) return;
 
-    if (
-      !window.confirm(
-        `Levering "${delivery.name}" verwijderen uit de planning?`,
-      )
-    ) {
-      return;
-    }
-
     setSaving(true);
     setError("");
     setMessage("");
@@ -263,6 +259,19 @@ export default function DeliveryPlanner({
 
   return (
     <section className={`${settingsStyles.section} ${styles.root}`}>
+      {deliveryToDelete && (
+        <ConfirmDialog
+          tone="danger"
+          title="Levering verwijderen?"
+          description={`Je verwijdert “${deliveryToDelete.name}” uit de planning.`}
+          confirmLabel="Levering verwijderen"
+          onCancel={() => setDeliveryToDelete(null)}
+          onConfirm={() => {
+            setDeliveryToDelete(null);
+            void deleteDelivery(deliveryToDelete);
+          }}
+        />
+      )}
       <div className={settingsStyles.sectionHeading}>
         <div className={settingsStyles.sectionIcon}>
           <Truck size={19} aria-hidden="true" />
@@ -360,7 +369,7 @@ export default function DeliveryPlanner({
                   <button
                     type="button"
                     className={`${styles.button} ${styles.danger}`}
-                    onClick={() => void deleteDelivery(delivery)}
+                    onClick={() => setDeliveryToDelete(delivery)}
                     disabled={blocked}
                   >
                     <Trash2 size={15} aria-hidden="true" />

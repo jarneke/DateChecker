@@ -204,8 +204,9 @@ export default function Breadcrumbs() {
     ? "DateCheck"
     : pathname === "/check"
       ? (CHECK_NAMES[params.get("type") ?? ""] ?? "Controle")
-      : (currentCrumb?.label ?? "DateCheck");
-
+      : pathname === "/handleiding"
+        ? "Hoe werkt DateCheck?"
+        : (currentCrumb?.label ?? "DateCheck");
   const fallbackHref = crumbs.length > 1 ? crumbs[crumbs.length - 2].href : "/";
 
   return (

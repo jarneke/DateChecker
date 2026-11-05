@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowLeft,
   ArrowRight,
   BookOpen,
   ChevronDown,
@@ -251,17 +250,11 @@ export default function GuidePage() {
   return (
     <main id="bovenaan" className={styles.page}>
       <div className={styles.container}>
-        <Link href="/" className={styles.backLink}>
-          <ArrowLeft size={18} aria-hidden="true" />
-          Terug naar DateCheck
-        </Link>
-
         <header className={styles.header}>
           <div className={styles.headerIcon}>
             <BookOpen size={27} aria-hidden="true" />
           </div>
           <span className={styles.eyebrow}>HANDLEIDING</span>
-          <h1>Hoe werkt DateCheck?</h1>
           <p>
             Houd de vroegste voorraaddatum bij, registreer gestickerde
             exemplaren en werk de passende controles af.
