@@ -96,7 +96,6 @@ export default function ImageLinkerPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadingRef = useRef(false);
@@ -141,15 +140,14 @@ export default function ImageLinkerPage() {
   }, []);
 
   useEffect(() => {
-    const saved = getSkippedIds();
-    setSkippedIds(saved);
-    setInitialized(true);
-  }, []);
+    const frame = window.requestAnimationFrame(() => {
+      const saved = getSkippedIds();
+      setSkippedIds(saved);
+      void loadProduct(saved);
+    });
 
-  useEffect(() => {
-    if (!initialized) return;
-    void loadProduct(skippedIds);
-  }, [initialized, skippedIds, loadProduct]);
+    return () => window.cancelAnimationFrame(frame);
+  }, [loadProduct]);
 
   function handleSkip() {
     if (!product || uploading) return;
@@ -164,6 +162,7 @@ export default function ImageLinkerPage() {
 
     setSkippedIds(updated);
     setProduct(null);
+    void loadProduct(updated);
   }
 
   function handleResetSkipped() {
@@ -175,6 +174,7 @@ export default function ImageLinkerPage() {
 
     setSkippedIds([]);
     setProduct(null);
+    void loadProduct([]);
   }
 
   async function handlePhoto(event: React.ChangeEvent<HTMLInputElement>) {

@@ -149,21 +149,26 @@ async function changeDraft(
 }
 
 function useBlobPreview(blob: Blob | null): string {
-  const [preview, setPreview] = useState("");
+  const [preview, setPreview] = useState<{ blob: Blob; url: string } | null>(
+    null,
+  );
 
   useEffect(() => {
-    if (!blob) {
-      setPreview("");
-      return;
-    }
+    if (!blob) return;
 
-    const url = URL.createObjectURL(blob);
-    setPreview(url);
+    let url: string | undefined;
+    const frame = window.requestAnimationFrame(() => {
+      url = URL.createObjectURL(blob);
+      setPreview({ blob, url });
+    });
 
-    return () => URL.revokeObjectURL(url);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (url) URL.revokeObjectURL(url);
+    };
   }, [blob]);
 
-  return preview;
+  return preview && preview.blob === blob ? preview.url : "";
 }
 
 function CategoryDot({

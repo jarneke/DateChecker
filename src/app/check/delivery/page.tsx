@@ -1,6 +1,12 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCheck } from "lucide-react";
@@ -78,8 +84,6 @@ function DeliveryContent() {
   const savingRef = useRef(false);
   const requestIdRef = useRef(0);
   const contextRef = useRef(context);
-
-  contextRef.current = context;
 
   const setLocalDraft = useCallback((value: DateDraft | null) => {
     draftRef.current = value;
@@ -176,19 +180,22 @@ function DeliveryContent() {
     [context, applySnapshot],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    contextRef.current = context;
     mountedRef.current = true;
     savingRef.current = false;
     snapshotRef.current = null;
     activeItemRef.current = null;
 
-    setSnapshot(null);
-    setLocalDraft(null);
-    setSaving(false);
-    setError("");
-    setLoading(Boolean(context));
+    const frame = window.requestAnimationFrame(() => {
+      setSnapshot(null);
+      setLocalDraft(null);
+      setSaving(false);
+      setError("");
+      setLoading(Boolean(context));
 
-    if (context) void loadSnapshot();
+      if (context) void loadSnapshot();
+    });
 
     const refresh = () => {
       if (document.visibilityState === "visible") void loadSnapshot();
@@ -201,6 +208,7 @@ function DeliveryContent() {
     return () => {
       mountedRef.current = false;
       requestIdRef.current += 1;
+      window.cancelAnimationFrame(frame);
       window.clearInterval(interval);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);

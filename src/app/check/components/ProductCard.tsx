@@ -108,6 +108,7 @@ export default function ProductCard({
 
       <div className={styles.productImageContainer}>
         {item.photo_url && !imageFailed ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Existing photo URLs may use external hosts.
           <img
             key={item.photo_url}
             src={item.photo_url}

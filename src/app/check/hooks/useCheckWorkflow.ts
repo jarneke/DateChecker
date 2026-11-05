@@ -2,8 +2,7 @@
 
 import {
     useCallback,
-    useEffect,
-    useRef,
+    useLayoutEffect, useRef,
     useState,
     type TouchEvent,
 } from "react";
@@ -116,7 +115,6 @@ export function useCheckWorkflow() {
     const touchStart = useRef<{ x: number; y: number } | null>(null);
 
     const context = `${type ?? ""}:${categoryId}:${refreshToken ?? ""}`;
-    contextRef.current = context;
 
     const updateHistory = useCallback((entries: CompletionEntry[]) => {
         historyRef.current = entries;
@@ -216,7 +214,6 @@ export function useCheckWorkflow() {
                 }
 
                 applySnapshot(data as CheckSnapshot);
-                setError(null);
                 setLoading(false);
                 return true;
             } catch (caughtError) {
@@ -239,23 +236,27 @@ export function useCheckWorkflow() {
         [type, categoryId, context, applySnapshot],
     );
 
-    useEffect(() => {
+    useLayoutEffect(() => {
+        contextRef.current = context;
         mountedRef.current = true;
         snapshotRef.current = null;
         loadedDayRef.current = null;
         activeItemIdRef.current = null;
         returnItemsRef.current = [];
         localDateDraftRef.current = null;
-        updateHistory([]);
-        setSnapshot(null);
-        setDateDraft("");
-        setSwipeOffset(0);
-        setError(null);
-        setLoading(Boolean(type));
+        savingRef.current = false;
 
-        if (type) {
-            void loadSnapshot();
-        }
+        const frame = window.requestAnimationFrame(() => {
+            updateHistory([]);
+            setSnapshot(null);
+            setDateDraft("");
+            setSwipeOffset(0);
+            setSaving(false);
+            setError(null);
+            setLoading(Boolean(type));
+
+            if (type) void loadSnapshot();
+        });
 
         const refresh = () => {
             if (document.visibilityState === "visible") {
@@ -271,11 +272,12 @@ export function useCheckWorkflow() {
         return () => {
             mountedRef.current = false;
             requestIdRef.current += 1;
+            window.cancelAnimationFrame(frame);
             window.clearInterval(interval);
             window.removeEventListener("focus", refresh);
             document.removeEventListener("visibilitychange", refresh);
         };
-    }, [type, loadSnapshot, updateHistory]);
+    }, [context, type, loadSnapshot, updateHistory]);
 
     function selectReturnItem(remainingItems: SharedItem[]) {
         while (returnItemsRef.current.length > 0) {

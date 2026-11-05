@@ -18,11 +18,13 @@ export default function ProductPhoto({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [preview, setPreview] = useState(initialUrl || "");
+  const [previousInitialUrl, setPreviousInitialUrl] = useState(initialUrl);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  if (previousInitialUrl !== initialUrl) {
+    setPreviousInitialUrl(initialUrl);
     setPreview(initialUrl || "");
-  }, [initialUrl]);
+  }
 
   useEffect(() => {
     return () => {

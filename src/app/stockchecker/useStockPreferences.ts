@@ -100,8 +100,12 @@ export function useStockPreferences() {
     const [ready, setReady] = useState(false);
 
     useEffect(() => {
-        setPreferences(readPreferences());
-        setReady(true);
+        const frame = window.requestAnimationFrame(() => {
+            setPreferences(readPreferences());
+            setReady(true);
+        });
+
+        return () => window.cancelAnimationFrame(frame);
     }, []);
 
     useEffect(() => {

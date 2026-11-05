@@ -117,9 +117,14 @@ export default function DeliveryPlanner({
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadDeliveries(controller.signal);
+    const frame = window.requestAnimationFrame(() => {
+      void loadDeliveries(controller.signal);
+    });
 
-    return () => controller.abort();
+    return () => {
+      window.cancelAnimationFrame(frame);
+      controller.abort();
+    };
   }, [loadDeliveries]);
 
   function updateDraft(changes: Partial<DeliveryDraft>) {
