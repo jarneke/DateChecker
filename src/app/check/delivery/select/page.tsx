@@ -1,16 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Bell,
-  LoaderCircle,
-  RotateCcw,
-  Truck,
-} from "lucide-react";
+import { ArrowRight, Bell, LoaderCircle, RotateCcw } from "lucide-react";
 
 import styles from "./page.module.css";
 
@@ -268,16 +260,9 @@ export default function DeliverySelectionPage() {
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <Link href="/" className={styles.back}>
-          <ArrowLeft size={18} aria-hidden="true" />
-          Terug naar DateCheck
-        </Link>
-
-        <header className={styles.header}>
-          <Truck size={27} aria-hidden="true" />
-          <h1>Leveringscheck</h1>
+        <div className={styles.header}>
           <p>Kies welke leveringen en categorieën je nu wilt controleren.</p>
-        </header>
+        </div>
 
         <div className={styles.tabs} aria-label="Soort leveringscheck">
           <button
