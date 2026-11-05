@@ -1,3 +1,4 @@
+import { Client } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
@@ -57,6 +58,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+    let client: Client | undefined;
+    let transactionOpen = false;
     try {
         const body = await request.json();
         const daysBeforeEnd = Number(body.monthCheckDaysBeforeEnd);
@@ -124,27 +127,50 @@ export async function PATCH(request: Request) {
             );
         }
 
-        const existingCategories = await sql`
-      SELECT id, name, color
-      FROM categories
-    `;
+        client = new Client({ connectionString: process.env.DATABASE_URL });
+        await client.connect();
+        await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+        transactionOpen = true;
 
-        const submittedIds = cleanedCategories
-            .filter((category) => category.id)
-            .map((category) => category.id);
+        const settings = await client.query(`
+            SELECT id
+            FROM settings
+            WHERE id = 1
+            FOR UPDATE
+        `);
 
+        if (settings.rows.length === 0) {
+            return NextResponse.json(
+                { error: "Instellingen niet gevonden." },
+                { status: 404 },
+            );
+        }
+
+        const { rows: existingCategories } = await client.query<{
+            id: string;
+            name: string;
+        }>(`
+            SELECT id, name
+            FROM categories
+        `);
+
+        const submittedIds = new Set(
+            cleanedCategories.map((category) => category.id),
+        );
         const categoriesToDelete = existingCategories.filter(
-            (category) => !submittedIds.includes(category.id),
+            (category) => !submittedIds.has(category.id),
         );
 
         for (const category of categoriesToDelete) {
-            const itemsResult = await sql`
-        SELECT COUNT(*)::int AS item_count
-        FROM items
-        WHERE category_id = ${category.id}
-      `;
-
-            const itemCount = Number(itemsResult[0].item_count);
+            const { rows: items } = await client.query<{ item_count: number }>(
+                `
+                    SELECT COUNT(*)::int AS item_count
+                    FROM items
+                    WHERE category_id = $1
+                `,
+                [category.id],
+            );
+            const itemCount = items[0].item_count;
 
             if (itemCount > 0) {
                 return NextResponse.json(
@@ -158,16 +184,19 @@ export async function PATCH(request: Request) {
                 );
             }
 
-            const linkedDeliveries = await sql`
-        SELECT d.name
-        FROM public.datecheck_delivery_categories dc
-        INNER JOIN public.datecheck_deliveries d
-          ON d.id = dc.delivery_id
-        WHERE dc.category_id = ${category.id}
-          AND d.deleted_at IS NULL
-        ORDER BY d.name
-        LIMIT 1
-      `;
+            const { rows: linkedDeliveries } = await client.query<{ name: string }>(
+                `
+                    SELECT d.name
+                    FROM public.datecheck_delivery_categories dc
+                    INNER JOIN public.datecheck_deliveries d
+                        ON d.id = dc.delivery_id
+                    WHERE dc.category_id = $1
+                        AND d.deleted_at IS NULL
+                    ORDER BY d.name
+                    LIMIT 1
+                `,
+                [category.id],
+            );
 
             if (linkedDeliveries.length > 0) {
                 return NextResponse.json(
@@ -182,72 +211,71 @@ export async function PATCH(request: Request) {
             }
         }
 
-        await sql`
-      UPDATE settings
-      SET
-        month_check_days_before_end = ${daysBeforeEnd},
-        updated_at = NOW()
-      WHERE id = 1
-    `;
+        const { rows: updatedSettings } = await client.query<{
+            month_check_days_before_end: number;
+        }>(
+            `
+                UPDATE settings
+                SET month_check_days_before_end = $1, updated_at = NOW()
+                WHERE id = 1
+                RETURNING month_check_days_before_end
+            `,
+            [daysBeforeEnd],
+        );
 
-        for (let index = 0; index < cleanedCategories.length; index++) {
-            const category = cleanedCategories[index];
+        for (const [index, category] of cleanedCategories.entries()) {
             const sortOrder = index + 1;
 
             if (category.id) {
-                const result = await sql`
-          UPDATE categories
-          SET
-            name = ${category.name},
-            color = ${category.color},
-            sort_order = ${sortOrder}
-          WHERE id = ${category.id}
-          RETURNING id
-        `;
+                const result = await client.query(
+                    `
+                        UPDATE categories
+                        SET name = $1, color = $2, sort_order = $3
+                        WHERE id = $4
+                        RETURNING id
+                    `,
+                    [category.name, category.color, sortOrder, category.id],
+                );
 
-                if (result.length === 0) {
+                if (result.rows.length === 0) {
                     return NextResponse.json(
                         { error: `Categorie ${category.id} werd niet gevonden.` },
                         { status: 404 },
                     );
                 }
             } else {
-                await sql`
-          INSERT INTO categories (name, color, sort_order)
-          VALUES (
-            ${category.name},
-            ${category.color},
-            ${sortOrder}
-          )
-        `;
+                await client.query(
+                    `
+                        INSERT INTO categories (name, color, sort_order)
+                        VALUES ($1, $2, $3)
+                    `,
+                    [category.name, category.color, sortOrder],
+                );
             }
         }
 
         for (const category of categoriesToDelete) {
-            await sql`
-        DELETE FROM categories
-        WHERE id = ${category.id}
-      `;
+            await client.query(
+                "DELETE FROM categories WHERE id = $1",
+                [category.id],
+            );
         }
 
-        const updatedCategories = await sql`
-      SELECT
-        c.id,
-        c.name,
-        c.color,
-        c.sort_order,
-        COUNT(i.id)::int AS item_count
-      FROM categories c
-      LEFT JOIN items i ON i.category_id = c.id
-      GROUP BY c.id, c.name, c.color, c.sort_order
-      ORDER BY c.sort_order ASC, c.name ASC
-    `;
+        const { rows: updatedCategories } = await client.query(`
+            SELECT
+                c.id,
+                c.name,
+                c.color,
+                c.sort_order,
+                COUNT(i.id)::int AS item_count
+            FROM categories c
+            LEFT JOIN items i ON i.category_id = c.id
+            GROUP BY c.id, c.name, c.color, c.sort_order
+            ORDER BY c.sort_order ASC, c.name ASC
+        `);
 
-        const updatedSettings = await sql`
-      SELECT month_check_days_before_end
-      FROM settings
-      WHERE id = 1
-    `;
+        await client.query("COMMIT");
+        transactionOpen = false;
 
         return NextResponse.json({
             monthCheckDaysBeforeEnd:
@@ -257,12 +285,19 @@ export async function PATCH(request: Request) {
     } catch (error) {
         console.error("Failed to update settings:", error);
 
-        if (
-            error &&
-            typeof error === "object" &&
-            "code" in error &&
-            error.code === "23503"
-        ) {
+        const code =
+            error && typeof error === "object" && "code" in error
+                ? error.code
+                : undefined;
+
+        if (code === "40001" || code === "40P01") {
+            return NextResponse.json(
+                { error: "De instellingen zijn intussen gewijzigd. Herlaad de pagina en probeer opnieuw." },
+                { status: 409 },
+            );
+        }
+
+        if (code === "23503") {
             return NextResponse.json(
                 {
                     error:
@@ -276,5 +311,17 @@ export async function PATCH(request: Request) {
             { error: "Instellingen konden niet opgeslagen worden." },
             { status: 500 },
         );
+    } finally {
+        if (client) {
+            try {
+                if (transactionOpen) await client.query("ROLLBACK");
+            } catch (error) {
+                console.error("Failed to roll back settings:", error);
+            } finally {
+                await client.end().catch((error) => {
+                    console.error("Failed to close settings connection:", error);
+                });
+            }
+        }
     }
 }
