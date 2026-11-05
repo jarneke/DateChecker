@@ -1,14 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft,
   ArrowRight,
   Camera,
   CheckCircle2,
   ImageOff,
-  ImagePlus,
   LoaderCircle,
   PackageX,
   RefreshCw,
@@ -251,23 +248,12 @@ export default function ImageLinkerPage() {
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <Link href="/admin" className={styles.backLink}>
-          <ArrowLeft size={20} />
-          Terug
-        </Link>
-
-        <header className={styles.header}>
-          <div className={styles.headerIcon}>
-            <ImagePlus size={26} />
-          </div>
-
-          <h1>ImageLinker</h1>
-
+        <div className={styles.header}>
           <p>
             Neem een foto van het product. De foto wordt automatisch opgeslagen
             in GitHub en DateCheck.
           </p>
-        </header>
+        </div>
 
         <div className={styles.remainingCard}>
           <div className={styles.remainingIcon}>
