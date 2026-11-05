@@ -13,8 +13,9 @@
   color: var(--dc-text);
   text-decoration: none;
   border: 1.5px solid;
-  border-color: rgba(255, 255, 255, 0.48) rgba(var(--tile-accent-rgb), 0.25)
-    rgba(255, 255, 255, 0.12) rgba(var(--tile-accent-rgb), 0.4);
+  border-color: rgba(var(--tile-accent-rgb), 0.58)
+    rgba(var(--tile-accent-rgb), 0.25) rgba(var(--tile-accent-rgb), 0.16)
+    rgba(var(--tile-accent-rgb), 0.4);
   border-radius: var(--dc-radius-lg);
   background: transparent;
   box-shadow:
@@ -73,20 +74,23 @@
     ),
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.1),
+      rgba(var(--tile-accent-rgb), 0.15),
       transparent 42%,
-      rgba(255, 255, 255, 0.025)
+      rgba(var(--tile-accent-rgb), 0.045)
     ),
     rgba(10, 14, 18, 0.39);
   box-shadow:
-    inset 2px 3px 2px -1px rgba(255, 255, 255, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 2px 3px 2px -1px rgba(var(--tile-accent-rgb), 0.48),
     inset -2px -3px 2px -1px rgba(0, 0, 0, 0.38),
-    inset 5px 6px 5px -5px rgba(255, 255, 255, 0.5),
+    inset 5px 6px 5px -5px rgba(var(--tile-accent-rgb), 0.58),
     inset -5px -6px 5px -5px rgba(var(--tile-accent-rgb), 0.23),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    inset 0 0 0 1px rgba(var(--tile-accent-rgb), 0.09);
 }
 
 .decoration {
+  --float-delay: 0s;
+
   position: absolute;
   z-index: -1;
   top: 70px;
@@ -98,13 +102,17 @@
   color: var(--tile-accent);
   opacity: 0.11;
   pointer-events: none;
-  animation: floatIcon 7s ease-in-out infinite;
+  animation: floatIcon 11s linear infinite;
+  animation-delay: var(--float-delay);
 }
 
 .decoration svg {
   display: block;
   width: 132px;
   height: 132px;
+  transform-origin: center;
+  animation: swayIcon 6s ease-in-out infinite;
+  animation-delay: var(--float-delay);
 }
 
 .morning {
@@ -133,19 +141,19 @@
 }
 
 .monthly .decoration {
-  animation-delay: -1.5s;
+  --float-delay: -1.5s;
 }
 
 .evening .decoration {
-  animation-delay: -3s;
+  --float-delay: -3s;
 }
 
 .overdue .decoration {
-  animation-delay: -4.5s;
+  --float-delay: -4.5s;
 }
 
 .stock .decoration {
-  animation-delay: -2.5s;
+  --float-delay: -2.5s;
 }
 
 .top,
@@ -234,7 +242,8 @@
   cursor: not-allowed;
 }
 
-.disabled .decoration {
+.disabled .decoration,
+.disabled .decoration svg {
   animation-play-state: paused;
 }
 
@@ -258,11 +267,46 @@
 @keyframes floatIcon {
   0%,
   100% {
-    transform: translateY(0) rotate(-15deg);
+    transform: translate(12px, 0);
+  }
+
+  12.5% {
+    transform: translate(8.5px, 7px);
+  }
+
+  25% {
+    transform: translate(0, 10px);
+  }
+
+  37.5% {
+    transform: translate(-8.5px, 7px);
   }
 
   50% {
-    transform: translateY(-7px) rotate(-10deg);
+    transform: translate(-12px, 0);
+  }
+
+  62.5% {
+    transform: translate(-8.5px, -7px);
+  }
+
+  75% {
+    transform: translate(0, -10px);
+  }
+
+  87.5% {
+    transform: translate(8.5px, -7px);
+  }
+}
+
+@keyframes swayIcon {
+  0%,
+  100% {
+    transform: rotate(-18deg);
+  }
+
+  50% {
+    transform: rotate(-8deg);
   }
 }
 
@@ -329,6 +373,11 @@
   }
 
   .decoration {
+    animation: none;
+    transform: none;
+  }
+
+  .decoration svg {
     animation: none;
     transform: rotate(-15deg);
   }

@@ -13,15 +13,12 @@
   position: fixed;
   inset: 0;
   z-index: -1;
-
   background-image:
-    linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.8)),
-    url("/images/carrefour-background.webp");
-
+    linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.12)),
+    url("/images/datecheck-carrefour-dark.png");
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
-
   pointer-events: none;
 }
 
@@ -296,11 +293,14 @@
   min-width: 0;
 }
 
-/* De vierde ronde is vooruit gestickerde producten ophalen. */
+.grid > :nth-child(1) {
+  --tile-accent: var(--dc-daily);
+  --tile-accent-rgb: var(--dc-daily-rgb);
+}
 
 .grid > :nth-child(4) {
-  --tile-accent: #c4b5fd;
-  --tile-accent-rgb: 196, 181, 253;
+  --tile-accent: var(--dc-pickup-ahead);
+  --tile-accent-rgb: var(--dc-pickup-ahead-rgb);
 }
 
 .error {

@@ -53,8 +53,8 @@ const FRAGMENT = `
     vec3 color = texture2D(u_photo, vec2(uv.x, 1.0 - uv.y)).rgb;
 
     float darkness = mix(
-      0.3,
-      0.8,
+      0.0,
+      0.12,
       clamp(p.y / u_viewport.y, 0.0, 1.0)
     );
 
@@ -306,7 +306,7 @@ export default function CheckTileGlass({ className }: { className: string }) {
     document.addEventListener("visibilitychange", schedule);
     reducedTransparency.addEventListener("change", schedule);
 
-    image.src = "/images/carrefour-background.webp";
+    image.src = "/images/datecheck-carrefour-dark.png";
 
     return () => {
       disposed = true;

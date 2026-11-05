@@ -13,13 +13,13 @@
 @layer base {
   html {
     min-height: 100%;
-    background: var(--color-app-background);
+    background: var(--dc-background);
   }
 
   body {
     min-height: 100%;
-    background: var(--color-app-background);
-    color: var(--color-app-foreground);
+    background: var(--dc-background);
+    color: var(--dc-text);
   }
 
   button,
@@ -136,7 +136,7 @@
 /* Global focus */
 
 *:focus-visible {
-  outline-color: #c1b4a7;
+  outline-color: var(--dc-accent);
 }
 
 /* MUI menus */
@@ -213,44 +213,52 @@
   opacity: 1 !important;
 }
 
-/* New DateCheck design system */
+/* DateCheck design system */
 
 :root {
-  /* Backgrounds */
-  --dc-background: #110f0e;
-  --dc-surface: #211d1b;
-  --dc-surface-raised: #24201e;
-  --dc-surface-hover: #332720;
+  /* Achtergronden */
+  --dc-background: #0b0d10;
+  --dc-surface: #15191e;
+  --dc-surface-raised: #1c2229;
+  --dc-surface-hover: #252d36;
 
-  /* Text */
-  --dc-text: #f5eee5;
-  --dc-text-secondary: #a99f98;
-  --dc-text-subtle: #9c9189;
-  --dc-text-inverse: #161210;
+  /* Tekst */
+  --dc-text: #edf1f5;
+  --dc-text-secondary: #aab3be;
+  --dc-text-subtle: #939eab;
+  --dc-text-inverse: #0a1018;
 
-  /* Borders */
-  --dc-border: #38312d;
-  --dc-border-soft: #332b27;
+  /* Randen */
+  --dc-border: #303840;
+  --dc-border-soft: #252d36;
 
-  /* Ochtendcontrole */
-  --dc-accent: #a3e635;
-  --dc-accent-rgb: 163, 230, 53;
+  /* Algemene hoofdkleur */
+  --dc-accent: #8faecb;
+  --dc-accent-rgb: 143, 174, 203;
+
+  /* Dagelijks stickeren */
+  --dc-daily: #74a7e8;
+  --dc-daily-rgb: 116, 167, 232;
 
   /* Over datum */
-  --dc-danger: #ff6b6b;
-  --dc-danger-rgb: 255, 107, 107;
+  --dc-danger: #ed7d87;
+  --dc-danger-rgb: 237, 125, 135;
 
-  /* Maandelijkse controle */
-  --dc-info: #38bdf8;
-  --dc-info-rgb: 56, 189, 248;
+  /* Vooruit stickeren */
+  --dc-info: #91c5dc;
+  --dc-info-rgb: 145, 197, 220;
 
-  /* Avondcontrole */
-  --dc-purple: #fbbf24;
-  --dc-purple-rgb: 251, 191, 36;
+  /* Dagelijks ophalen */
+  --dc-purple: #929dd0;
+  --dc-purple-rgb: 146, 157, 208;
+
+  /* Vooruit ophalen */
+  --dc-pickup-ahead: #b1a2d2;
+  --dc-pickup-ahead-rgb: 177, 162, 210;
 
   /* Stockcheck */
-  --dc-success: #34d399;
-  --dc-success-rgb: 52, 211, 153;
+  --dc-success: #a4b8cb;
+  --dc-success-rgb: 164, 184, 203;
 
   /* Typography */
   --dc-font: Inter, system-ui, -apple-system, sans-serif;
