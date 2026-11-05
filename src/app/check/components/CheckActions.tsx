@@ -103,8 +103,8 @@ export default function CheckActions({
           onClick={onBack}
           disabled={saving}
         >
-          <ArrowLeft size={17} />
-          Terug
+          <ArrowLeft size={17} aria-hidden="true" />
+          {showDateInput ? "Datumkeuze annuleren" : "Vorige controlestap"}
         </button>
       )}
     </div>

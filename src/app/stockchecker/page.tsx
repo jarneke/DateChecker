@@ -1,16 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Package,
-  Plus,
-  Search,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Package, Search, X } from "lucide-react";
 
 import ProductCard, {
   type StockItem,
@@ -255,36 +246,6 @@ export default function StockCheckerPage() {
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <header className={styles.header}>
-          <Link
-            href="/"
-            className={styles.backButton}
-            aria-label="Terug naar hoofdpagina"
-          >
-            <ArrowLeft size={21} />
-          </Link>
-
-          <div className={styles.headerText}>
-            <h1>
-              Stock<span>checker</span>
-            </h1>
-
-            <p>
-              {loading
-                ? "Producten laden..."
-                : `${total} ${total === 1 ? "product" : "producten"}`}
-            </p>
-          </div>
-
-          <Link
-            href="/stockchecker/new"
-            className={styles.addButton}
-            aria-label="Nieuw product toevoegen"
-          >
-            <Plus size={23} strokeWidth={2.3} />
-          </Link>
-        </header>
-
         <div className={styles.searchBox}>
           <Search size={20} className={styles.searchIcon} />
 

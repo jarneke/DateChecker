@@ -6,7 +6,6 @@ import {
   Bell,
   BookOpen,
   CalendarDays,
-  ClipboardCheck,
   Moon,
   Package,
   PackageCheck,
@@ -232,29 +231,10 @@ export default function HomePage() {
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <header className={styles.header}>
-          <Link href="/" className={styles.brand}>
-            <span className={styles.brandIcon}>
-              <ClipboardCheck size={23} strokeWidth={2.2} />
-            </span>
-            <span>
-              Date<span className={styles.brandAccent}>Check</span>
-            </span>
-          </Link>
-
-          <Link
-            href="/admin"
-            className={styles.settingsButton}
-            aria-label="Beheer openen"
-          >
-            <Settings2 size={21} />
-          </Link>
-        </header>
-
         <HomeHeroGlass>
-          <h1 id="today-overview-title" className={heroStyles.greeting}>
+          <p id="today-overview-title" className={heroStyles.greeting}>
             {greeting}
-          </h1>
+          </p>
 
           <div className={heroStyles.date}>
             {state && !loadError ? formatToday(state.date) : todayLabel}

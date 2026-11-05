@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, Layers3 } from "lucide-react";
+import { Layers3 } from "lucide-react";
 
 import type { CheckType } from "../types";
 import styles from "../page.module.css";
@@ -32,19 +31,9 @@ export default function CheckHeader({
   onChangeCategory,
 }: CheckHeaderProps) {
   return (
-    <header className={styles.header}>
+    <section className={styles.header} aria-label={`${title}: voortgang`}>
       <div className={styles.headerTop}>
-        <Link
-          href="/"
-          className={styles.backButton}
-          aria-label="Terug naar home"
-        >
-          <ArrowLeft size={21} />
-        </Link>
-
         <div className={styles.headerInfo}>
-          <h1 className={styles.pageTitle}>{title}</h1>
-
           <p className={styles.pageSubtitle}>
             {categoryName ? `${categoryName} · ` : ""}
             {remainingCount} te controleren
@@ -58,7 +47,7 @@ export default function CheckHeader({
             onClick={onChangeCategory}
             disabled={saving}
           >
-            <Layers3 size={17} />
+            <Layers3 size={17} aria-hidden="true" />
             <span>Categorie</span>
           </button>
         )}
@@ -88,6 +77,6 @@ export default function CheckHeader({
           </div>
         </div>
       )}
-    </header>
+    </section>
   );
 }

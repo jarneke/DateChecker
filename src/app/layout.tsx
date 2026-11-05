@@ -1,5 +1,8 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,7 +27,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="nl"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Suspense fallback={null}>
+          <Breadcrumbs />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }

@@ -62,10 +62,8 @@ function CheckContent() {
     return (
       <CategorySelector
         categories={categories}
-        categoryId={categoryId}
         loading={categoriesLoading}
         error={error}
-        onChange={changeCategory}
       />
     );
   }

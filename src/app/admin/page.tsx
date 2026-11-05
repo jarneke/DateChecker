@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowLeft,
-  ArrowUpRight,
-  ImagePlus,
-  Settings2,
-  Shield,
-} from "lucide-react";
+import { ArrowUpRight, ImagePlus, Settings2 } from "lucide-react";
 
 import styles from "./page.module.css";
 
@@ -30,20 +24,9 @@ export default function AdminPage() {
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <Link href="/" className={styles.backLink}>
-          <ArrowLeft size={20} />
-          Terug
-        </Link>
-
-        <header className={styles.header}>
-          <div className={styles.headerIcon}>
-            <Shield size={26} />
-          </div>
-
-          <h1>Beheer</h1>
-
+        <div className={styles.header}>
           <p>Beheer de instellingen en hulpmiddelen van DateCheck.</p>
-        </header>
+        </div>
 
         <div className={styles.links}>
           {adminLinks.map((item) => {

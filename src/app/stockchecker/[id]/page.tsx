@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
-  ArrowLeft,
   CalendarDays,
   Check,
   ChevronDown,
@@ -64,10 +62,10 @@ export default function ItemDetailPage() {
   const searchParams = useSearchParams();
 
   const returnTo = searchParams.get("returnTo");
-  const backHref =
-    returnTo?.startsWith("/") && !returnTo.startsWith("//")
+  const checkHref =
+    returnTo && /^\/check(?:\/delivery)?(?:\?|$)/.test(returnTo)
       ? returnTo
-      : "/stockchecker";
+      : null;
 
   const [item, setItem] = useState<EditableItem | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -211,8 +209,16 @@ export default function ItemDetailPage() {
       setRemovePhoto(false);
       setSaved(true);
 
-      if (returnTo && backHref === returnTo) {
-        router.push(backHref);
+      if (checkHref) {
+        const navigation = (
+          window as Window & { navigation?: { canGoBack: boolean } }
+        ).navigation;
+
+        if (navigation?.canGoBack ?? window.history.length > 1) {
+          router.back();
+        } else {
+          router.replace(checkHref);
+        }
         return;
       }
 
@@ -273,14 +279,9 @@ export default function ItemDetailPage() {
     return (
       <main className={styles.page}>
         <div className={styles.container}>
-          <Link href={backHref} className={styles.backLink}>
-            <ArrowLeft size={20} />
-            Terug
-          </Link>
-
           <div className={styles.emptyState}>
             <Package size={36} />
-            <h1>Product niet gevonden</h1>
+            <h2>Product niet gevonden</h2>
             <p>{error || "Dit product bestaat niet meer."}</p>
           </div>
         </div>
@@ -295,15 +296,9 @@ export default function ItemDetailPage() {
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <Link href={backHref} className={styles.backLink}>
-          <ArrowLeft size={20} />
-          Terug
-        </Link>
-
-        <header className={styles.header}>
-          <h1>Product bewerken</h1>
+        <div className={styles.header}>
           <p>Pas de gegevens aan en sla je wijzigingen op.</p>
-        </header>
+        </div>
 
         {error && (
           <div className={styles.errorMessage} role="alert">

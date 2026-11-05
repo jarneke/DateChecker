@@ -2,8 +2,8 @@
 
 import type { CSSProperties } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
   ArrowUpRight,
   Layers3,
   LoaderCircle,
@@ -19,10 +19,8 @@ import buttons from "./CategorySelector.module.css";
 
 type CategorySelectorProps = {
   categories: SharedCategory[];
-  categoryId: string;
   loading: boolean;
   error: string | null;
-  onChange: (categoryId: string) => void;
 };
 
 type CategoryStyle = CSSProperties & {
@@ -33,43 +31,30 @@ function getCategoryStyle(color?: string | null): CategoryStyle {
   return {
     "--category-color":
       color && /^#[0-9a-f]{6}$/i.test(color) ? color : "var(--dc-accent)",
+    textDecoration: "none",
   };
 }
 
 export default function CategorySelector({
   categories,
-  categoryId,
   loading,
   error,
-  onChange,
 }: CategorySelectorProps) {
+  const searchParams = useSearchParams();
   const total = categories.reduce(
     (sum, category) => sum + category.remaining_count,
     0,
   );
 
+  function getCategoryHref(id: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("categoryId", id);
+    return `/check?${params.toString()}`;
+  }
+
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <header className={styles.header}>
-          <div className={styles.headerTop}>
-            <Link
-              href="/"
-              className={styles.backButton}
-              aria-label="Terug naar home"
-            >
-              <ArrowLeft size={21} aria-hidden="true" />
-            </Link>
-
-            <div className={styles.headerInfo}>
-              <h1 className={styles.pageTitle}>Stockcheck</h1>
-              <p className={styles.pageSubtitle}>
-                Controleer of producten opnieuw in stock zijn.
-              </p>
-            </div>
-          </div>
-        </header>
-
         <DeliverySuggestions />
 
         <section className={styles.categoryCard}>
@@ -102,11 +87,12 @@ export default function CategorySelector({
               role="group"
               aria-label="Kies een categorie voor de stockcheck"
             >
-              <button
-                type="button"
+              <Link
+                href={getCategoryHref("all")}
+                prefetch={false}
+                scroll={false}
                 className={`${buttons.category} ${buttons.all}`}
-                onClick={() => onChange("all")}
-                aria-pressed={categoryId === "all"}
+                style={getCategoryStyle()}
                 aria-label={`Alle categorieën: ${total} producten te controleren`}
               >
                 <span className={buttons.icon}>
@@ -125,19 +111,19 @@ export default function CategorySelector({
                   className={buttons.arrow}
                   aria-hidden="true"
                 />
-              </button>
+              </Link>
 
               {categories.map((category) => {
                 const count = category.remaining_count;
 
                 return (
-                  <button
+                  <Link
                     key={category.id}
-                    type="button"
+                    href={getCategoryHref(category.id)}
+                    prefetch={false}
+                    scroll={false}
                     className={buttons.category}
                     style={getCategoryStyle(category.color)}
-                    onClick={() => onChange(category.id)}
-                    aria-pressed={categoryId === category.id}
                     aria-label={`${category.name}: ${count} producten te controleren`}
                   >
                     <span className={buttons.categoryTop}>
@@ -154,7 +140,7 @@ export default function CategorySelector({
                             count === 1 ? "product" : "producten"
                           } te controleren`}
                     </span>
-                  </button>
+                  </Link>
                 );
               })}
             </div>
