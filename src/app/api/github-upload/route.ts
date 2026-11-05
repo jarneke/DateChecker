@@ -31,7 +31,35 @@ function createImagePath(extension: string) {
         path: `images/${folder}/${fileName}`,
     };
 }
+const MAX_PHOTO_BYTES = 3_000_000;
+const MAX_BATCH_BYTES = 4_000_000;
 
+async function detectPhotoExtension(
+    file: File,
+): Promise<"jpg" | "png" | "webp" | null> {
+    const header = Buffer.from(await file.slice(0, 12).arrayBuffer());
+
+    if (header.length < 12) return null;
+
+    if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) {
+        return "jpg";
+    }
+
+    const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+    if (header.subarray(0, 8).equals(pngSignature)) {
+        return "png";
+    }
+
+    if (
+        header.toString("ascii", 0, 4) === "RIFF" &&
+        header.toString("ascii", 8, 12) === "WEBP"
+    ) {
+        return "webp";
+    }
+
+    return null;
+}
 export async function POST(request: Request) {
     try {
         const formData = await request.formData();
@@ -44,14 +72,26 @@ export async function POST(request: Request) {
             );
         }
 
-        const { token, owner, repo } = getGitHubConfig();
+        if (file.size > MAX_PHOTO_BYTES) {
+            return NextResponse.json(
+                { error: "De foto mag maximaal 3 MB groot zijn." },
+                { status: 413 },
+            );
+        }
 
+        const extension = await detectPhotoExtension(file);
+
+        if (!extension) {
+            return NextResponse.json(
+                { error: "Gebruik een JPEG-, PNG- of WebP-foto." },
+                { status: 415 },
+            );
+        }
+
+        const { token, owner, repo } = getGitHubConfig();
         const buffer = Buffer.from(await file.arrayBuffer());
         const base64 = buffer.toString("base64");
-
-        const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
         const { fileName, path } = createImagePath(extension);
-
         const response = await fetch(
             `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
             {
@@ -205,15 +245,39 @@ export async function PUT(request: Request) {
             );
         }
 
-        const validFiles = files.filter(
-            (file): file is File => file instanceof File,
-        );
+        const uploads: { file: File; extension: string }[] = [];
+        let totalBytes = 0;
 
-        if (validFiles.length === 0) {
-            return NextResponse.json(
-                { error: "No valid files provided" },
-                { status: 400 },
-            );
+        for (const file of files) {
+            if (!(file instanceof File)) {
+                return NextResponse.json(
+                    { error: "De upload bevat een ongeldig bestand." },
+                    { status: 400 },
+                );
+            }
+
+            totalBytes += file.size;
+
+            if (
+                file.size > MAX_PHOTO_BYTES ||
+                totalBytes > MAX_BATCH_BYTES
+            ) {
+                return NextResponse.json(
+                    { error: "Maximaal 3 MB per foto en 4 MB per upload." },
+                    { status: 413 },
+                );
+            }
+
+            const extension = await detectPhotoExtension(file);
+
+            if (!extension) {
+                return NextResponse.json(
+                    { error: "Gebruik alleen JPEG-, PNG- of WebP-foto’s." },
+                    { status: 415 },
+                );
+            }
+
+            uploads.push({ file, extension });
         }
 
         const { token, owner, repo } = getGitHubConfig();
@@ -275,7 +339,7 @@ export async function PUT(request: Request) {
             path: string;
         }[] = [];
 
-        for (const file of validFiles) {
+        for (const { file, extension } of uploads) {
             const buffer = Buffer.from(await file.arrayBuffer());
 
             const blobResponse = await fetch(
@@ -304,11 +368,7 @@ export async function PUT(request: Request) {
 
             const blobData = await blobResponse.json();
 
-            const extension =
-                file.name.split(".").pop()?.toLowerCase() || "jpg";
-
-            const { fileName, path } = createImagePath(extension);
-
+            const { path } = createImagePath(extension);
             blobs.push({
                 path,
                 mode: "100644",
