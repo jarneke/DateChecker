@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getGitHubPhotoPath } from "@/lib/github-photo-path";
 
 function getGitHubConfig() {
     const token = process.env.GITHUB_TOKEN;
@@ -112,26 +113,16 @@ export async function DELETE(request: Request) {
             );
         }
 
-        const url = new URL(photoUrl);
+        const photo = getGitHubPhotoPath(photoUrl, owner, repo);
 
-        if (url.hostname !== "raw.githubusercontent.com") {
+        if (!photo) {
             return NextResponse.json(
-                { error: "Invalid GitHub image URL" },
+                { error: "Deze foto kan niet via DateCheck verwijderd worden." },
                 { status: 400 },
             );
         }
 
-        const pathParts = url.pathname.split("/").filter(Boolean);
-
-        if (pathParts.length < 4) {
-            return NextResponse.json(
-                { error: "Invalid GitHub image path" },
-                { status: 400 },
-            );
-        }
-
-        const [, , branch, ...fileParts] = pathParts;
-        const path = fileParts.join("/");
+        const { branch, path } = photo;
 
         const fileResponse = await fetch(
             `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,

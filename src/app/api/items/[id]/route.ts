@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
+import { getGitHubPhotoPath } from "@/lib/github-photo-path";
 
 type Params = {
     params: Promise<{ id: string }>;
@@ -48,20 +49,10 @@ async function deleteGitHubImage(photoUrl: string) {
         throw new Error("GitHub environment variables are missing");
     }
 
-    const url = new URL(photoUrl);
+    const photo = getGitHubPhotoPath(photoUrl, owner, repo);
+    if (!photo) return;
 
-    if (url.hostname !== "raw.githubusercontent.com") {
-        throw new Error("Invalid GitHub image URL");
-    }
-
-    const pathParts = url.pathname.split("/").filter(Boolean);
-
-    if (pathParts.length < 4) {
-        throw new Error("Invalid GitHub image path");
-    }
-
-    const [, , branch, ...fileParts] = pathParts;
-    const path = fileParts.join("/");
+    const { branch, path } = photo;
 
     const fileResponse = await fetch(
         `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,
@@ -462,42 +453,10 @@ export async function DELETE(
             );
         }
 
-        const item = await sql`
-      SELECT photo_url
-      FROM items
-      WHERE id = ${id}
-      LIMIT 1
-    `;
-
-        if (item.length === 0) {
-            return NextResponse.json(
-                { error: "Product niet gevonden." },
-                { status: 404 },
-            );
-        }
-
-        const photoUrl = item[0].photo_url;
-
-        if (photoUrl && typeof photoUrl === "string") {
-            try {
-                await deleteGitHubImage(photoUrl);
-            } catch (githubError) {
-                console.error(
-                    "Failed to delete item photo from GitHub:",
-                    githubError,
-                );
-
-                return NextResponse.json(
-                    { error: "Foto kon niet verwijderd worden." },
-                    { status: 500 },
-                );
-            }
-        }
-
         const result = await sql`
       DELETE FROM items
       WHERE id = ${id}
-      RETURNING id
+      RETURNING id, photo_url
     `;
 
         if (result.length === 0) {
@@ -505,6 +464,19 @@ export async function DELETE(
                 { error: "Product niet gevonden." },
                 { status: 404 },
             );
+        }
+
+        const photoUrl = result[0].photo_url;
+
+        if (typeof photoUrl === "string" && photoUrl) {
+            try {
+                await deleteGitHubImage(photoUrl);
+            } catch (githubError) {
+                console.error(
+                    "Product deleted, but GitHub photo cleanup failed:",
+                    { itemId: id, error: githubError },
+                );
+            }
         }
 
         return NextResponse.json({
