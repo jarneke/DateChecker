@@ -1,189 +1,190 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+
 import { sql } from "@/lib/db";
 
 const PAGE_SIZE = 10;
 
-const VALID_SORT_OPTIONS = [
-  "name_asc",
-  "name_desc",
-  "expiry_asc",
-  "expiry_desc",
-  "category_asc",
-  "category_desc",
-] as const;
+const SORT_SQL = {
+  name_asc: "i.name ASC",
+  name_desc: "i.name DESC",
+  expiry_asc: "i.expiry_date ASC NULLS LAST",
+  expiry_desc: "i.expiry_date DESC NULLS LAST",
+  category_asc: "c.name ASC",
+  category_desc: "c.name DESC",
+  category_order: "c.sort_order ASC NULLS LAST, c.name ASC",
+  updated_desc: "i.updated_at DESC NULLS LAST",
+  created_desc: "i.created_at DESC NULLS LAST",
+  created_asc: "i.created_at ASC NULLS LAST",
+  stickered_first: "i.stickered DESC",
+  unstickered_first: "i.stickered ASC",
+} as const;
 
-type SortOption = (typeof VALID_SORT_OPTIONS)[number];
+const dateFilter = z.union([z.literal(""), z.iso.date()]).default("");
+
+const filtersSchema = z.object({
+  page: z.coerce.number().int().positive().max(2147483647).catch(1),
+  search: z.string().trim().default(""),
+  category: z.string().trim().default(""),
+  control: z.enum(["", "all", "30", "month"]).default(""),
+  stickered: z.enum(["all", "yes", "no"]).default("all"),
+  stock: z.enum(["all", "dated", "undated"]).default("all"),
+  status: z.enum(["all", "active", "paused"]).default("all"),
+  photo: z.enum(["all", "yes", "no"]).default("all"),
+  datePreset: z
+    .enum(["all", "overdue", "today", "next7", "custom"])
+    .default("custom"),
+  exactDate: dateFilter,
+  fromDate: dateFilter,
+  toDate: dateFilter,
+  sort: z.string().default("name_asc"),
+});
 
 export async function GET(request: NextRequest) {
+  const parsed = filtersSchema.safeParse(
+    Object.fromEntries(request.nextUrl.searchParams),
+  );
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Een filter heeft een ongeldige waarde of datum." },
+      { status: 400 },
+    );
+  }
+
+  const filters = parsed.data;
+
+  if (
+    filters.datePreset === "custom" &&
+    filters.fromDate &&
+    filters.toDate &&
+    filters.fromDate > filters.toDate
+  ) {
+    return NextResponse.json(
+      { error: "De begindatum moet voor of op de einddatum liggen." },
+      { status: 400 },
+    );
+  }
+
+  const sort = Object.prototype.hasOwnProperty.call(SORT_SQL, filters.sort)
+    ? (filters.sort as keyof typeof SORT_SQL)
+    : "name_asc";
+
+  const values: (string | number)[] = [];
+  const conditions: string[] = [];
+
+  function bind(value: string) {
+    values.push(value);
+    return "$" + values.length;
+  }
+
+  if (filters.search) {
+    conditions.push("i.name ILIKE " + bind("%" + filters.search + "%"));
+  }
+
+  if (filters.category) {
+    conditions.push("i.category_id::text = " + bind(filters.category));
+  }
+
+  if (filters.control === "30") {
+    conditions.push("i.sticker_30_percent = TRUE");
+  } else if (filters.control === "month") {
+    conditions.push("i.sticker_30_percent = FALSE");
+  }
+
+  if (filters.stickered !== "all") {
+    conditions.push(
+      filters.stickered === "yes" ? "i.stickered = TRUE" : "i.stickered = FALSE",
+    );
+  }
+
+  if (filters.stock !== "all") {
+    conditions.push(
+      filters.stock === "dated"
+        ? "i.expiry_date IS NOT NULL"
+        : "i.expiry_date IS NULL",
+    );
+  }
+
+  if (filters.status !== "all") {
+    conditions.push(
+      filters.status === "paused" ? "i.paused = TRUE" : "i.paused = FALSE",
+    );
+  }
+
+  if (filters.photo !== "all") {
+    conditions.push(
+      filters.photo === "yes"
+        ? "NULLIF(BTRIM(i.photo_url), '') IS NOT NULL"
+        : "NULLIF(BTRIM(i.photo_url), '') IS NULL",
+    );
+  }
+
+  const today = "(CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Brussels')::date";
+
+  if (filters.datePreset === "overdue") {
+    conditions.push("i.expiry_date < " + today);
+  } else if (filters.datePreset === "today") {
+    conditions.push("i.expiry_date = " + today);
+  } else if (filters.datePreset === "next7") {
+    conditions.push("i.expiry_date BETWEEN " + today + " AND " + today + " + 7");
+  } else if (filters.datePreset === "custom") {
+    if (filters.exactDate) {
+      conditions.push("i.expiry_date = " + bind(filters.exactDate) + "::date");
+    }
+
+    if (filters.fromDate) {
+      conditions.push("i.expiry_date >= " + bind(filters.fromDate) + "::date");
+    }
+
+    if (filters.toDate) {
+      conditions.push("i.expiry_date <= " + bind(filters.toDate) + "::date");
+    }
+  }
+
+  const where = conditions.length > 0 ? conditions.join(" AND ") : "TRUE";
+  const from =
+    " FROM items i INNER JOIN categories c ON c.id = i.category_id WHERE " + where;
+  const offset = (filters.page - 1) * PAGE_SIZE;
+
   try {
-    const searchParams = request.nextUrl.searchParams;
+    const [items, countResult] = await sql.transaction(
+      [
+        sql.query(
+          [
+            "SELECT i.id, i.name, i.photo_url, i.category_id,",
+            "c.name AS category_name, c.color AS category_color,",
+            "i.expiry_date, i.sticker_30_percent, i.stickered, i.paused,",
+            "i.stickered_for_date, i.created_at, i.updated_at",
+            from,
+            "ORDER BY " + SORT_SQL[sort] + ", i.name ASC, i.id ASC",
+            "LIMIT $" + (values.length + 1),
+            "OFFSET $" + (values.length + 2),
+          ].join(" "),
+          [...values, PAGE_SIZE, offset],
+        ),
+        sql.query("SELECT COUNT(*)::int AS total" + from, values),
+      ],
+      { readOnly: true, isolationLevel: "RepeatableRead" },
+    );
 
-    const pageParam = Number(searchParams.get("page") ?? "1");
-    const page =
-      Number.isFinite(pageParam) && pageParam > 0
-        ? pageParam
-        : 1;
+    const total = Number(countResult[0]?.total ?? 0);
 
-    const search = searchParams.get("search")?.trim() ?? "";
-    const category = searchParams.get("category")?.trim() ?? "";
-    const control = searchParams.get("control")?.trim() ?? "";
-
-    const exactDate =
-      searchParams.get("exactDate")?.trim() ?? "";
-    const fromDate =
-      searchParams.get("fromDate")?.trim() ?? "";
-    const toDate =
-      searchParams.get("toDate")?.trim() ?? "";
-
-    const sortParam = searchParams.get("sort") ?? "name_asc";
-
-    const sort: SortOption = VALID_SORT_OPTIONS.includes(
-      sortParam as SortOption,
-    )
-      ? (sortParam as SortOption)
-      : "name_asc";
-
-    const offset = (page - 1) * PAGE_SIZE;
-
-    const items = await sql`
-      SELECT
-        i.id,
-        i.name,
-        i.photo_url,
-        i.category_id,
-        c.name AS category_name,
-        c.color AS category_color,
-        i.expiry_date,
-        i.sticker_30_percent,
-        i.stickered,
-        i.paused,
-        i.stickered_for_date,
-        i.created_at,
-        i.updated_at
-      FROM items i
-      INNER JOIN categories c
-        ON c.id = i.category_id
-      WHERE
-        (
-          ${search} = ''
-          OR i.name ILIKE ${"%" + search + "%"}
-        )
-        AND (
-          ${category} = ''
-          OR i.category_id::text = ${category}
-        )
-        AND (
-          ${control} = ''
-          OR (
-            ${control} = '30'
-            AND i.sticker_30_percent = TRUE
-          )
-          OR (
-            ${control} = 'month'
-            AND i.sticker_30_percent = FALSE
-          )
-        )
-        AND (
-          ${exactDate} = ''
-          OR i.expiry_date = NULLIF(${exactDate}, '')::date
-        )
-        AND (
-          ${fromDate} = ''
-          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
-        )
-        AND (
-          ${toDate} = ''
-          OR i.expiry_date <= NULLIF(${toDate}, '')::date
-        )
-      ORDER BY
-        CASE
-          WHEN ${sort} = 'name_asc'
-          THEN i.name
-        END ASC,
-
-        CASE
-          WHEN ${sort} = 'name_desc'
-          THEN i.name
-        END DESC,
-
-        CASE
-          WHEN ${sort} = 'expiry_asc'
-          THEN i.expiry_date
-        END ASC,
-
-        CASE
-          WHEN ${sort} = 'expiry_desc'
-          THEN i.expiry_date
-        END DESC,
-
-        CASE
-          WHEN ${sort} = 'category_asc'
-          THEN c.name
-        END ASC,
-
-        CASE
-          WHEN ${sort} = 'category_desc'
-          THEN c.name
-        END DESC,
-
-        i.name ASC
-      LIMIT ${PAGE_SIZE}
-      OFFSET ${offset}
-    `;
-
-    const countResult = await sql`
-      SELECT COUNT(*)::int AS total
-      FROM items i
-      INNER JOIN categories c
-        ON c.id = i.category_id
-      WHERE
-        (
-          ${search} = ''
-          OR i.name ILIKE ${"%" + search + "%"}
-        )
-        AND (
-          ${category} = ''
-          OR i.category_id::text = ${category}
-        )
-        AND (
-          ${control} = ''
-          OR (
-            ${control} = '30'
-            AND i.sticker_30_percent = TRUE
-          )
-          OR (
-            ${control} = 'month'
-            AND i.sticker_30_percent = FALSE
-          )
-        )
-        AND (
-          ${exactDate} = ''
-          OR i.expiry_date = NULLIF(${exactDate}, '')::date
-        )
-        AND (
-          ${fromDate} = ''
-          OR i.expiry_date >= NULLIF(${fromDate}, '')::date
-        )
-        AND (
-          ${toDate} = ''
-          OR i.expiry_date <= NULLIF(${toDate}, '')::date
-        )
-    `;
-
-    const total = countResult[0]?.total ?? 0;
-
-    return NextResponse.json({
-      items,
-      page,
-      pageSize: PAGE_SIZE,
-      total,
-      totalPages: Math.ceil(total / PAGE_SIZE),
-    });
+    return NextResponse.json(
+      {
+        items,
+        page: filters.page,
+        pageSize: PAGE_SIZE,
+        total,
+        totalPages: Math.ceil(total / PAGE_SIZE),
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     console.error("Failed to fetch items:", error);
 
     return NextResponse.json(
-      { error: "Failed to fetch items" },
+      { error: "Producten konden niet geladen worden." },
       { status: 500 },
     );
   }
