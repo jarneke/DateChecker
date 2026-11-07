@@ -1,0 +1,43 @@
+.form {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 650px;
+  margin: 0 auto;
+  padding: 8px 17px 0;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--dc-accent);
+  border-radius: 12px;
+  background: var(--dc-surface-raised);
+  color: var(--dc-text);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.button:hover,
+.button:active {
+  background: var(--dc-surface-hover);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: 3px;
+}
+
+@media (min-width: 600px) {
+  .form {
+    padding-inline: 24px;
+  }
+}

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
+import LogoutButton from "@/components/navigation/LogoutButton";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <Suspense fallback={null}>
           <Breadcrumbs />
+          <LogoutButton />
         </Suspense>
         {children}
       </body>
