@@ -1,321 +1,384 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import {
+  Check,
   ChevronDown,
-  ChevronUp,
   Filter,
   RotateCcw,
   SlidersHorizontal,
 } from "lucide-react";
 
+import {
+  CONTROL_OPTIONS,
+  DATE_OPTIONS,
+  PHOTO_OPTIONS,
+  SORT_OPTIONS,
+  STATUS_OPTIONS,
+  STICKER_OPTIONS,
+  STOCK_OPTIONS,
+  getStockDateError,
+  type StockPreferences,
+} from "@/lib/stock-preferences";
+import CheckTileGlass from "@/components/home/CheckTileGlass";
 import styles from "./StockFilters.module.css";
 
-export type ControlFilter = "all" | "30" | "month";
-export type DateFilterMode = "exact" | "range";
-
-export type SortOption =
-  | "name_asc"
-  | "name_desc"
-  | "expiry_asc"
-  | "expiry_desc"
-  | "category_asc"
-  | "category_desc";
-
-type Category = {
-  id: string;
-  name: string;
-  color: string;
-};
+export type {
+  ControlFilter,
+  DateFilterMode,
+  SortOption,
+} from "@/lib/stock-preferences";
 
 type StockFiltersProps = {
-  categories: Category[];
-  categoryFilter: string;
-  onCategoryFilterChange: (value: string) => void;
-
-  controlFilter: ControlFilter;
-  onControlFilterChange: (value: ControlFilter) => void;
-
-  sort: SortOption;
-  onSortChange: (value: SortOption) => void;
-
-  dateFilterMode: DateFilterMode;
-  onDateFilterModeChange: (value: DateFilterMode) => void;
-
-  exactDate: string;
-  onExactDateChange: (value: string) => void;
-
-  fromDate: string;
-  onFromDateChange: (value: string) => void;
-
-  toDate: string;
-  onToDateChange: (value: string) => void;
-
+  categories: { id: string; name: string; color: string }[];
+  preferences: StockPreferences;
+  onChange: (changes: Partial<StockPreferences>) => void;
   onClearFilters: () => void;
 };
 
-const sortOptions: {
-  value: SortOption;
-  label: string;
-}[] = [
-  { value: "name_asc", label: "Naam (A → Z)" },
-  { value: "name_desc", label: "Naam (Z → A)" },
-  { value: "expiry_asc", label: "Vervaldatum (oud → nieuw)" },
-  { value: "expiry_desc", label: "Vervaldatum (nieuw → oud)" },
-  { value: "category_asc", label: "Categorie (A → Z)" },
-  { value: "category_desc", label: "Categorie (Z → A)" },
-];
+const SORT_GROUPS = [...new Set(SORT_OPTIONS.map((option) => option.group))];
+
+const EXTRA_FIELDS = [
+  { key: "stockFilter", label: "Voorraadregistratie", options: STOCK_OPTIONS },
+  { key: "statusFilter", label: "Productstatus", options: STATUS_OPTIONS },
+  { key: "photoFilter", label: "Productfoto", options: PHOTO_OPTIONS },
+] as const;
 
 export default function StockFilters({
   categories,
-  categoryFilter,
-  onCategoryFilterChange,
-  controlFilter,
-  onControlFilterChange,
-  sort,
-  onSortChange,
-  dateFilterMode,
-  onDateFilterModeChange,
-  exactDate,
-  onExactDateChange,
-  fromDate,
-  onFromDateChange,
-  toDate,
-  onToDateChange,
+  preferences,
+  onChange,
   onClearFilters,
 }: StockFiltersProps) {
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [sortOpen, setSortOpen] = useState(false);
+  const id = useId();
+  const [openPanel, setOpenPanel] = useState<"filters" | "sort" | null>(null);
+  const filtersButton = useRef<HTMLButtonElement>(null);
+  const sortButton = useRef<HTMLButtonElement>(null);
+  const dateError = getStockDateError(preferences);
+
+  const customDateActive =
+    preferences.dateFilterMode === "exact"
+      ? Boolean(preferences.exactDate)
+      : Boolean(preferences.fromDate || preferences.toDate);
 
   const activeFilterCount =
-    Number(categoryFilter !== "") +
-    Number(controlFilter !== "all") +
+    Number(Boolean(preferences.categoryFilter)) +
+    Number(preferences.controlFilter !== "all") +
+    Number(preferences.stickerFilter !== "all") +
+    Number(preferences.stockFilter !== "all") +
+    Number(preferences.statusFilter !== "all") +
+    Number(preferences.photoFilter !== "all") +
     Number(
-      dateFilterMode === "exact"
-        ? exactDate !== ""
-        : fromDate !== "" || toDate !== "",
+      preferences.datePreset === "custom"
+        ? customDateActive
+        : preferences.datePreset !== "all",
     );
-
-  const filtersActive = activeFilterCount > 0;
 
   return (
     <div className={styles.wrapper}>
       <div className={styles.toolbar}>
         <button
+          ref={filtersButton}
           type="button"
-          className={`${styles.toolbarButton} ${
-            filtersOpen ? styles.active : ""
-          }`}
-          onClick={() => {
-            setFiltersOpen(!filtersOpen);
-            setSortOpen(false);
-          }}
-          aria-expanded={filtersOpen}
-          aria-controls="stock-filters-panel"
+          className={styles.toolbarButton}
+          aria-expanded={openPanel === "filters"}
+          aria-controls={id + "-filters"}
+          onClick={() =>
+            setOpenPanel(openPanel === "filters" ? null : "filters")
+          }
         >
-          <Filter size={18} />
-          <span>Filters</span>
-
+          <Filter size={18} aria-hidden="true" />
+          Filters
           {activeFilterCount > 0 && (
             <span className={styles.filterCount}>{activeFilterCount}</span>
           )}
-
-          {filtersOpen ? (
-            <ChevronUp size={17} className={styles.chevron} />
-          ) : (
-            <ChevronDown size={17} className={styles.chevron} />
-          )}
+          <ChevronDown
+            size={17}
+            className={styles.chevron}
+            aria-hidden="true"
+          />
         </button>
 
         <button
+          ref={sortButton}
           type="button"
-          className={`${styles.toolbarButton} ${sortOpen ? styles.active : ""}`}
-          onClick={() => {
-            setSortOpen(!sortOpen);
-            setFiltersOpen(false);
-          }}
-          aria-expanded={sortOpen}
-          aria-controls="stock-sort-panel"
+          className={styles.toolbarButton}
+          aria-expanded={openPanel === "sort"}
+          aria-controls={id + "-sort"}
+          onClick={() => setOpenPanel(openPanel === "sort" ? null : "sort")}
         >
-          <SlidersHorizontal size={18} />
-          <span>Sorteren</span>
-
-          {sortOpen ? (
-            <ChevronUp size={17} className={styles.chevron} />
-          ) : (
-            <ChevronDown size={17} className={styles.chevron} />
-          )}
+          <SlidersHorizontal size={18} aria-hidden="true" />
+          Sorteren
+          <ChevronDown
+            size={17}
+            className={styles.chevron}
+            aria-hidden="true"
+          />
         </button>
       </div>
 
-      {filtersOpen && (
+      {openPanel === "filters" && (
         <section
-          id="stock-filters-panel"
+          id={id + "-filters"}
           className={styles.panel}
           aria-label="Productfilters"
         >
+          <CheckTileGlass className={styles.glass} />
+
           <div className={styles.panelHeader}>
-            <h2>
-              <Filter size={18} />
-              Filters
-            </h2>
+            <h2>Filters</h2>
 
             <button
               type="button"
               className={styles.resetButton}
               onClick={onClearFilters}
-              disabled={!filtersActive}
+              disabled={
+                activeFilterCount === 0 &&
+                !preferences.search &&
+                preferences.sort === "name_asc"
+              }
             >
-              <RotateCcw size={15} />
+              <RotateCcw size={15} aria-hidden="true" />
               Wissen
             </button>
           </div>
 
-          {/* Category filter */}
+          <div className={styles.fields}>
+            <label className={styles.field}>
+              <span>Categorie</span>
 
-          <div className={styles.field}>
-            <label htmlFor="stock-category-filter">Categorie</label>
+              <select
+                value={preferences.categoryFilter}
+                onChange={(event) =>
+                  onChange({ categoryFilter: event.target.value })
+                }
+              >
+                <option value="">Alle categorieën</option>
 
-            <select
-              id="stock-category-filter"
-              value={categoryFilter}
-              onChange={(event) => onCategoryFilterChange(event.target.value)}
-            >
-              <option value="">Alle categorieën</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
+            <label className={styles.field}>
+              <span>Stickersoort</span>
+
+              <select
+                value={preferences.controlFilter}
+                onChange={(event) =>
+                  onChange({
+                    controlFilter: event.target
+                      .value as StockPreferences["controlFilter"],
+                  })
+                }
+              >
+                {CONTROL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <fieldset className={styles.fieldset}>
+            <legend>Stickerstatus</legend>
+
+            <div className={styles.legend}>
+              <span>
+                <i className={styles.pink} aria-hidden="true" />
+                30%
+              </span>
+              <span>
+                <i className={styles.orange} aria-hidden="true" />
+                50%
+              </span>
+            </div>
+
+            <div className={styles.segments}>
+              {STICKER_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={preferences.stickerFilter === option.value}
+                  onClick={() => onChange({ stickerFilter: option.value })}
+                >
+                  {option.label}
+                </button>
               ))}
-            </select>
-          </div>
-
-          {/* Control type */}
-
-          <div className={styles.field}>
-            <label htmlFor="stock-control-filter">Controletype</label>
-
-            <select
-              id="stock-control-filter"
-              value={controlFilter}
-              onChange={(event) =>
-                onControlFilterChange(event.target.value as ControlFilter)
-              }
-            >
-              <option value="all">Alle controles</option>
-              <option value="30">Dagelijkse controle</option>
-              <option value="month">Maandelijkse controle</option>
-            </select>
-          </div>
-
-          {/* Expiry date */}
-
-          <div className={styles.field}>
-            <span className={styles.fieldLabel}>Vervaldatum</span>
-
-            <div className={styles.segmented}>
-              <button
-                type="button"
-                className={
-                  dateFilterMode === "exact" ? styles.selectedSegment : ""
-                }
-                onClick={() => onDateFilterModeChange("exact")}
-              >
-                Exacte datum
-              </button>
-
-              <button
-                type="button"
-                className={
-                  dateFilterMode === "range" ? styles.selectedSegment : ""
-                }
-                onClick={() => onDateFilterModeChange("range")}
-              >
-                Datumbereik
-              </button>
             </div>
+          </fieldset>
+
+          <div className={styles.fields}>
+            {EXTRA_FIELDS.map((field) => (
+              <label key={field.key} className={styles.field}>
+                <span>{field.label}</span>
+
+                <select
+                  value={preferences[field.key]}
+                  onChange={(event) =>
+                    onChange({ [field.key]: event.target.value })
+                  }
+                >
+                  {field.options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
           </div>
 
-          {dateFilterMode === "exact" ? (
-            <div className={styles.field}>
-              <label htmlFor="stock-exact-date">Datum</label>
+          <fieldset className={styles.fieldset}>
+            <legend>Vervaldatum</legend>
 
-              <input
-                id="stock-exact-date"
-                type="date"
-                value={exactDate}
-                onChange={(event) => onExactDateChange(event.target.value)}
-              />
+            <div className={styles.presets}>
+              {DATE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={preferences.datePreset === option.value}
+                  onClick={() => onChange({ datePreset: option.value })}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-          ) : (
-            <div className={styles.dateFields}>
-              <div className={styles.field}>
-                <label htmlFor="stock-from-date">Vanaf</label>
 
-                <input
-                  id="stock-from-date"
-                  type="date"
-                  value={fromDate}
-                  onChange={(event) => onFromDateChange(event.target.value)}
-                />
+            {preferences.datePreset === "next7" && (
+              <p className={styles.hint}>Vandaag tot en met over 7 dagen.</p>
+            )}
+
+            {preferences.datePreset === "custom" && (
+              <div className={styles.customDate}>
+                <div className={styles.segments}>
+                  <button
+                    type="button"
+                    aria-pressed={preferences.dateFilterMode === "exact"}
+                    onClick={() => onChange({ dateFilterMode: "exact" })}
+                  >
+                    Exacte datum
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-pressed={preferences.dateFilterMode === "range"}
+                    onClick={() => onChange({ dateFilterMode: "range" })}
+                  >
+                    Periode
+                  </button>
+                </div>
+
+                {preferences.dateFilterMode === "exact" ? (
+                  <label className={styles.field}>
+                    <span>Datum</span>
+                    <input
+                      type="date"
+                      value={preferences.exactDate}
+                      onChange={(event) =>
+                        onChange({ exactDate: event.target.value })
+                      }
+                    />
+                  </label>
+                ) : (
+                  <div className={styles.fields}>
+                    <label className={styles.field}>
+                      <span>Vanaf</span>
+                      <input
+                        type="date"
+                        value={preferences.fromDate}
+                        onChange={(event) =>
+                          onChange({ fromDate: event.target.value })
+                        }
+                        aria-invalid={Boolean(dateError)}
+                      />
+                    </label>
+
+                    <label className={styles.field}>
+                      <span>Tot en met</span>
+                      <input
+                        type="date"
+                        value={preferences.toDate}
+                        onChange={(event) =>
+                          onChange({ toDate: event.target.value })
+                        }
+                        aria-invalid={Boolean(dateError)}
+                      />
+                    </label>
+                  </div>
+                )}
               </div>
+            )}
 
-              <div className={styles.field}>
-                <label htmlFor="stock-to-date">Tot</label>
-
-                <input
-                  id="stock-to-date"
-                  type="date"
-                  value={toDate}
-                  onChange={(event) => onToDateChange(event.target.value)}
-                />
-              </div>
-            </div>
-          )}
+            {dateError && (
+              <p className={styles.error} role="alert">
+                {dateError}
+              </p>
+            )}
+          </fieldset>
 
           <button
             type="button"
             className={styles.applyButton}
-            onClick={() => setFiltersOpen(false)}
+            disabled={Boolean(dateError)}
+            onClick={() => {
+              setOpenPanel(null);
+              filtersButton.current?.focus();
+            }}
           >
             Resultaten bekijken
           </button>
         </section>
       )}
 
-      {sortOpen && (
+      {openPanel === "sort" && (
         <section
-          id="stock-sort-panel"
+          id={id + "-sort"}
           className={styles.panel}
           aria-label="Sorteeropties"
         >
+          <CheckTileGlass className={styles.glass} />
+
           <div className={styles.panelHeader}>
-            <h2>
-              <SlidersHorizontal size={18} />
-              Sorteren op
-            </h2>
+            <h2>Sorteren op</h2>
           </div>
 
-          <div className={styles.sortOptions}>
-            {sortOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`${styles.sortOption} ${
-                  sort === option.value ? styles.sortSelected : ""
-                }`}
-                onClick={() => {
-                  onSortChange(option.value);
-                  setSortOpen(false);
-                }}
-              >
-                <span className={styles.radioIndicator} aria-hidden="true" />
+          {SORT_GROUPS.map((group) => (
+            <fieldset key={group} className={styles.sortGroup}>
+              <legend>{group}</legend>
 
-                {option.label}
-              </button>
-            ))}
-          </div>
+              {SORT_OPTIONS.filter((option) => option.group === group).map(
+                (option) => (
+                  <label key={option.value} className={styles.sortOption}>
+                    <input
+                      type="radio"
+                      name={id + "-sort-option"}
+                      value={option.value}
+                      checked={preferences.sort === option.value}
+                      onChange={() => {
+                        onChange({ sort: option.value });
+                        setOpenPanel(null);
+                        sortButton.current?.focus();
+                      }}
+                    />
+                    <span>{option.label}</span>
+
+                    {preferences.sort === option.value && (
+                      <Check size={16} aria-hidden="true" />
+                    )}
+                  </label>
+                ),
+              )}
+            </fieldset>
+          ))}
+
+          <p className={styles.hint}>
+            Bij sorteren op vervaldatum staan producten zonder datum onderaan.
+          </p>
         </section>
       )}
     </div>
