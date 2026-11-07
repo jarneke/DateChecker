@@ -1,0 +1,142 @@
+.page {
+  width: min(100%, 520px);
+  margin-inline: auto;
+  padding: 28px 18px max(32px, env(safe-area-inset-bottom));
+  color: var(--dc-text);
+}
+
+.header {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 26px;
+}
+
+.header h1,
+.header p,
+.status p {
+  margin: 0;
+}
+
+.header h1 {
+  font-size: clamp(32px, 8vw, 42px);
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+}
+
+.header p {
+  color: var(--dc-text-secondary);
+  font-size: 17px;
+}
+
+.header .brand {
+  margin-bottom: 5px;
+  color: var(--dc-accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--dc-border);
+  list-style: none;
+}
+
+.list li {
+  border-bottom: 1px solid var(--dc-border);
+}
+
+.row {
+  --round-color: var(--dc-accent);
+
+  display: flex;
+  min-height: 82px;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 8px;
+  color: var(--dc-text);
+  text-decoration: none;
+}
+
+.row[data-round="sticker"] {
+  --round-color: #83e7bc;
+}
+
+.row[data-round="monthly"] {
+  --round-color: #c6b5ed;
+}
+
+.row[data-round="evening"] {
+  --round-color: var(--dc-daily);
+}
+
+.row[data-round="monthly-pickup"] {
+  --round-color: #f1bd87;
+}
+
+a.row:hover,
+a.row:active {
+  background: var(--dc-surface);
+}
+
+a.row:focus-visible,
+.retry:focus-visible {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: -2px;
+}
+
+.icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--dc-surface-raised);
+  color: var(--round-color);
+}
+
+.label {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+}
+
+.label strong {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.label span {
+  color: var(--dc-text-secondary);
+  font-size: 15px;
+}
+
+.locked {
+  --round-color: var(--dc-text-secondary);
+
+  color: var(--dc-text-secondary);
+}
+
+.status {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--dc-border);
+  border-radius: 14px;
+  background: var(--dc-surface);
+  font-size: 17px;
+}
+
+.retry {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--dc-accent);
+  color: var(--dc-text-inverse);
+  font-weight: 650;
+  cursor: pointer;
+}
