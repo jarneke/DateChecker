@@ -1,23 +1,20 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { createContext, useId, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
-  CalendarDays,
-  ClipboardCheck,
   EllipsisVertical,
   ImageOff,
-  Moon,
-  Package,
-  PackageCheck,
   Pencil,
-  Tag,
 } from "lucide-react";
 
 import type { CheckType, Item } from "../types";
 import { formatDate } from "../utils";
 import styles from "../page.module.css";
+import compact from "./ProductCard.module.css";
+
+export const ProductSummaryContext = createContext<ReactNode>(null);
 
 type ProductCardProps = {
   item: Item;
@@ -26,15 +23,6 @@ type ProductCardProps = {
   editReturnUrl: string;
   swipeOffset: number;
   children: ReactNode;
-};
-
-const icons = {
-  sticker: Tag,
-  overdue: ClipboardCheck,
-  monthly: CalendarDays,
-  evening: Moon,
-  "monthly-pickup": PackageCheck,
-  stock: Package,
 };
 
 export default function ProductCard({
@@ -47,38 +35,46 @@ export default function ProductCard({
 }: ProductCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const menuId = useId();
 
-  const Icon = icons[type];
   const isPickup = type === "evening" || type === "monthly-pickup";
 
-  return (
-    <article
-      className={styles.productCard}
-      style={{
-        transform: `translateX(${swipeOffset * 0.35}px)`,
-        transition: swipeOffset === 0 ? "transform 0.18s ease-out" : "none",
-      }}
-    >
-      <div className={styles.productHeader}>
-        <div className={styles.productIcon}>
-          <Icon size={21} />
+  const summary = (
+    <>
+      <div className={compact.header}>
+        <div className={compact.info}>
+          <h2 className={compact.name}>{item.name}</h2>
+          <p className={compact.category}>{item.category_name}</p>
         </div>
 
-        <div className={styles.productInfo}>
-          <span className={styles.productEyebrow}>Huidig product</span>
-          <h2 className={styles.productName}>{item.name}</h2>
-          <p className={styles.productCategory}>{item.category_name}</p>
-        </div>
+        <div className={compact.photoWrapper}>
+          <div className={compact.photo}>
+            {item.photo_url && !imageFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element -- Existing photo URLs may use external hosts.
+              <img
+                key={item.photo_url}
+                src={item.photo_url}
+                alt={item.name}
+                className={compact.image}
+                onError={() => setImageFailed(true)}
+              />
+            ) : (
+              <div className={compact.placeholder}>
+                <ImageOff size={26} aria-hidden="true" />
+                <span>Geen foto</span>
+              </div>
+            )}
+          </div>
 
-        <div className={styles.productMenuWrapper}>
           <button
             type="button"
-            className={styles.productMenuButton}
+            className={compact.menuButton}
             aria-label="Productopties"
             aria-expanded={menuOpen}
+            aria-controls={menuOpen ? menuId : undefined}
             onClick={() => setMenuOpen((open) => !open)}
           >
-            <EllipsisVertical size={21} />
+            <EllipsisVertical size={20} aria-hidden="true" />
           </button>
 
           {menuOpen && (
@@ -90,14 +86,22 @@ export default function ProductCard({
                 onClick={() => setMenuOpen(false)}
               />
 
-              <div className={styles.productMenu}>
+              <div
+                id={menuId}
+                className={compact.menu}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setMenuOpen(false);
+                  }
+                }}
+              >
                 <Link
                   href={`/stockchecker/${item.id}?returnTo=${encodeURIComponent(
                     editReturnUrl,
                   )}`}
                   className={styles.productMenuItem}
                 >
-                  <Pencil size={17} />
+                  <Pencil size={17} aria-hidden="true" />
                   Product bewerken
                 </Link>
               </div>
@@ -106,35 +110,29 @@ export default function ProductCard({
         </div>
       </div>
 
-      <div className={styles.productImageContainer}>
-        {item.photo_url && !imageFailed ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Existing photo URLs may use external hosts.
-          <img
-            key={item.photo_url}
-            src={item.photo_url}
-            alt={item.name}
-            className={styles.productImage}
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
-          <div className={styles.productImagePlaceholder}>
-            <ImageOff size={28} />
-            <span>Geen productfoto</span>
-          </div>
-        )}
-      </div>
-
       {missedCheck && !isPickup && (
         <div className={styles.expiredWarning}>
-          <AlertTriangle size={19} />
+          <AlertTriangle size={19} aria-hidden="true" />
           <div>
             <strong>Vervaldatum verstreken</strong>
             <span>Vorige vervaldatum: {formatDate(item.expiry_date)}</span>
           </div>
         </div>
       )}
+    </>
+  );
 
-      <div className={styles.productContent}>{children}</div>
+  return (
+    <article
+      className={styles.productCard}
+      style={{
+        transform: `translateX(${swipeOffset * 0.35}px)`,
+        transition: swipeOffset === 0 ? "transform 0.18s ease-out" : "none",
+      }}
+    >
+      <ProductSummaryContext.Provider value={summary}>
+        <div className={styles.productContent}>{children}</div>
+      </ProductSummaryContext.Provider>
     </article>
   );
 }
