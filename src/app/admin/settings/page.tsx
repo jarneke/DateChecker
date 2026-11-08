@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import CheckTileGlass from "@/components/home/CheckTileGlass";
 import {
   CalendarDays,
   Check,
@@ -98,6 +99,8 @@ function SortableCategory({
       style={style}
       className={`${styles.categoryItem} ${isDragging ? styles.dragging : ""}`}
     >
+      <CheckTileGlass className={styles.glass} />
+
       <button
         type="button"
         className={styles.dragHandle}
@@ -234,6 +237,7 @@ export default function SettingsPage() {
       ) {
         return;
       }
+
       if (link === confirmedLink.current) return;
 
       event.preventDefault();
@@ -314,8 +318,15 @@ export default function SettingsPage() {
     markChanged();
   }
 
+  function refreshGlass() {
+    window.dispatchEvent(new Event("resize"));
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+
+    refreshGlass();
+
     if (!over || active.id === over.id) return;
 
     setCategories((current) => {
@@ -408,6 +419,7 @@ export default function SettingsPage() {
             if (!pendingLink.isConnected) return;
 
             confirmedLink.current = pendingLink;
+
             try {
               pendingLink.click();
             } finally {
@@ -424,17 +436,23 @@ export default function SettingsPage() {
         </div>
 
         {loading ? (
-          <div className={styles.loading}>Instellingen laden...</div>
+          <div className={styles.loading}>
+            <CheckTileGlass className={styles.glass} />
+            Instellingen laden...
+          </div>
         ) : (
           <>
             {hasUnsavedChanges && (
               <div className={styles.unsavedNotice}>
+                <CheckTileGlass className={styles.glass} />
                 <AlertCircle size={17} />
                 Niet-opgeslagen wijzigingen
               </div>
             )}
 
             <section className={styles.section}>
+              <CheckTileGlass className={styles.glass} />
+
               <div className={styles.sectionHeading}>
                 <div className={styles.sectionIcon}>
                   <CalendarDays size={19} />
@@ -487,6 +505,8 @@ export default function SettingsPage() {
             </section>
 
             <section className={styles.section}>
+              <CheckTileGlass className={styles.glass} />
+
               <button
                 type="button"
                 className={styles.categoriesHeader}
@@ -522,6 +542,8 @@ export default function SettingsPage() {
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
+                    onDragMove={refreshGlass}
+                    onDragCancel={refreshGlass}
                     onDragEnd={handleDragEnd}
                   >
                     <SortableContext
@@ -582,6 +604,7 @@ export default function SettingsPage() {
                       onClick={handleAddCategory}
                       disabled={!newCategory.trim()}
                     >
+                      <CheckTileGlass className={styles.glass} />
                       <Plus size={18} />
                       Categorie toevoegen
                     </button>
@@ -592,6 +615,7 @@ export default function SettingsPage() {
 
             {error && (
               <div className={styles.errorNotice}>
+                <CheckTileGlass className={styles.glass} />
                 <AlertCircle size={17} />
                 {error}
               </div>
@@ -599,6 +623,7 @@ export default function SettingsPage() {
 
             {saved && (
               <div className={styles.successNotice}>
+                <CheckTileGlass className={styles.glass} />
                 <Check size={17} />
                 Instellingen opgeslagen.
               </div>
@@ -615,6 +640,7 @@ export default function SettingsPage() {
                 !hasUnsavedChanges
               }
             >
+              <CheckTileGlass className={styles.glass} />
               {saving ? (
                 "Opslaan..."
               ) : (
