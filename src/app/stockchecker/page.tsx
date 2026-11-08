@@ -256,13 +256,15 @@ export default function StockCheckerPage() {
           </div>
 
           {dateError && (
-            <p className={styles.error} role="alert">
+            <div className={styles.error} role="alert">
+              <CheckTileGlass className={styles.glass} />
               {dateError}
-            </p>
+            </div>
           )}
 
           {!dateError && !busy && error && (
             <div className={styles.emptyState} role="alert">
+              <CheckTileGlass className={styles.glass} />
               <Package size={42} />
               <h3>Er ging iets mis</h3>
               <p>{error}</p>
@@ -279,12 +281,14 @@ export default function StockCheckerPage() {
 
           {!dateError && busy && (
             <div className={styles.loadingState} role="status">
+              <CheckTileGlass className={styles.glass} />
               Producten laden...
             </div>
           )}
 
           {!dateError && !busy && !error && items.length === 0 && (
             <div className={styles.emptyState}>
+              <CheckTileGlass className={styles.glass} />
               <Search size={43} />
               <h3>Geen producten gevonden</h3>
               <p>Probeer een andere zoekterm of pas je filters aan.</p>
@@ -315,6 +319,7 @@ export default function StockCheckerPage() {
                     disabled={page === 1}
                     aria-label="Vorige pagina"
                   >
+                    <CheckTileGlass className={styles.glass} />
                     <ChevronLeft size={20} />
                   </button>
 
@@ -335,6 +340,7 @@ export default function StockCheckerPage() {
                         aria-label={`Pagina ${number}`}
                         aria-current={number === page ? "page" : undefined}
                       >
+                        <CheckTileGlass className={styles.glass} />
                         {number}
                       </button>
                     ),
@@ -346,6 +352,7 @@ export default function StockCheckerPage() {
                     disabled={page === totalPages}
                     aria-label="Volgende pagina"
                   >
+                    <CheckTileGlass className={styles.glass} />
                     <ChevronRight size={20} />
                   </button>
                 </nav>

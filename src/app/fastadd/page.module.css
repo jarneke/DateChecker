@@ -1,70 +1,100 @@
 .page {
+  --add-edge: rgb(168 192 211 / 27%);
+  --add-surface: rgb(13 23 32 / 76%);
+  --add-shadow:
+    0 8px 24px rgb(0 0 0 / 18%), inset 0 1px 0 rgb(255 255 255 / 8%);
+
+  position: relative;
+  isolation: isolate;
   min-height: 100dvh;
-  background: var(--dc-background);
   color: var(--dc-text);
   font-family: var(--dc-font);
   -webkit-font-smoothing: antialiased;
 }
 
-.container {
+.page::before {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  background-image:
+    linear-gradient(rgb(0 0 0 / 0%), rgb(0 0 0 / 12%)),
+    url("/images/datecheck-carrefour-dark.png");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.page,
+.page * {
   box-sizing: border-box;
-  width: 100%;
-  max-width: 720px;
+}
+
+.container {
+  width: min(100% - 34px, 616px);
   margin: 0 auto;
-  padding: 24px 16px 48px;
+  padding: 18px 0 max(32px, env(safe-area-inset-bottom));
 }
 
 .backLink {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
+  min-height: 44px;
   color: var(--dc-accent);
   text-decoration: none;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .header {
-  margin: 28px 0 25px;
+  margin: 0 0 18px;
 }
 
 .header h1 {
-  margin: 0 0 10px;
-  font-size: clamp(27px, 6vw, 34px);
-  font-weight: 800;
-  letter-spacing: -0.8px;
+  margin: 0 0 8px;
+  font-size: clamp(25px, 6vw, 32px);
+  font-weight: 750;
+  letter-spacing: -0.7px;
 }
 
 .header p {
   margin: 0;
   color: var(--dc-text-secondary);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .card {
-  margin-bottom: 18px;
-  padding: 18px;
-  background: var(--dc-surface);
-  border: 1px solid var(--dc-border);
-  border-radius: var(--dc-radius-lg);
+  min-width: 0;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid var(--add-edge);
+  border-radius: 19px;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 4%), transparent 55%),
+    var(--add-surface);
+  box-shadow: var(--add-shadow);
 }
 
-.cardHeader {
+.cardHeader,
+.listHeader {
   display: flex;
   align-items: center;
-  gap: 13px;
-  margin-bottom: 24px;
+  gap: 11px;
+  margin-bottom: 17px;
 }
 
 .cardIcon {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 46px;
-  height: 46px;
-  border-radius: var(--dc-radius-md);
-  background: rgba(var(--dc-accent-rgb), 0.12);
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgb(var(--dc-accent-rgb) / 24%);
+  border-radius: 13px;
+  background: rgb(var(--dc-accent-rgb) / 10%);
   color: var(--dc-accent);
 }
 
@@ -74,41 +104,46 @@
 }
 
 .cardHeading h2 {
-  margin: 0 0 5px;
-  font-size: 16px;
-  font-weight: 750;
+  margin: 0 0 3px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .cardHeading p {
   margin: 0;
   color: var(--dc-text-secondary);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .count {
   display: grid;
   place-items: center;
-  min-width: 29px;
-  height: 29px;
+  flex-shrink: 0;
+  min-width: 30px;
+  height: 30px;
   padding: 0 8px;
-  border-radius: 50px;
-  background: var(--dc-surface-hover);
-  color: var(--dc-text);
-  font-size: 12px;
+  border: 1px solid rgb(var(--dc-accent-rgb) / 25%);
+  border-radius: 99px;
+  background: rgb(var(--dc-accent-rgb) / 14%);
+  color: var(--dc-accent);
+  font-size: 13px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .fields {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  min-width: 0;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 7px;
   min-width: 0;
 }
 
@@ -121,25 +156,31 @@
 
 .field input,
 .field select {
-  box-sizing: border-box;
+  display: block;
   width: 100%;
-  height: 49px;
   min-width: 0;
-  padding: 0 14px;
-  border: 1px solid var(--dc-border);
-  border-radius: var(--dc-radius-md);
+  max-width: 100%;
+  height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--add-edge);
+  border-radius: 11px;
   outline: none;
-  background: var(--dc-background);
+  background: rgb(0 0 0 / 20%);
   color: var(--dc-text);
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
   color-scheme: dark;
+}
+
+.field select option {
+  background: #14212d;
+  color: var(--dc-text);
 }
 
 .field input:focus,
 .field select:focus {
   border-color: var(--dc-accent);
-  box-shadow: 0 0 0 3px rgba(var(--dc-accent-rgb), 0.1);
+  box-shadow: 0 0 0 3px rgb(var(--dc-accent-rgb) / 12%);
 }
 
 .field input::placeholder {
@@ -154,25 +195,26 @@
 
 .selectWrapper {
   position: relative;
+  min-width: 0;
 }
 
 .selectWrapper select {
   appearance: none;
-  padding-right: 40px;
+  padding-right: 38px;
   cursor: pointer;
 }
 
 .selectWrapper select.withDot {
-  padding-left: 37px;
+  padding-left: 35px;
 }
 
 .categoryDot {
   position: absolute;
   z-index: 1;
   top: 50%;
-  left: 15px;
-  width: 12px;
-  height: 12px;
+  left: 13px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   transform: translateY(-50%);
   pointer-events: none;
@@ -181,7 +223,7 @@
 .selectChevron {
   position: absolute;
   top: 50%;
-  right: 14px;
+  right: 12px;
   color: var(--dc-text-secondary);
   transform: translateY(-50%);
   pointer-events: none;
@@ -190,38 +232,45 @@
 .checkOptions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 7px;
 }
 
 .checkOption {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 10px 8px;
-  border: 1px solid var(--dc-border);
-  border-radius: var(--dc-radius-sm);
-  background: var(--dc-background);
+  gap: 6px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 9px 7px;
+  border: 1px solid var(--add-edge);
+  border-radius: 11px;
+  background: rgb(255 255 255 / 3%);
   color: var(--dc-text);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
+  line-height: 1.35;
   cursor: pointer;
 }
 
+.checkOption svg {
+  flex-shrink: 0;
+}
+
 .checkOption:hover:not(:disabled) {
-  background: var(--dc-surface-hover);
+  background: rgb(255 255 255 / 8%);
 }
 
 .checkOptionActive {
   border-color: var(--dc-accent);
-  background: rgba(var(--dc-accent-rgb), 0.09);
+  background: rgb(var(--dc-accent-rgb) / 17%);
   color: var(--dc-accent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
 }
 
 .checkOptionActive:hover:not(:disabled) {
-  background: rgba(var(--dc-accent-rgb), 0.14);
+  background: rgb(var(--dc-accent-rgb) / 23%);
 }
 
 .checkOption:disabled {
@@ -240,13 +289,16 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-height: 135px;
-  padding: 15px;
-  border: 1px dashed var(--dc-text-subtle);
-  border-radius: var(--dc-radius-md);
-  background: var(--dc-background);
-  color: var(--dc-text);
+  gap: 9px;
+  min-width: 0;
+  min-height: 150px;
+  padding: 12px;
+  border: 1px solid rgb(var(--dc-accent-rgb) / 45%);
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 4%), transparent),
+    rgb(var(--dc-accent-rgb) / 6%);
+  color: var(--dc-accent);
   font: inherit;
   font-size: 13px;
   font-weight: 650;
@@ -255,7 +307,7 @@
 
 .photoButton:hover:not(:disabled) {
   border-color: var(--dc-accent);
-  background: var(--dc-surface-hover);
+  background-color: rgb(var(--dc-accent-rgb) / 12%);
 }
 
 .photoButton:disabled {
@@ -265,36 +317,46 @@
 
 .photoPreview {
   position: relative;
+  height: 150px;
   overflow: hidden;
-  min-height: 135px;
-  border-radius: var(--dc-radius-md);
-  background: var(--dc-background);
+  border: 1px solid var(--add-edge);
+  border-radius: 12px;
+  background: rgb(0 0 0 / 16%);
 }
 
 .photoPreview img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  max-height: 220px;
-  object-fit: cover;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
 }
 
 .removePhoto {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 5px;
+  right: 5px;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 25%);
   border-radius: 50%;
-  background: var(--dc-background);
+  background: rgb(12 24 35 / 85%);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
   color: var(--dc-text);
   cursor: pointer;
 }
 
 .removePhoto:hover:not(:disabled) {
+  border-color: var(--dc-danger);
   color: var(--dc-danger);
 }
 
@@ -312,27 +374,37 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 11px;
+  gap: 9px;
   width: 100%;
-  min-height: 54px;
-  padding: 13px;
-  border: 0;
-  border-radius: var(--dc-radius-md);
+  min-height: 50px;
+  padding: 12px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 13px;
   background: var(--dc-accent);
+  box-shadow:
+    0 5px 18px rgb(0 0 0 / 15%),
+    inset 0 1px 0 rgb(255 255 255 / 20%);
   color: var(--dc-text-inverse);
   font: inherit;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 750;
+  line-height: 1.4;
+  text-align: center;
   cursor: pointer;
 }
 
+.addButton svg,
+.uploadButton svg {
+  flex-shrink: 0;
+}
+
 .addButton {
-  margin-top: 23px;
+  margin-top: 17px;
 }
 
 .addButton:hover:not(:disabled),
 .uploadButton:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--dc-accent), white 15%);
+  background: color-mix(in srgb, var(--dc-accent), white 12%);
 }
 
 .addButton:disabled,
@@ -342,45 +414,44 @@
 }
 
 .listCard {
-  padding-bottom: 18px;
-}
-
-.listHeader {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  margin-bottom: 18px;
+  padding-bottom: 16px;
 }
 
 .listItems {
-  margin: 0 -18px 18px;
+  display: grid;
+  gap: 9px;
+  margin-bottom: 15px;
 }
 
 .listItem {
   display: flex;
   align-items: center;
-  gap: 13px;
-  padding: 12px 18px;
-  border-top: 1px solid var(--dc-border);
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--add-edge);
+  border-radius: 13px;
+  background: rgb(255 255 255 / 3%);
 }
 
 .listPhoto,
 .listPlaceholder {
-  width: 70px;
-  height: 70px;
+  width: 62px;
+  height: 74px;
   flex-shrink: 0;
-  border-radius: var(--dc-radius-sm);
+  border: 1px solid rgb(168 192 211 / 15%);
+  border-radius: 9px;
+  background: rgb(0 0 0 / 15%);
 }
 
 .listPhoto {
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .listPlaceholder {
   display: grid;
   place-items: center;
-  background: var(--dc-surface-raised);
-  color: var(--dc-text-subtle);
+  color: var(--dc-text-secondary);
 }
 
 .listDetails {
@@ -389,25 +460,27 @@
 }
 
 .listName {
-  margin: 0 0 7px;
+  margin: 0 0 5px;
   color: var(--dc-text);
   font-size: 14px;
-  font-weight: 750;
+  font-weight: 700;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .listMeta {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-top: 5px;
+  gap: 6px;
+  margin-top: 4px;
   color: var(--dc-text-secondary);
   font-size: 12px;
+  line-height: 1.4;
 }
 
 .metaDot {
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
   flex-shrink: 0;
   border-radius: 50%;
 }
@@ -415,13 +488,14 @@
 .removeItem {
   display: grid;
   place-items: center;
-  width: 39px;
-  height: 39px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
-  border: 1px solid var(--dc-border);
-  border-radius: var(--dc-radius-sm);
-  background: transparent;
-  color: var(--dc-text);
+  padding: 0;
+  border: 1px solid var(--add-edge);
+  border-radius: 11px;
+  background: rgb(255 255 255 / 3%);
+  color: var(--dc-text-secondary);
   cursor: pointer;
 }
 
@@ -431,38 +505,42 @@
 }
 
 .emptyList {
-  padding: 20px 0;
+  padding: 20px 12px;
+  border: 1px dashed var(--add-edge);
+  border-radius: 12px;
   color: var(--dc-text-secondary);
   font-size: 13px;
+  line-height: 1.5;
   text-align: center;
 }
 
 .listActions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
 }
 
 .clearButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  min-height: 51px;
-  padding: 12px;
-  border: 1px solid var(--dc-danger);
-  border-radius: var(--dc-radius-md);
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 11px;
   background: transparent;
   color: var(--dc-danger);
   font: inherit;
-  font-size: 14px;
-  font-weight: 750;
+  font-size: 13px;
+  font-weight: 650;
   cursor: pointer;
 }
 
 .clearButton:hover:not(:disabled) {
-  background: rgba(var(--dc-danger-rgb), 0.07);
+  border-color: rgb(var(--dc-danger-rgb) / 30%);
+  background: rgb(var(--dc-danger-rgb) / 8%);
 }
 
 .clearButton:disabled,
@@ -472,25 +550,25 @@
 }
 
 .message {
-  margin-bottom: 17px;
-  padding: 13px 15px;
-  border: 1px solid rgba(var(--dc-success-rgb), 0.3);
-  border-radius: var(--dc-radius-md);
-  background: rgba(var(--dc-success-rgb), 0.08);
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgb(var(--dc-success-rgb) / 35%);
+  border-radius: 12px;
+  background: rgb(var(--dc-success-rgb) / 10%);
   color: var(--dc-success);
   font-size: 13px;
   line-height: 1.5;
 }
 
 .error {
-  border-color: rgba(var(--dc-danger-rgb), 0.3);
-  background: rgba(var(--dc-danger-rgb), 0.08);
+  border-color: rgb(var(--dc-danger-rgb) / 35%);
+  background: rgb(var(--dc-danger-rgb) / 10%);
   color: var(--dc-danger);
 }
 
 .uploadHint {
-  margin: 12px 0 0;
-  color: var(--dc-text-subtle);
+  margin: 10px 0 0;
+  color: var(--dc-text-secondary);
   font-size: 11px;
   line-height: 1.5;
   text-align: center;
@@ -518,54 +596,44 @@
   }
 }
 
-@media (min-width: 600px) {
-  .container {
-    padding: 35px 24px 65px;
-  }
-
-  .card {
-    padding: 24px;
-  }
-
-  .listItems {
-    margin-left: -24px;
-    margin-right: -24px;
-  }
-
-  .listItem {
-    padding-left: 24px;
-    padding-right: 24px;
-  }
-}
-
 @media (max-width: 360px) {
   .container {
-    padding-left: 12px;
-    padding-right: 12px;
+    width: calc(100% - 24px);
   }
 
   .card {
-    padding: 14px;
+    padding: 13px;
   }
 
-  .listItems {
-    margin-left: -14px;
-    margin-right: -14px;
-  }
-
-  .listItem {
-    padding-left: 14px;
-    padding-right: 14px;
+  .cardHeader,
+  .listHeader {
+    gap: 9px;
   }
 
   .checkOption {
-    font-size: 11px;
+    gap: 5px;
+    font-size: 12px;
+  }
+
+  .photoArea {
+    gap: 9px;
+  }
+
+  .listItem {
+    gap: 8px;
+    padding: 8px;
   }
 
   .listPhoto,
   .listPlaceholder {
-    width: 58px;
-    height: 58px;
+    width: 50px;
+    height: 64px;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .card {
+    background: var(--dc-surface);
   }
 }
 

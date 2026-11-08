@@ -87,6 +87,7 @@ export default function StockFilters({
             setOpenPanel(openPanel === "filters" ? null : "filters")
           }
         >
+          <CheckTileGlass className={styles.glass} />
           <Filter size={18} aria-hidden="true" />
           Filters
           {activeFilterCount > 0 && (
@@ -107,6 +108,7 @@ export default function StockFilters({
           aria-controls={id + "-sort"}
           onClick={() => setOpenPanel(openPanel === "sort" ? null : "sort")}
         >
+          <CheckTileGlass className={styles.glass} />
           <SlidersHorizontal size={18} aria-hidden="true" />
           Sorteren
           <ChevronDown
@@ -146,7 +148,6 @@ export default function StockFilters({
           <div className={styles.fields}>
             <label className={styles.field}>
               <span>Categorie</span>
-
               <select
                 value={preferences.categoryFilter}
                 onChange={(event) =>
@@ -154,7 +155,6 @@ export default function StockFilters({
                 }
               >
                 <option value="">Alle categorieën</option>
-
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -165,7 +165,6 @@ export default function StockFilters({
 
             <label className={styles.field}>
               <span>Stickersoort</span>
-
               <select
                 value={preferences.controlFilter}
                 onChange={(event) =>
@@ -216,7 +215,6 @@ export default function StockFilters({
             {EXTRA_FIELDS.map((field) => (
               <label key={field.key} className={styles.field}>
                 <span>{field.label}</span>
-
                 <select
                   value={preferences[field.key]}
                   onChange={(event) =>

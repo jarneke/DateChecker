@@ -10,14 +10,23 @@
 
 .toolbarButton,
 .panel {
+  position: relative;
+  isolation: isolate;
   color: var(--dc-text);
-  border: 1px solid var(--stock-edge, var(--dc-border));
-  background: var(--stock-surface, var(--dc-surface));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
+  border: 1px solid;
+  border-color: rgb(216 233 247 / 40%) rgb(168 192 211 / 20%)
+    rgb(168 192 211 / 16%) rgb(196 217 234 / 30%);
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 7%), transparent 55%),
+    var(--stock-surface, rgb(13 23 32 / 48%));
+  box-shadow:
+    0 5px 16px rgb(0 0 0 / 15%),
+    inset 0 1px 0 rgb(255 255 255 / 10%);
 }
 
 .toolbarButton {
   display: flex;
+  min-width: 0;
   min-height: 48px;
   align-items: center;
   justify-content: center;
@@ -30,9 +39,32 @@
   cursor: pointer;
 }
 
+.toolbarButton > svg {
+  flex-shrink: 0;
+}
+
 .toolbarButton[aria-expanded="true"] {
   border-color: var(--dc-accent);
-  background: rgb(var(--dc-accent-rgb) / 20%);
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 8%), transparent 55%),
+    rgb(var(--dc-accent-rgb) / 22%);
+}
+
+.toolbarButton::before,
+.panel::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(5px) saturate(115%);
+  backdrop-filter: blur(5px) saturate(115%);
+}
+
+.toolbarButton:has(> .glass[data-ready="true"])::before,
+.panel:has(> .glass[data-ready="true"])::before {
+  display: none;
 }
 
 .chevron {
@@ -56,27 +88,9 @@
 }
 
 .panel {
-  position: relative;
-  isolation: isolate;
   margin-top: 12px;
   padding: 18px;
   border-radius: 20px;
-  box-shadow: var(--stock-shadow);
-}
-
-.panel::before {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  border-radius: inherit;
-  content: "";
-  pointer-events: none;
-  -webkit-backdrop-filter: blur(5px) saturate(110%);
-  backdrop-filter: blur(5px) saturate(110%);
-}
-
-.panel:has(> .glass[data-ready="true"])::before {
-  display: none;
 }
 
 .glass {
@@ -148,7 +162,7 @@
   padding: 8px 10px;
   border: 1px solid var(--stock-edge, var(--dc-border));
   border-radius: 10px;
-  background: rgb(9 16 23 / 70%);
+  background: rgb(9 16 23 / 55%);
   color: var(--dc-text);
   color-scheme: dark;
   font: inherit;
@@ -210,7 +224,7 @@
   padding: 4px;
   border: 1px solid var(--stock-edge, var(--dc-border));
   border-radius: 12px;
-  background: rgb(9 16 23 / 45%);
+  background: rgb(9 16 23 / 35%);
 }
 
 .segments button,
@@ -239,7 +253,7 @@
 
 .presets button {
   border-color: var(--stock-edge, var(--dc-border));
-  background: rgb(9 16 23 / 45%);
+  background: rgb(9 16 23 / 35%);
 }
 
 .segments button[aria-pressed="true"],
@@ -350,19 +364,14 @@
   }
 }
 
-@supports not (backdrop-filter: blur(1px)) {
-  .panel {
-    background: var(--dc-surface);
-  }
-}
-
 @media (prefers-reduced-transparency: reduce) {
   .panel,
   .toolbarButton {
     background: var(--dc-surface);
   }
 
-  .panel::before {
+  .panel::before,
+  .toolbarButton::before {
     display: none;
   }
 }

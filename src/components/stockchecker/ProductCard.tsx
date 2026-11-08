@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CalendarDays, ChevronRight, Package, Pause } from "lucide-react";
 
+import CheckTileGlass from "@/components/home/CheckTileGlass";
 import styles from "./ProductCard.module.css";
 
 export type StockItem = {
@@ -99,6 +100,8 @@ export default function ProductCard({ item }: ProductCardProps) {
       href={`/stockchecker/${item.id}`}
       className={`${styles.card} ${item.paused ? styles.pausedCard : ""}`}
     >
+      <CheckTileGlass className={styles.glass} />
+
       <ProductPhoto src={item.photo_url} name={item.name}>
         {item.stickered && (
           <span
