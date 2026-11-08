@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight, ImagePlus, Settings2 } from "lucide-react";
 
+import CheckTileGlass from "@/components/home/CheckTileGlass";
 import styles from "./page.module.css";
 
 const adminLinks = [
@@ -34,8 +35,10 @@ export default function AdminPage() {
 
             return (
               <Link key={item.href} href={item.href} className={styles.card}>
+                <CheckTileGlass className={styles.glass} />
+
                 <div className={styles.cardIcon}>
-                  <Icon size={23} />
+                  <Icon size={23} aria-hidden="true" />
                 </div>
 
                 <div className={styles.cardContent}>
@@ -43,7 +46,11 @@ export default function AdminPage() {
                   <p>{item.description}</p>
                 </div>
 
-                <ArrowUpRight size={21} className={styles.cardArrow} />
+                <ArrowUpRight
+                  size={21}
+                  className={styles.cardArrow}
+                  aria-hidden="true"
+                />
               </Link>
             );
           })}

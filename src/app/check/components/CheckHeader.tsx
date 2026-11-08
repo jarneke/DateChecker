@@ -34,10 +34,18 @@ export default function CheckHeader({
     <section className={styles.header} aria-label={`${title}: voortgang`}>
       <div className={styles.headerTop}>
         <div className={styles.headerInfo}>
-          <p className={styles.pageSubtitle}>
-            {categoryName ? `${categoryName} · ` : ""}
-            {remainingCount} te controleren
-          </p>
+          <div className={styles.progressLabels}>
+            <span>
+              {categoryName ? `${categoryName} · ` : ""}
+              {remainingCount} te controleren
+            </span>
+
+            {initialCount > 0 && (
+              <span>
+                <strong>{completedCount}</strong> van {initialCount} afgewerkt
+              </span>
+            )}
+          </div>
         </div>
 
         {type === "stock" && (
@@ -67,13 +75,6 @@ export default function CheckHeader({
               className={styles.progressFill}
               style={{ width: `${progressPercent}%` }}
             />
-          </div>
-
-          <div className={styles.progressLabels}>
-            <span>{progressLabel}</span>
-            <span>
-              <strong>{completedCount}</strong> van {initialCount} afgewerkt
-            </span>
           </div>
         </div>
       )}
