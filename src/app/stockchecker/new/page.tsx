@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import CheckTileGlass from "@/components/home/CheckTileGlass";
 import type { ChangeEvent, FormEvent } from "react";
 import Script from "next/script";
 import {
@@ -24,6 +25,7 @@ import {
 } from "../../admin/producten-toevoegen/scan-slim";
 import styles from "../../admin/producten-toevoegen/page.module.css";
 import fastStyles from "../../fastadd/page.module.css";
+import glass from "./ScannerGlass.module.css";
 
 type Category = {
   id: string;
@@ -157,6 +159,7 @@ function useBlobPreview(blob: Blob | null): string {
     if (!blob) return;
 
     let url: string | undefined;
+
     const frame = window.requestAnimationFrame(() => {
       url = URL.createObjectURL(blob);
       setPreview({ blob, url });
@@ -204,7 +207,9 @@ function QueuedProduct({
   const preview = useBlobPreview(item.photo);
 
   return (
-    <div className={fastStyles.listItem} role="listitem">
+    <div className={`${fastStyles.listItem} ${glass.surface}`} role="listitem">
+      <CheckTileGlass className={glass.marker} />
+
       {preview ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={preview} alt={item.name} className={fastStyles.listPhoto} />
@@ -232,11 +237,12 @@ function QueuedProduct({
 
       <button
         type="button"
-        className={fastStyles.removeItem}
+        className={`${fastStyles.removeItem} ${glass.surface}`}
         onClick={() => onRemove(item.id)}
         disabled={disabled}
         aria-label={`${item.name} uit de lijst verwijderen`}
       >
+        <CheckTileGlass className={glass.marker} />
         <Trash2 size={19} />
       </button>
     </div>
@@ -713,7 +719,7 @@ export default function AddProductsPage() {
   }
 
   return (
-    <main className={fastStyles.page}>
+    <main className={`${fastStyles.page} ${glass.page}`}>
       {" "}
       {confirmClearList && (
         <ConfirmDialog
@@ -747,26 +753,41 @@ export default function AddProductsPage() {
 
         {error && (
           <div
-            className={`${fastStyles.message} ${fastStyles.error}`}
+            className={`${fastStyles.message} ${fastStyles.error} ${glass.surface} ${glass.error}`}
             role="alert"
           >
+            <CheckTileGlass className={glass.marker} />
             {error}
           </div>
         )}
 
         {notice && !error && (
-          <div className={fastStyles.message} role="status">
+          <div
+            className={`${fastStyles.message} ${glass.surface} ${glass.message}`}
+            role="status"
+          >
+            <CheckTileGlass className={glass.marker} />
             {notice}
           </div>
         )}
 
         {progress && (
-          <div className={fastStyles.message} role="status" aria-live="polite">
+          <div
+            className={`${fastStyles.message} ${glass.surface} ${glass.message}`}
+            role="status"
+            aria-live="polite"
+          >
+            <CheckTileGlass className={glass.marker} />
             {progress}
           </div>
         )}
 
-        <form className={fastStyles.card} onSubmit={addToList}>
+        <form
+          className={`${fastStyles.card} ${glass.surface}`}
+          onSubmit={addToList}
+        >
+          <CheckTileGlass className={glass.marker} />
+
           <div className={fastStyles.cardHeader}>
             <div className={fastStyles.cardIcon}>
               <Tag size={22} />
@@ -828,24 +849,30 @@ export default function AddProductsPage() {
               >
                 <button
                   type="button"
-                  className={`${fastStyles.checkOption} ${
-                    daily ? fastStyles.checkOptionActive : ""
+                  className={`${fastStyles.checkOption} ${glass.surface} ${
+                    daily
+                      ? `${fastStyles.checkOptionActive} ${glass.active}`
+                      : ""
                   }`}
                   onClick={() => setDaily(true)}
                   aria-pressed={daily}
                 >
+                  <CheckTileGlass className={glass.marker} />
                   {daily && <CheckCircle2 size={17} />}
                   Dagelijks (30%)
                 </button>
 
                 <button
                   type="button"
-                  className={`${fastStyles.checkOption} ${
-                    !daily ? fastStyles.checkOptionActive : ""
+                  className={`${fastStyles.checkOption} ${glass.surface} ${
+                    !daily
+                      ? `${fastStyles.checkOptionActive} ${glass.active}`
+                      : ""
                   }`}
                   onClick={() => setDaily(false)}
                   aria-pressed={!daily}
                 >
+                  <CheckTileGlass className={glass.marker} />
                   {!daily && <CheckCircle2 size={17} />}
                   Maandelijks
                 </button>
@@ -858,10 +885,11 @@ export default function AddProductsPage() {
               <div className={styles.scanner}>
                 <button
                   type="button"
-                  className={styles.scanButton}
+                  className={`${styles.scanButton} ${glass.surface}`}
                   disabled={busy || !ocrReady}
                   onClick={() => labelInput.current?.click()}
                 >
+                  <CheckTileGlass className={glass.marker} />
                   <ScanText size={20} />
                   {ocrReady ? "Slimmetje scannen" : "Scanner laden…"}
                 </button>
@@ -911,9 +939,10 @@ export default function AddProductsPage() {
               <div className={fastStyles.photoArea}>
                 <button
                   type="button"
-                  className={fastStyles.photoButton}
+                  className={`${fastStyles.photoButton} ${glass.surface}`}
                   onClick={() => productInput.current?.click()}
                 >
+                  <CheckTileGlass className={glass.marker} />
                   <Camera size={28} />
                   <span>{photo ? "Foto wijzigen" : "Foto nemen"}</span>
                 </button>
@@ -955,9 +984,10 @@ export default function AddProductsPage() {
 
           <button
             type="submit"
-            className={fastStyles.addButton}
+            className={`${fastStyles.addButton} ${glass.surface} ${glass.primary}`}
             disabled={busy}
           >
+            <CheckTileGlass className={glass.marker} />
             <Plus size={22} />
             Toevoegen aan lijst
           </button>
@@ -969,9 +999,11 @@ export default function AddProductsPage() {
         </form>
 
         <section
-          className={`${fastStyles.card} ${fastStyles.listCard}`}
+          className={`${fastStyles.card} ${fastStyles.listCard} ${glass.surface}`}
           aria-labelledby="slim-list-heading"
         >
+          <CheckTileGlass className={glass.marker} />
+
           <div className={fastStyles.listHeader}>
             <div className={fastStyles.cardIcon}>
               <ClipboardList size={22} />
@@ -986,7 +1018,8 @@ export default function AddProductsPage() {
           </div>
 
           {items.length === 0 ? (
-            <div className={fastStyles.emptyList}>
+            <div className={`${fastStyles.emptyList} ${glass.surface}`}>
+              <CheckTileGlass className={glass.marker} />
               {loading ? "Producten laden…" : "Nog geen producten toegevoegd."}
             </div>
           ) : (
@@ -1009,20 +1042,22 @@ export default function AddProductsPage() {
             <div className={fastStyles.listActions}>
               <button
                 type="button"
-                className={fastStyles.uploadButton}
+                className={`${fastStyles.uploadButton} ${glass.surface} ${glass.primary}`}
                 onClick={() => void uploadList()}
                 disabled={busy}
               >
+                <CheckTileGlass className={glass.marker} />
                 <CloudUpload size={22} />
                 Alles uploaden naar DateCheck
               </button>
 
               <button
                 type="button"
-                className={fastStyles.clearButton}
+                className={`${fastStyles.clearButton} ${glass.surface} ${glass.danger}`}
                 onClick={() => setConfirmClearList(true)}
                 disabled={busy}
               >
+                <CheckTileGlass className={glass.marker} />
                 <Trash2 size={19} />
                 Lijst wissen
               </button>
