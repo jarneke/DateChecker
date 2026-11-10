@@ -273,8 +273,8 @@ export default function GuidePage() {
 
         <nav className={styles.contents} aria-label="Inhoud van de handleiding">
           {CONTENTS.map((item) => (
-            <a key={item.href} href={item.href}>
-              {item.label}
+            <a key={item.href} href={item.href} className={glass.surface}>
+              <CheckTileGlass className={glass.marker} /> {item.label}
               <ArrowRight size={14} aria-hidden="true" />
             </a>
           ))}
@@ -291,7 +291,8 @@ export default function GuidePage() {
           </div>
 
           <div className={styles.quickStart}>
-            <a href="#dagelijks-stickeren">
+            <a href="#dagelijks-stickeren" className={glass.surface}>
+              <CheckTileGlass foreground className={glass.tint} />{" "}
               <span className={styles.stepNumber}>01</span>
               <strong>Bij de stickercontrole</strong>
               <span>
@@ -300,7 +301,8 @@ export default function GuidePage() {
               </span>
             </a>
 
-            <a href="#leveringen">
+            <a href="#leveringen" className={glass.surface}>
+              <CheckTileGlass foreground className={glass.tint} />{" "}
               <span className={styles.stepNumber}>02</span>
               <strong>Na een levering</strong>
               <span>
@@ -309,7 +311,8 @@ export default function GuidePage() {
               </span>
             </a>
 
-            <a href="#dagelijks-ophalen">
+            <a href="#dagelijks-ophalen" className={glass.surface}>
+              <CheckTileGlass foreground className={glass.tint} />{" "}
               <span className={styles.stepNumber}>03</span>
               <strong>Bij het ophalen</strong>
               <span>
@@ -411,7 +414,12 @@ export default function GuidePage() {
 
           <div className={styles.checks}>
             {CHECKS.map((guide) => (
-              <article key={guide.id} id={guide.id} className={styles.check}>
+              <article
+                key={guide.id}
+                id={guide.id}
+                className={`${styles.check} ${glass.surface}`}
+              >
+                <CheckTileGlass foreground className={glass.tint} />
                 <span
                   className={[
                     styles.badge,
@@ -424,24 +432,19 @@ export default function GuidePage() {
                 >
                   {guide.badge}
                 </span>
-
                 <h3>{guide.title}</h3>
                 <p className={styles.selection}>
                   <strong>Welke producten?</strong> {guide.selection}
                 </p>
-
                 <ol className={styles.steps}>
                   {guide.steps.map((step) => (
                     <li key={step}>{step}</li>
                   ))}
                 </ol>
-
                 <aside className={styles.note}>
                   <p>{guide.note}</p>
                 </aside>
-
                 {guide.image && <Illustration {...guide.image} />}
-
                 <Link
                   href={guide.href}
                   className={styles.actionLink}

@@ -38,7 +38,7 @@ function formatDate(value: string) {
 export default function DeliverySelectionPage() {
   const router = useRouter();
 
-  const [offers, setOffers] = useState<DeliveryOffer[]>([]);
+  const [offers, setOffers] = useState<DeliveryOffer[] | null>(null);
   const [selectedOffers, setSelectedOffers] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [restartCompleted, setRestartCompleted] = useState(false);
@@ -122,7 +122,7 @@ export default function DeliverySelectionPage() {
     };
   }, [reloadToken]);
 
-  const availableOffers = offers.filter(
+  const availableOffers = (offers ?? []).filter(
     (offer) => offer.completed === restartCompleted,
   );
 
@@ -269,18 +269,22 @@ export default function DeliverySelectionPage() {
         <div className={styles.tabs} aria-label="Soort leveringscheck">
           <button
             type="button"
+            className={`${glass.surface} ${!restartCompleted ? glass.primary : ""}`}
             aria-pressed={!restartCompleted}
             onClick={() => changeMode(false)}
             disabled={starting}
           >
+            <CheckTileGlass className={glass.marker} />
             Openstaande leveringen
           </button>
           <button
             type="button"
+            className={`${glass.surface} ${restartCompleted ? glass.primary : ""}`}
             aria-pressed={restartCompleted}
             onClick={() => changeMode(true)}
             disabled={starting}
           >
+            <CheckTileGlass className={glass.marker} />
             Opnieuw controleren
           </button>
         </div>
@@ -309,7 +313,7 @@ export default function DeliverySelectionPage() {
             />
             Leveringen laden…
           </p>
-        ) : (
+        ) : offers === null ? null : (
           <>
             <section
               className={`${styles.card} ${glass.surface}`}
@@ -330,14 +334,17 @@ export default function DeliverySelectionPage() {
               ) : (
                 <div className={styles.options}>
                   {availableOffers.map((offer) => (
-                    <label key={offerKey(offer)} className={styles.option}>
+                    <label
+                      key={offerKey(offer)}
+                      className={`${styles.option} ${glass.surface} ${selectedOffers.includes(offerKey(offer)) ? glass.primary : ""}`}
+                    >
+                      <CheckTileGlass foreground className={glass.tint} />
                       <input
                         type="checkbox"
                         checked={selectedOffers.includes(offerKey(offer))}
                         onChange={() => toggleOffer(offer)}
                         disabled={starting}
                       />
-
                       <span className={styles.details}>
                         <strong>{offer.name}</strong>
                         <span>
@@ -407,7 +414,11 @@ export default function DeliverySelectionPage() {
 
                 <div className={styles.categories}>
                   {categories.map((category) => (
-                    <label key={category.id} className={styles.option}>
+                    <label
+                      key={category.id}
+                      className={`${styles.option} ${glass.surface} ${chosenCategoryIds.includes(category.id) ? glass.primary : ""}`}
+                    >
+                      <CheckTileGlass foreground className={glass.tint} />{" "}
                       <input
                         type="checkbox"
                         checked={chosenCategoryIds.includes(category.id)}
@@ -452,7 +463,7 @@ export default function DeliverySelectionPage() {
               )}
               {starting
                 ? "Controle openen…"
-                : `Controle starten${chosenCategoryIds.length > 0 ? ` · ${chosenCategoryIds.length} categorieën` : ""}`}
+                : `Controle starten${chosenCategoryIds.length > 0 ? ` · ${chosenCategoryIds.length} ${chosenCategoryIds.length === 1 ? "categorie" : "categorieën"}` : ""}`}{" "}
             </button>
           </>
         )}

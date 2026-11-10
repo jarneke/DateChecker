@@ -346,10 +346,11 @@ export default function ImageLinkerPage() {
               <div className={styles.actions}>
                 <button
                   type="button"
-                  className={styles.primaryButton}
+                  className={`${styles.primaryButton} ${glass.surface} ${glass.primary}`}
                   onClick={() => inputRef.current?.click()}
                   disabled={uploading}
                 >
+                  <CheckTileGlass foreground className={glass.tint} />
                   {uploading ? (
                     <>
                       <LoaderCircle size={21} className={styles.spinner} />
@@ -365,10 +366,11 @@ export default function ImageLinkerPage() {
 
                 <button
                   type="button"
-                  className={styles.secondaryButton}
+                  className={`${styles.secondaryButton} ${glass.surface}`}
                   onClick={handleSkip}
                   disabled={uploading}
                 >
+                  <CheckTileGlass foreground className={glass.tint} />
                   <PackageX size={20} />
                   Geen voorraad — overslaan
                   <ArrowRight size={18} className={styles.buttonArrow} />
@@ -379,9 +381,10 @@ export default function ImageLinkerPage() {
             <div className={styles.errorState}>
               <button
                 type="button"
-                className={styles.secondaryButton}
+                className={`${styles.secondaryButton} ${glass.surface}`}
                 onClick={() => void loadProduct(skippedIds)}
               >
+                <CheckTileGlass foreground className={glass.tint} />
                 <RefreshCw size={19} />
                 Opnieuw proberen
               </button>
@@ -403,9 +406,10 @@ export default function ImageLinkerPage() {
               {skippedIds.length > 0 && (
                 <button
                   type="button"
-                  className={styles.secondaryButton}
+                  className={`${styles.secondaryButton} ${glass.surface}`}
                   onClick={handleResetSkipped}
                 >
+                  <CheckTileGlass foreground className={glass.tint} />
                   <RotateCcw size={19} />
                   Overgeslagen producten opnieuw bekijken
                 </button>
