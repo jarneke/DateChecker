@@ -249,10 +249,7 @@ export default function ImageLinkerPage() {
     <main className={styles.page}>
       <div className={styles.container}>
         <div className={styles.header}>
-          <p>
-            Neem een foto van het product. De foto wordt automatisch opgeslagen
-            in GitHub en DateCheck.
-          </p>
+          <p>Je foto wordt meteen opgeslagen.</p>
         </div>
 
         <div className={styles.remainingCard}>
@@ -331,8 +328,7 @@ export default function ImageLinkerPage() {
               </div>
 
               <p className={styles.instructions}>
-                Neem een foto van dit product. Is het product momenteel niet in
-                voorraad? Sla het dan tijdelijk over.
+                Geen voorraad? Je kunt dit product tijdelijk overslaan.
               </p>
 
               <input

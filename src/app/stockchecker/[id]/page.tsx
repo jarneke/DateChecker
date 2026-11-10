@@ -296,10 +296,6 @@ export default function ItemDetailPage() {
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <div className={styles.header}>
-          <p>Pas de gegevens aan en sla je wijzigingen op.</p>
-        </div>
-
         {error && (
           <div className={styles.errorMessage} role="alert">
             {error}
@@ -327,7 +323,6 @@ export default function ItemDetailPage() {
 
             <div>
               <h2>Productgegevens</h2>
-              <p>Naam, categorie en vervaldatum.</p>
             </div>
           </div>
 

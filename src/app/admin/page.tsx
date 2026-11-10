@@ -25,10 +25,6 @@ export default function AdminPage() {
   return (
     <main className={styles.page}>
       <div className={styles.container}>
-        <div className={styles.header}>
-          <p>Beheer de instellingen en hulpmiddelen van DateCheck.</p>
-        </div>
-
         <div className={styles.links}>
           {adminLinks.map((item) => {
             const Icon = item.icon;
