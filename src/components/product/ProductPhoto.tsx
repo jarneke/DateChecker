@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Camera, Trash2 } from "lucide-react";
+import PhotoViewer from "@/components/PhotoViewer";
 import styles from "./ProductPhoto.module.css";
 
 type ProductPhotoProps = {
@@ -71,15 +72,15 @@ export default function ProductPhoto({
 
         <div>
           <h2>Foto</h2>
-          <p>Voeg een foto toe of vervang de bestaande.</p>
         </div>
       </div>
 
       <div className={styles.content}>
         {preview ? (
-          <div className={styles.preview}>
+          <div className={styles.preview} data-glass-photo>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={preview} alt="Productfoto" />
+            <PhotoViewer src={preview} alt="Productfoto" />
           </div>
         ) : (
           <div className={styles.placeholder}>

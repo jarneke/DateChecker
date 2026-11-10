@@ -1,0 +1,149 @@
+.trigger,
+.control {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgb(var(--dc-accent-rgb) / 45%);
+  border-radius: 10px;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 17%), transparent),
+    rgb(17 28 39 / 72%);
+  color: #edf5ff;
+  cursor: pointer;
+}
+
+.trigger {
+  position: absolute;
+  z-index: 1;
+  right: 5px;
+  bottom: 5px;
+  width: 32px;
+  height: 32px;
+}
+
+.control {
+  width: 44px;
+  height: 44px;
+}
+
+.control:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.trigger:focus-visible,
+.control:focus-visible {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: 2px;
+}
+
+.photoFrame {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.photoFrame > img {
+  display: block;
+}
+
+.dialog {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: min(960px, calc(100% - 24px));
+  height: min(820px, calc(100dvh - 24px));
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--dc-border);
+  border-radius: 18px;
+  background: var(--dc-surface);
+  color: var(--dc-text);
+  font-family: var(--dc-font);
+  color-scheme: dark;
+}
+
+.dialog::backdrop {
+  background: rgb(5 9 14 / 82%);
+}
+
+.panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+}
+
+.header,
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.header {
+  justify-content: space-between;
+}
+
+.header h2 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewport {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #080d14;
+  color: var(--dc-text);
+  touch-action: none;
+  user-select: none;
+}
+
+.viewport:focus-visible {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: -2px;
+}
+
+.viewport[data-zoomed="true"] {
+  cursor: grab;
+}
+
+.viewport[data-zoomed="true"]:active {
+  cursor: grabbing;
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.controls {
+  justify-content: center;
+}
+
+.zoomLevel {
+  min-width: 52px;
+  color: var(--dc-text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { CalendarDays, ChevronRight, Package, Pause } from "lucide-react";
 
 import CheckTileGlass from "@/components/home/CheckTileGlass";
+import PhotoViewer from "@/components/PhotoViewer";
 import styles from "./ProductCard.module.css";
 
 export type StockItem = {
@@ -54,21 +55,23 @@ function ProductPhoto({ src, name, children }: ProductPhotoProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
   return (
-    <div className={styles.photo}>
+    <div className={styles.photo} data-glass-photo>
       {src && failedSrc !== src ? (
-        <Image
-          src={src}
-          alt={name}
-          fill
-          sizes="76px"
-          loading="lazy"
-          className={styles.image}
-          onError={() => setFailedSrc(src)}
-        />
+        <>
+          <Image
+            src={src}
+            alt={name}
+            fill
+            sizes="76px"
+            loading="lazy"
+            className={styles.image}
+            onError={() => setFailedSrc(src)}
+          />
+          <PhotoViewer src={src} alt={name} />
+        </>
       ) : (
         <Package size={27} strokeWidth={1.5} className={styles.placeholder} />
       )}
-
       {children}
     </div>
   );
@@ -96,8 +99,7 @@ export default function ProductCard({ item }: ProductCardProps) {
     : "Gestickerd: 50%";
 
   return (
-    <Link
-      href={`/stockchecker/${item.id}`}
+    <article
       className={`${styles.card} ${item.paused ? styles.pausedCard : ""}`}
     >
       <CheckTileGlass className={styles.glass} />
@@ -148,6 +150,12 @@ export default function ProductCard({ item }: ProductCardProps) {
       </div>
 
       <ChevronRight size={21} className={styles.arrow} />
-    </Link>
+
+      <Link
+        href={`/stockchecker/${item.id}`}
+        className={styles.cardLink}
+        aria-label={item.name}
+      />
+    </article>
   );
 }

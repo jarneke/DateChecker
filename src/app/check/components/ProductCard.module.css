@@ -112,8 +112,6 @@
     0 3px 12px rgb(0 0 0 / 22%),
     inset 0 1px 0 rgb(255 255 255 / 15%);
   color: var(--dc-text);
-  -webkit-backdrop-filter: blur(7px) saturate(115%);
-  backdrop-filter: blur(7px) saturate(115%);
   cursor: pointer;
 }
 
@@ -160,13 +158,5 @@
 
   .name {
     font-size: 16px;
-  }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .menuButton {
-    background: #14212d;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
 }

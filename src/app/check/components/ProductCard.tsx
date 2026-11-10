@@ -9,6 +9,9 @@ import {
   Pencil,
 } from "lucide-react";
 
+import CheckTileGlass from "@/components/home/CheckTileGlass";
+import PhotoViewer from "@/components/PhotoViewer";
+
 import type { CheckType, Item } from "../types";
 import { formatDate } from "../utils";
 import styles from "../page.module.css";
@@ -47,17 +50,20 @@ export default function ProductCard({
           <p className={compact.category}>{item.category_name}</p>
         </div>
 
-        <div className={compact.photoWrapper}>
+        <div className={compact.photoWrapper} data-glass-photo>
           <div className={compact.photo}>
             {item.photo_url && !imageFailed ? (
-              // eslint-disable-next-line @next/next/no-img-element -- Existing photo URLs may use external hosts.
-              <img
-                key={item.photo_url}
-                src={item.photo_url}
-                alt={item.name}
-                className={compact.image}
-                onError={() => setImageFailed(true)}
-              />
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element -- Existing photo URLs may use external hosts. */}
+                <img
+                  key={item.photo_url}
+                  src={item.photo_url}
+                  alt={item.name}
+                  className={compact.image}
+                  onError={() => setImageFailed(true)}
+                />
+                <PhotoViewer src={item.photo_url} alt={item.name} />
+              </>
             ) : (
               <div className={compact.placeholder}>
                 <ImageOff size={26} aria-hidden="true" />
@@ -65,7 +71,6 @@ export default function ProductCard({
               </div>
             )}
           </div>
-
           <button
             type="button"
             className={compact.menuButton}
@@ -74,9 +79,10 @@ export default function ProductCard({
             aria-controls={menuOpen ? menuId : undefined}
             onClick={() => setMenuOpen((open) => !open)}
           >
+            {" "}
+            <CheckTileGlass foreground />
             <EllipsisVertical size={20} aria-hidden="true" />
           </button>
-
           {menuOpen && (
             <>
               <button
@@ -95,6 +101,8 @@ export default function ProductCard({
                   }
                 }}
               >
+                {" "}
+                <CheckTileGlass foreground />
                 <Link
                   href={`/stockchecker/${item.id}?returnTo=${encodeURIComponent(
                     editReturnUrl,

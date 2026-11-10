@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, type RefObject } from "react";
+import { createGlassPhotoLayer } from "./glassPhotoLayer";
 
 type Surface = {
     element: HTMLElement;
     marker: HTMLElement;
     attribute: string;
+    paintTarget: HTMLCanvasElement | null;
 };
 
 type Lens = {
@@ -14,12 +16,21 @@ type Lens = {
 };
 
 type Renderer = {
-    draw: (width: number, height: number, lenses: Lens[]) => void;
+    draw: (
+        width: number,
+        height: number,
+        lenses: Lens[],
+        photoLayer?: HTMLCanvasElement,
+    ) => void;
     dispose: () => void;
 };
 
 type SharedGlass = {
-    add: (canvas: HTMLCanvasElement, readyOnParent: boolean) => () => void;
+    add: (
+        canvas: HTMLCanvasElement,
+        readyOnParent: boolean,
+        paintOnMarker: boolean,
+    ) => () => void;
 };
 
 const sharedRenderers = new WeakMap<HTMLElement, SharedGlass>();
@@ -38,6 +49,7 @@ const FRAGMENT = `
 precision highp float;
 
 uniform sampler2D u_photo;
+uniform bool u_usePhotoAlpha;
 uniform vec2 u_viewport;
 uniform vec2 u_photoSize;
 uniform vec4 u_box;
@@ -114,10 +126,10 @@ void main() {
     1.0
   );
 
-  vec3 color = texture2D(
+    vec4 sampled = texture2D(
     u_photo,
     vec2(uv.x, 1.0 - uv.y)
-  ).rgb;
+  );
 
   float darkness = 0.12 * clamp(
     p.y / u_viewport.y,
@@ -126,8 +138,8 @@ void main() {
   );
 
   gl_FragColor = vec4(
-    color * (1.0 - darkness),
-    mask
+    sampled.rgb * (1.0 - darkness),
+    mask * (u_usePhotoAlpha ? sampled.a : 1.0)
   );
 }
 `;
@@ -152,12 +164,14 @@ function createRenderer(
     const program = gl.createProgram();
     const buffer = gl.createBuffer();
     const texture = gl.createTexture();
+    const photoTexture = gl.createTexture();
 
     function dispose() {
         shaders.forEach((shader) => gl.deleteShader(shader));
         gl.deleteProgram(program);
         gl.deleteBuffer(buffer);
         gl.deleteTexture(texture);
+        gl.deleteTexture(photoTexture);
     }
 
     function compile(type: number, code: string) {
@@ -260,8 +274,17 @@ function createRenderer(
             throw new Error("Achtergrond kon niet verwerkt worden.");
         }
 
-        gl.uniform1i(gl.getUniformLocation(program, "u_photo"), 0);
+        if (!photoTexture) {
+            throw new Error("Fotolaag is niet beschikbaar.");
+        }
+        gl.bindTexture(gl.TEXTURE_2D, photoTexture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
+        gl.uniform1i(gl.getUniformLocation(program, "u_photo"), 0);
+        const usePhotoAlpha = gl.getUniformLocation(program, "u_usePhotoAlpha");
         const viewport = gl.getUniformLocation(program, "u_viewport");
         const photoSize = gl.getUniformLocation(program, "u_photoSize");
         const box = gl.getUniformLocation(program, "u_box");
@@ -270,7 +293,7 @@ function createRenderer(
         return {
             dispose,
 
-            draw(width, height, lenses) {
+            draw(width, height, lenses, layer) {
                 if (gl.isContextLost()) {
                     throw new Error("Glascontext is verloren.");
                 }
@@ -295,10 +318,15 @@ function createRenderer(
                 gl.useProgram(program);
                 gl.viewport(0, 0, pixelWidth, pixelHeight);
                 gl.uniform2f(viewport, width, height);
+                gl.bindTexture(gl.TEXTURE_2D, layer ? photoTexture : texture);
+                if (layer) {
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, layer);
+                }
+                gl.uniform1i(usePhotoAlpha, layer ? 1 : 0);
                 gl.uniform2f(
                     photoSize,
-                    image.naturalWidth,
-                    image.naturalHeight,
+                    layer ? width : image.naturalWidth,
+                    layer ? height : image.naturalHeight,
                 );
 
                 gl.disable(gl.SCISSOR_TEST);
@@ -363,6 +391,44 @@ function createRenderer(
     }
 }
 
+function paintGlassMarker(
+    target: HTMLCanvasElement,
+    source: HTMLCanvasElement,
+    rect: DOMRect,
+    width: number,
+    height: number,
+) {
+    const context = target.getContext("2d");
+    if (!context) return false;
+
+    const scaleX = source.width / width;
+    const scaleY = source.height / height;
+    const sourceWidth = rect.width * scaleX;
+    const sourceHeight = rect.height * scaleY;
+    const targetWidth = Math.max(1, Math.round(sourceWidth));
+    const targetHeight = Math.max(1, Math.round(sourceHeight));
+
+    if (target.width !== targetWidth || target.height !== targetHeight) {
+        target.width = targetWidth;
+        target.height = targetHeight;
+    }
+
+    context.clearRect(0, 0, targetWidth, targetHeight);
+    context.drawImage(
+        source,
+        rect.left * scaleX,
+        rect.top * scaleY,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        targetWidth,
+        targetHeight,
+    );
+
+    return true;
+}
+
 function createSharedGlass(host: HTMLElement): SharedGlass {
     const canvas = document.createElement("canvas");
     canvas.setAttribute("aria-hidden", "true");
@@ -384,6 +450,7 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
         "(prefers-reduced-transparency: reduce)",
     );
     const surfaces = new Map<HTMLCanvasElement, Surface>();
+    const photoLayer = createGlassPhotoLayer(schedule);
 
     let renderer: Renderer | null = null;
     let frame = 0;
@@ -399,7 +466,11 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
             }
         }
 
-        canvas.style.display = active?.size ? "block" : "none";
+        const hasBackdrop = active && [...active].some(
+            (surface) => !surface.paintTarget,
+        );
+
+        canvas.style.display = hasBackdrop ? "block" : "none";
     }
 
     function draw() {
@@ -412,9 +483,15 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
             return;
         }
 
-        const width = document.documentElement.clientWidth;
+        const width = window.innerWidth;
         const height = window.innerHeight;
         const lenses: Lens[] = [];
+        const foreground: { surface: Surface; lens: Lens }[] = [];
+        const photoForeground: {
+            surface: Surface;
+            lens: Lens;
+            photo: HTMLImageElement;
+        }[] = [];
         const active = new Set<Surface>();
 
         for (const surface of surfaces.values()) {
@@ -453,12 +530,58 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
                     : radius;
             });
 
-            lenses.push({ rect, radii: corners });
-            active.add(surface);
+            const lens = { rect, radii: corners };
+
+            if (surface.paintTarget) {
+                const photoFrame = surface.element.closest("[data-glass-photo]");
+
+                if (photoFrame) {
+                    const photo = photoFrame.querySelector("img");
+                    if (photo) photoForeground.push({ surface, lens, photo });
+                } else {
+                    foreground.push({ surface, lens });
+                }
+            } else {
+                lenses.push(lens);
+                active.add(surface);
+            }
+        }
+
+        function renderForeground(
+            entries: { surface: Surface; lens: Lens }[],
+            source?: HTMLCanvasElement,
+        ) {
+            if (!renderer || entries.length === 0) return;
+
+            renderer.draw(width, height, entries.map(({ lens }) => lens), source);
+
+            for (const { surface, lens } of entries) {
+                if (
+                    surface.paintTarget &&
+                    paintGlassMarker(surface.paintTarget, canvas, lens.rect, width, height)
+                ) {
+                    active.add(surface);
+                }
+            }
         }
 
         try {
-            renderer.draw(width, height, lenses);
+            renderForeground(foreground);
+
+            const source = photoLayer.render(
+                photoForeground.map(({ photo }) => photo),
+                width,
+                height,
+            );
+
+            if (source) {
+                renderForeground(photoForeground, source);
+            }
+
+            if (lenses.length > 0) {
+                renderer.draw(width, height, lenses);
+            }
+
             setReady(active);
         } catch {
             setReady(null);
@@ -511,6 +634,7 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
     });
     window.addEventListener("resize", viewportChanged);
     document.addEventListener("scrollend", schedule);
+    host.addEventListener("load", schedule, true);
     host.addEventListener("transitionend", schedule);
     window.visualViewport?.addEventListener("resize", viewportChanged);
     window.visualViewport?.addEventListener("scroll", viewportChanged);
@@ -524,7 +648,7 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
     image.src = "/images/datecheck-carrefour-dark.png";
 
     return {
-        add(marker, readyOnParent) {
+        add(marker, readyOnParent, paintOnMarker) {
             const element = marker.parentElement;
             if (!element) return () => { };
 
@@ -538,6 +662,7 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
                 element,
                 marker: target,
                 attribute,
+                paintTarget: paintOnMarker ? marker : null,
             });
             observer.observe(element);
             schedule();
@@ -571,6 +696,7 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
                 );
                 window.removeEventListener("resize", viewportChanged);
                 document.removeEventListener("scrollend", schedule);
+                host.removeEventListener("load", schedule, true);
                 host.removeEventListener("transitionend", schedule);
                 window.visualViewport?.removeEventListener(
                     "resize",
@@ -607,10 +733,13 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
 export function useSharedGlass(
     canvasRef: RefObject<HTMLCanvasElement | null>,
     readyOnParent = false,
+    paintOnMarker = false,
 ) {
     useEffect(() => {
         const canvas = canvasRef.current;
-        const host = canvas?.closest("main");
+        const host = canvas?.closest<HTMLElement>(
+            paintOnMarker ? "dialog, main" : "main",
+        );
 
         if (!canvas || !host) return;
 
@@ -621,6 +750,6 @@ export function useSharedGlass(
             sharedRenderers.set(host, shared);
         }
 
-        return shared.add(canvas, readyOnParent);
-    }, [canvasRef, readyOnParent]);
+        return shared.add(canvas, readyOnParent, paintOnMarker);
+    }, [canvasRef, readyOnParent, paintOnMarker]);
 }

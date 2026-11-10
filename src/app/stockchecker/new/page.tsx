@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import CheckTileGlass from "@/components/home/CheckTileGlass";
+import PhotoViewer from "@/components/PhotoViewer";
+import viewerStyles from "@/components/PhotoViewer.module.css";
 import type { ChangeEvent, FormEvent } from "react";
 import Script from "next/script";
 import {
@@ -210,14 +212,11 @@ function QueuedProduct({
     <div className={`${fastStyles.listItem} ${glass.surface}`} role="listitem">
       <CheckTileGlass className={glass.marker} />
 
-      {preview ? (
-        // eslint-disable-next-line @next/next/no-img-element
+      <div className={viewerStyles.photoFrame} data-glass-photo>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={preview} alt={item.name} className={fastStyles.listPhoto} />
-      ) : (
-        <div className={fastStyles.listPlaceholder}>
-          <Camera size={23} />
-        </div>
-      )}
+        <PhotoViewer src={preview} alt={item.name} />
+      </div>
 
       <div className={fastStyles.listDetails}>
         <p className={fastStyles.listName}>{item.name}</p>
@@ -918,16 +917,22 @@ export default function AddProductsPage() {
 
               {scanPreview && (
                 <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={scanPreview}
-                    alt="Uitgelezen naamstrook van het slimmetje"
-                    className={styles.scanPreview}
-                  />
+                  <div className={viewerStyles.photoFrame} data-glass-photo>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={scanPreview}
+                      alt="Uitgelezen naamstrook van het slimmetje"
+                      className={styles.scanPreview}
+                    />
+                    <PhotoViewer
+                      src={scanPreview}
+                      alt="Naamstrook van het slimmetje"
+                    />
+                  </div>
 
                   <p className={styles.scanHelp}>
-                    Controleer de ingevulde naam. Deze strook wordt niet bij het
-                    product opgeslagen.
+                    Controleer de gescande naam. Wil je een productfoto? Tik op{" "}
+                    <strong>Foto nemen</strong>.
                   </p>
                 </>
               )}
@@ -947,12 +952,15 @@ export default function AddProductsPage() {
                   <span>{photo ? "Foto wijzigen" : "Foto nemen"}</span>
                 </button>
 
-                <div className={fastStyles.photoPreview}>
+                <div className={fastStyles.photoPreview} data-glass-photo>
                   {preview ? (
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={preview} alt="Geselecteerde productfoto" />
-
+                      <PhotoViewer
+                        src={preview}
+                        alt="Geselecteerde productfoto"
+                      />
                       <button
                         type="button"
                         className={fastStyles.removePhoto}
@@ -993,8 +1001,8 @@ export default function AddProductsPage() {
           </button>
 
           <p className={fastStyles.uploadHint}>
-            Producten in de lijst worden lokaal bewaard op dit apparaat, in deze
-            browser, tot je ze uploadt of zelf verwijdert.
+            De lijst blijft in deze browser staan tot je uploadt of de producten
+            verwijdert.
           </p>
         </form>
 
@@ -1011,7 +1019,6 @@ export default function AddProductsPage() {
 
             <div className={fastStyles.cardHeading}>
               <h2 id="slim-list-heading">Producten in de lijst</h2>
-              <p>Deze producten zijn nog niet toegevoegd aan DateCheck.</p>
             </div>
 
             <span className={fastStyles.count}>{items.length}</span>

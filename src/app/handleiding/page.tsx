@@ -11,6 +11,8 @@ import {
   Truck,
 } from "lucide-react";
 
+import PhotoViewer from "@/components/PhotoViewer";
+import viewerStyles from "@/components/PhotoViewer.module.css";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
@@ -232,15 +234,18 @@ const QUESTIONS = [
 function Illustration({ src, alt, caption }: InstructionImage) {
   return (
     <figure className={styles.figure}>
-      <Image
-        src={src}
-        alt={alt}
-        width={1536}
-        height={1024}
-        className={styles.image}
-        loading="lazy"
-        unoptimized
-      />
+      <div className={viewerStyles.photoFrame} data-glass-photo>
+        <Image
+          src={src}
+          alt={alt}
+          width={1536}
+          height={1024}
+          className={styles.image}
+          loading="lazy"
+          unoptimized
+        />
+        <PhotoViewer src={src} alt={alt} />
+      </div>
       <figcaption>{caption}</figcaption>
     </figure>
   );
