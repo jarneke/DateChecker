@@ -1,26 +1,82 @@
 .root {
-  margin-top: 24px;
+  margin-top: 20px;
 }
 
 .hint {
-  margin: 17px 0 0;
+  margin: 14px 0 0;
   color: var(--dc-text-secondary);
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .list {
   display: grid;
-  gap: 12px;
-  margin-top: 18px;
+  gap: 11px;
+  margin-top: 16px;
+}
+
+.delivery,
+.button,
+.editor,
+.choice,
+.active,
+.error,
+.success {
+  position: relative;
+  isolation: isolate;
 }
 
 .delivery {
   min-width: 0;
-  padding: 14px;
-  border: 1px solid var(--dc-border);
-  border-radius: var(--dc-radius-md);
-  background: var(--dc-background);
+  padding: 13px;
+  border: 1px solid var(--settings-edge);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 5%), transparent 60%),
+    rgb(10 20 29 / 24%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.delivery::before,
+.button::before,
+.editor::before,
+.choice::before,
+.active::before,
+.error::before,
+.success::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(5px) saturate(115%);
+  backdrop-filter: blur(5px) saturate(115%);
+}
+
+.delivery:has(> .glass[data-ready="true"])::before,
+.button:has(> .glass[data-ready="true"])::before,
+.editor:has(> .glass[data-ready="true"])::before,
+.choice:has(> .glass[data-ready="true"])::before,
+.active:has(> .glass[data-ready="true"])::before,
+.error:has(> .glass[data-ready="true"])::before,
+.success:has(> .glass[data-ready="true"])::before {
+  display: none;
+}
+
+.glass {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.glass[data-ready="true"] {
+  opacity: 1;
 }
 
 .deliveryHeading {
@@ -32,30 +88,32 @@
 
 .deliveryHeading h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
 .inactive {
   padding: 3px 7px;
-  border: 1px solid var(--dc-border);
-  border-radius: 999px;
-  color: var(--dc-text-secondary);
-  font-size: 10px;
+  border: 1px solid rgb(245 178 94 / 35%);
+  border-radius: 99px;
+  background: rgb(245 178 94 / 8%);
+  color: #ffd29c;
+  font-size: 11px;
 }
 
 .days {
-  margin: 9px 0 0;
+  margin: 8px 0 0;
   color: var(--dc-accent);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
 .categoryNames {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   color: var(--dc-text-secondary);
-  font-size: 11px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
@@ -63,7 +121,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 15px;
+  margin-top: 13px;
 }
 
 .button {
@@ -71,16 +129,28 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 40px;
-  padding: 9px 12px;
-  border: 1px solid var(--dc-border);
-  border-radius: var(--dc-radius-sm);
-  background: var(--dc-surface);
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--settings-edge);
+  border-radius: 11px;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 6%), transparent 60%),
+    rgb(10 20 29 / 25%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 9%);
   color: var(--dc-text);
   font: inherit;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
   cursor: pointer;
+}
+
+.button svg {
+  flex-shrink: 0;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--dc-accent);
 }
 
 .button:disabled {
@@ -96,23 +166,34 @@
 
 .primary {
   border-color: var(--dc-accent);
-  background: var(--dc-accent);
-  color: var(--dc-text-inverse);
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 10%), transparent 60%),
+    rgb(var(--dc-accent-rgb) / 30%);
+  color: var(--dc-text);
 }
 
 .danger {
+  border-color: rgb(var(--dc-danger-rgb) / 35%);
   color: var(--dc-danger);
+}
+
+.danger:hover:not(:disabled) {
+  border-color: var(--dc-danger);
 }
 
 .newButton {
   width: 100%;
-  margin-top: 15px;
-  border-color: rgba(var(--dc-accent-rgb), 0.35);
+  margin-top: 13px;
+  border-color: rgb(var(--dc-accent-rgb) / 45%);
   color: var(--dc-accent);
 }
 
 .editor {
-  margin-top: 22px;
+  margin-top: 17px;
+  padding: 14px;
+  border: 1px solid var(--settings-edge);
+  border-radius: 14px;
+  background: rgb(10 20 29 / 22%);
 }
 
 .fields,
@@ -125,13 +206,14 @@
 
 .fields {
   display: grid;
-  gap: 20px;
+  gap: 17px;
 }
 
 .fields > legend {
-  margin-bottom: 18px;
-  font-size: 14px;
-  font-weight: 750;
+  margin-bottom: 15px;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .fields:disabled {
@@ -140,8 +222,9 @@
 
 .nameField {
   display: grid;
-  gap: 8px;
-  font-size: 12px;
+  gap: 7px;
+  min-width: 0;
+  font-size: 13px;
   font-weight: 650;
 }
 
@@ -151,9 +234,9 @@
   min-width: 0;
   height: 46px;
   padding: 0 12px;
-  border: 1px solid var(--dc-border);
-  border-radius: var(--dc-radius-sm);
-  background: var(--dc-background);
+  border: 1px solid var(--settings-edge);
+  border-radius: 11px;
+  background: rgb(0 0 0 / 20%);
   color: var(--dc-text);
   font: inherit;
   font-size: 16px;
@@ -165,8 +248,9 @@
 }
 
 .group legend {
-  margin-bottom: 10px;
-  font-size: 12px;
+  margin-bottom: 9px;
+  padding: 0;
+  font-size: 13px;
   font-weight: 650;
 }
 
@@ -187,19 +271,30 @@
   align-items: center;
   gap: 7px;
   min-width: 0;
-  min-height: 42px;
-  padding: 8px;
-  border: 1px solid var(--dc-border);
-  border-radius: var(--dc-radius-sm);
-  background: var(--dc-background);
-  font-size: 11px;
+  min-height: 44px;
+  padding: 9px;
+  border: 1px solid var(--settings-edge);
+  border-radius: 10px;
+  background: rgb(10 20 29 / 22%);
+  font-size: 12px;
   line-height: 1.4;
   cursor: pointer;
 }
 
 .choice:has(input:checked) {
   border-color: var(--dc-accent);
-  background: rgba(var(--dc-accent-rgb), 0.08);
+  background: rgb(var(--dc-accent-rgb) / 18%);
+}
+
+.choice:has(input:focus-visible),
+.active:has(input:focus-visible) {
+  outline: 2px solid var(--dc-accent);
+  outline-offset: 3px;
+}
+
+.choice:has(input:disabled),
+.active:has(input:disabled) {
+  cursor: not-allowed;
 }
 
 .choice span {
@@ -208,6 +303,9 @@
 
 .choice input,
 .active input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
   flex-shrink: 0;
   accent-color: var(--dc-accent);
 }
@@ -215,22 +313,34 @@
 .active {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 9px;
+  min-height: 46px;
+  padding: 10px;
+  border: 1px solid var(--settings-edge);
+  border-radius: 11px;
+  background: rgb(10 20 29 / 22%);
+  font-size: 13px;
   line-height: 1.5;
+  cursor: pointer;
+}
+
+.active:has(input:checked) {
+  border-color: rgb(var(--dc-accent-rgb) / 40%);
 }
 
 .error,
 .success {
-  margin: 16px 0 0;
+  margin: 14px 0 0;
   padding: 12px;
-  border: 1px solid var(--dc-border);
-  border-radius: var(--dc-radius-sm);
-  font-size: 12px;
-  line-height: 1.6;
+  border: 1px solid var(--settings-edge);
+  border-radius: 11px;
+  background: rgb(10 20 29 / 25%);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .error {
+  border-color: rgb(var(--dc-danger-rgb) / 35%);
   color: var(--dc-danger);
 }
 
@@ -239,18 +349,25 @@
 }
 
 .success {
+  border-color: rgb(var(--dc-success-rgb) / 35%);
   color: var(--dc-success);
 }
 
 .textButton {
-  margin-top: 8px;
-  padding: 4px 0;
+  min-height: 44px;
+  margin-top: 5px;
+  padding: 6px 0;
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.textButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .spinner {
@@ -260,6 +377,51 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 360px) {
+  .editor {
+    padding: 11px;
+  }
+
+  .weekdays {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .actions > .button {
+    flex: 1 1 110px;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .delivery,
+  .button,
+  .editor,
+  .choice,
+  .active,
+  .error,
+  .success {
+    background: var(--dc-surface);
+  }
+
+  .primary {
+    background: var(--dc-accent);
+    color: var(--dc-text-inverse);
+  }
+
+  .choice:has(input:checked) {
+    background: rgb(var(--dc-accent-rgb) / 20%);
+  }
+
+  .delivery::before,
+  .button::before,
+  .editor::before,
+  .choice::before,
+  .active::before,
+  .error::before,
+  .success::before {
+    display: none;
   }
 }
 

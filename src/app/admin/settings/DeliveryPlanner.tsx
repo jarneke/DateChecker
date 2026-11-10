@@ -13,6 +13,7 @@ import {
 
 import settingsStyles from "./page.module.css";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import CheckTileGlass from "@/components/home/CheckTileGlass";
 import styles from "./DeliveryPlanner.module.css";
 
 type Delivery = {
@@ -264,6 +265,8 @@ export default function DeliveryPlanner({
 
   return (
     <section className={`${settingsStyles.section} ${styles.root}`}>
+      <CheckTileGlass className={settingsStyles.glass} />
+
       {deliveryToDelete && (
         <ConfirmDialog
           tone="danger"
@@ -277,6 +280,7 @@ export default function DeliveryPlanner({
           }}
         />
       )}
+
       <div className={settingsStyles.sectionHeading}>
         <div className={settingsStyles.sectionIcon}>
           <Truck size={19} aria-hidden="true" />
@@ -303,6 +307,7 @@ export default function DeliveryPlanner({
 
       {error && (
         <div className={styles.error} role="alert">
+          <CheckTileGlass className={styles.glass} />
           <p>{error}</p>
 
           {!saving && (
@@ -320,6 +325,7 @@ export default function DeliveryPlanner({
 
       {message && (
         <p className={styles.success} role="status">
+          <CheckTileGlass className={styles.glass} />
           {message}
         </p>
       )}
@@ -335,6 +341,8 @@ export default function DeliveryPlanner({
           <div className={styles.list}>
             {deliveries.map((delivery) => (
               <article key={delivery.id} className={styles.delivery}>
+                <CheckTileGlass className={styles.glass} />
+
                 <div className={styles.deliveryHeading}>
                   <h3>{delivery.name}</h3>
                   {!delivery.active && (
@@ -367,6 +375,7 @@ export default function DeliveryPlanner({
                     onClick={() => editDelivery(delivery)}
                     disabled={blocked}
                   >
+                    <CheckTileGlass className={styles.glass} />
                     <Pencil size={15} aria-hidden="true" />
                     Bewerken
                   </button>
@@ -377,6 +386,7 @@ export default function DeliveryPlanner({
                     onClick={() => setDeliveryToDelete(delivery)}
                     disabled={blocked}
                   >
+                    <CheckTileGlass className={styles.glass} />
                     <Trash2 size={15} aria-hidden="true" />
                     Verwijderen
                   </button>
@@ -391,6 +401,7 @@ export default function DeliveryPlanner({
             onClick={startNew}
             disabled={blocked || categories.length === 0}
           >
+            <CheckTileGlass className={styles.glass} />
             <Plus size={17} aria-hidden="true" />
             Levering toevoegen
           </button>
@@ -399,6 +410,8 @@ export default function DeliveryPlanner({
 
       {draft && (
         <form className={styles.editor} onSubmit={saveDelivery}>
+          <CheckTileGlass className={styles.glass} />
+
           <fieldset className={styles.fields} disabled={blocked}>
             <legend>
               {draft.id ? "Levering bewerken" : "Nieuwe levering"}
@@ -426,6 +439,7 @@ export default function DeliveryPlanner({
                     className={styles.choice}
                     title={day.name}
                   >
+                    <CheckTileGlass className={styles.glass} />
                     <input
                       type="checkbox"
                       checked={draft.weekdays.includes(day.value)}
@@ -448,6 +462,7 @@ export default function DeliveryPlanner({
               <div className={styles.categories}>
                 {categories.map((category) => (
                   <label key={category.id} className={styles.choice}>
+                    <CheckTileGlass className={styles.glass} />
                     <input
                       type="checkbox"
                       checked={draft.categoryIds.includes(category.id)}
@@ -467,6 +482,7 @@ export default function DeliveryPlanner({
             </fieldset>
 
             <label className={styles.active}>
+              <CheckTileGlass className={styles.glass} />
               <input
                 type="checkbox"
                 checked={draft.active}
@@ -486,6 +502,7 @@ export default function DeliveryPlanner({
                   setError("");
                 }}
               >
+                <CheckTileGlass className={styles.glass} />
                 <X size={16} aria-hidden="true" />
                 Annuleren
               </button>
@@ -494,6 +511,7 @@ export default function DeliveryPlanner({
                 type="submit"
                 className={`${styles.button} ${styles.primary}`}
               >
+                <CheckTileGlass className={styles.glass} />
                 {saving ? (
                   <LoaderCircle
                     size={16}
