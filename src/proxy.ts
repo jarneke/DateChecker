@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { COOKIE_NAME, verifySession } from "@/lib/auth";
 
 export async function proxy(request: NextRequest) {
-    if (request.nextUrl.pathname === "/apple-icon.png") {
+    const { pathname } = request.nextUrl;
+
+    if (
+        pathname === "/apple-icon.png" ||
+        pathname === "/images/datecheck-carrefour-dark.png"
+    ) {
         return NextResponse.next();
     }
 
