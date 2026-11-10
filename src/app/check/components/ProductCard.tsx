@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import CheckTileGlass from "@/components/home/CheckTileGlass";
+import glass from "@/components/home/DateCheckGlass.module.css";
 import PhotoViewer from "@/components/PhotoViewer";
 
 import type { CheckType, Item } from "../types";
@@ -79,7 +80,6 @@ export default function ProductCard({
             aria-controls={menuOpen ? menuId : undefined}
             onClick={() => setMenuOpen((open) => !open)}
           >
-            {" "}
             <CheckTileGlass foreground />
             <EllipsisVertical size={20} aria-hidden="true" />
           </button>
@@ -101,7 +101,6 @@ export default function ProductCard({
                   }
                 }}
               >
-                {" "}
                 <CheckTileGlass foreground />
                 <Link
                   href={`/stockchecker/${item.id}?returnTo=${encodeURIComponent(
@@ -132,12 +131,13 @@ export default function ProductCard({
 
   return (
     <article
-      className={styles.productCard}
+      className={`${styles.productCard} ${glass.surface}`}
       style={{
         transform: `translateX(${swipeOffset * 0.35}px)`,
         transition: swipeOffset === 0 ? "transform 0.18s ease-out" : "none",
       }}
     >
+      <CheckTileGlass className={glass.marker} />
       <ProductSummaryContext.Provider value={summary}>
         <div className={styles.productContent}>{children}</div>
       </ProductSummaryContext.Provider>

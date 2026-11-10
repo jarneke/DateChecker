@@ -1,6 +1,8 @@
 "use client";
 
 import { Layers3 } from "lucide-react";
+import CheckTileGlass from "@/components/home/CheckTileGlass";
+import glass from "@/components/home/DateCheckGlass.module.css";
 
 import type { CheckType } from "../types";
 import styles from "../page.module.css";
@@ -31,7 +33,11 @@ export default function CheckHeader({
   onChangeCategory,
 }: CheckHeaderProps) {
   return (
-    <section className={styles.header} aria-label={`${title}: voortgang`}>
+    <section
+      className={`${styles.header} ${glass.surface}`}
+      aria-label={`${title}: voortgang`}
+    >
+      <CheckTileGlass className={glass.marker} />
       <div className={styles.headerTop}>
         <div className={styles.headerInfo}>
           <div className={styles.progressLabels}>
@@ -51,16 +57,16 @@ export default function CheckHeader({
         {type === "stock" && (
           <button
             type="button"
-            className={styles.categoryButton}
+            className={`${styles.categoryButton} ${glass.surface}`}
             onClick={onChangeCategory}
             disabled={saving}
           >
+            <CheckTileGlass foreground />
             <Layers3 size={17} aria-hidden="true" />
             <span>Categorie</span>
           </button>
         )}
       </div>
-
       {initialCount > 0 && (
         <div className={styles.progressSection}>
           <div

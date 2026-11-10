@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Bell, LoaderCircle, RotateCcw } from "lucide-react";
 
+import CheckTileGlass from "@/components/home/CheckTileGlass";
+import glass from "@/components/home/DateCheckGlass.module.css";
 import styles from "./page.module.css";
 
 type Category = {
@@ -258,7 +260,7 @@ export default function DeliverySelectionPage() {
   }
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${glass.page}`}>
       <div className={styles.container}>
         <div className={styles.header}>
           <p>Kies welke leveringen en categorieën je nu wilt controleren.</p>
@@ -309,7 +311,11 @@ export default function DeliverySelectionPage() {
           </p>
         ) : (
           <>
-            <section className={styles.card} aria-labelledby="deliveries-title">
+            <section
+              className={`${styles.card} ${glass.surface}`}
+              aria-labelledby="deliveries-title"
+            >
+              <CheckTileGlass className={glass.marker} />
               <div className={styles.heading}>
                 <span>1</span>
                 <h2 id="deliveries-title">Kies je leveringen</h2>
@@ -364,9 +370,10 @@ export default function DeliverySelectionPage() {
 
             {chosenOffers.length > 0 && (
               <section
-                className={styles.card}
+                className={`${styles.card} ${glass.surface}`}
                 aria-labelledby="categories-title"
               >
+                <CheckTileGlass className={glass.marker} />
                 <div className={styles.heading}>
                   <span>2</span>
                   <h2 id="categories-title">Kies je categorieën</h2>
@@ -429,10 +436,11 @@ export default function DeliverySelectionPage() {
 
             <button
               type="button"
-              className={styles.start}
+              className={`${styles.start} ${glass.surface} ${glass.primary}`}
               disabled={!canStart}
               onClick={() => void startCheck()}
             >
+              <CheckTileGlass foreground className={glass.tint} />
               {starting ? (
                 <LoaderCircle
                   size={18}

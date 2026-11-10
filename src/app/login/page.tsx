@@ -10,6 +10,8 @@ import {
   LockKeyhole,
   ShieldCheck,
 } from "lucide-react";
+import CheckTileGlass from "@/components/home/CheckTileGlass";
+import glass from "@/components/home/DateCheckGlass.module.css";
 
 import styles from "./page.module.css";
 
@@ -175,7 +177,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${glass.page}`}>
       <div className={styles.container}>
         <div className={styles.brand}>
           <div className={styles.brandIcon}>
@@ -187,17 +189,15 @@ export default function LoginPage() {
           </span>
         </div>
 
-        <section className={styles.card}>
+        <section className={`${styles.card} ${glass.surface}`}>
+          <CheckTileGlass className={glass.marker} />
           <div className={styles.lockIcon}>
             <LockKeyhole size={28} />
           </div>
-
           <h1>Welkom terug</h1>
-
           <p className={styles.description}>
             Voer je 6-cijferige pincode in om verder te gaan.
           </p>
-
           <form
             onSubmit={(event) => void handleSubmit(event)}
             className={styles.form}
@@ -255,9 +255,10 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className={styles.submitButton}
+              className={`${styles.submitButton} ${glass.surface} ${glass.primary}`}
               disabled={pin.length !== 6 || loading || waiting}
             >
+              <CheckTileGlass foreground className={glass.tint} />
               {loading ? (
                 <>
                   <LoaderCircle size={20} className={styles.spinner} />

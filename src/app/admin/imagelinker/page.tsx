@@ -12,6 +12,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 
+import CheckTileGlass from "@/components/home/CheckTileGlass";
+import glass from "@/components/home/DateCheckGlass.module.css";
 import styles from "./page.module.css";
 
 type Product = {
@@ -246,17 +248,17 @@ export default function ImageLinkerPage() {
   }
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${glass.page}`}>
       <div className={styles.container}>
         <div className={styles.header}>
           <p>Je foto wordt meteen opgeslagen.</p>
         </div>
 
-        <div className={styles.remainingCard}>
+        <div className={`${styles.remainingCard} ${glass.surface}`}>
+          <CheckTileGlass className={glass.marker} />
           <div className={styles.remainingIcon}>
             <ImageOff size={23} />
           </div>
-
           <div className={styles.remainingText}>
             <span>Nog zonder foto</span>
 
@@ -266,7 +268,6 @@ export default function ImageLinkerPage() {
                 : `${remaining} ${remaining === 1 ? "product" : "producten"}`}
             </strong>
           </div>
-
           <div className={styles.remainingCount}>{remaining ?? "—"}</div>
         </div>
 
@@ -275,10 +276,10 @@ export default function ImageLinkerPage() {
             <PackageX size={19} />
 
             <span>
-              <strong>{skippedIds.length}</strong>{" "}
+              <strong>{skippedIds.length}</strong>
               {skippedIds.length === 1
                 ? "product overgeslagen"
-                : "producten overgeslagen"}{" "}
+                : "producten overgeslagen"}
               tijdens deze sessie.
             </span>
           </div>
@@ -290,7 +291,8 @@ export default function ImageLinkerPage() {
           </div>
         )}
 
-        <section className={styles.card}>
+        <section className={`${styles.card} ${glass.surface}`}>
+          <CheckTileGlass className={glass.marker} />
           {loading ? (
             <div className={styles.loadingState}>
               <LoaderCircle size={30} className={styles.spinner} />

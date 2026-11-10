@@ -13,6 +13,8 @@ import {
 
 import PhotoViewer from "@/components/PhotoViewer";
 import viewerStyles from "@/components/PhotoViewer.module.css";
+import CheckTileGlass from "@/components/home/CheckTileGlass";
+import glass from "@/components/home/DateCheckGlass.module.css";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
@@ -253,7 +255,7 @@ function Illustration({ src, alt, caption }: InstructionImage) {
 
 export default function GuidePage() {
   return (
-    <main id="bovenaan" className={styles.page}>
+    <main id="bovenaan" className={`${styles.page} ${glass.page}`}>
       <div className={styles.container}>
         <header className={styles.header}>
           <div className={styles.headerIcon}>
@@ -278,7 +280,11 @@ export default function GuidePage() {
           ))}
         </nav>
 
-        <section id="dagoverzicht" className={styles.section}>
+        <section
+          id="dagoverzicht"
+          className={`${styles.section} ${glass.surface}`}
+        >
+          <CheckTileGlass className={glass.marker} />
           <div className={styles.sectionHeading}>
             <ClipboardCheck size={21} aria-hidden="true" />
             <h2>Je dagelijkse ronde</h2>
@@ -319,7 +325,8 @@ export default function GuidePage() {
           </p>
         </section>
 
-        <section id="datums" className={styles.section}>
+        <section id="datums" className={`${styles.section} ${glass.surface}`}>
+          <CheckTileGlass className={glass.marker} />
           <h2>De basis: datums en stickers</h2>
 
           <p>
@@ -390,7 +397,11 @@ export default function GuidePage() {
           </aside>
         </section>
 
-        <section id="controles" className={styles.section}>
+        <section
+          id="controles"
+          className={`${styles.section} ${glass.surface}`}
+        >
+          <CheckTileGlass className={glass.marker} />
           <h2>De controles, stap voor stap</h2>
           <p>
             De actuele productgegevens bepalen welke producten je te zien
@@ -444,7 +455,11 @@ export default function GuidePage() {
           </div>
         </section>
 
-        <section id="leveringen" className={styles.section}>
+        <section
+          id="leveringen"
+          className={`${styles.section} ${glass.surface}`}
+        >
+          <CheckTileGlass className={glass.marker} />
           <div className={styles.sectionHeading}>
             <Truck size={21} aria-hidden="true" />
             <h2>Leveringen nakijken</h2>
@@ -570,7 +585,8 @@ export default function GuidePage() {
           </Link>
         </section>
 
-        <section id="voorraad" className={styles.section}>
+        <section id="voorraad" className={`${styles.section} ${glass.surface}`}>
+          <CheckTileGlass className={glass.marker} />
           <div className={styles.sectionHeading}>
             <Package size={21} aria-hidden="true" />
             <h2>Voorraad correct bijhouden</h2>
@@ -639,7 +655,11 @@ export default function GuidePage() {
           </Link>
         </section>
 
-        <section id="toevoegen" className={styles.section}>
+        <section
+          id="toevoegen"
+          className={`${styles.section} ${glass.surface}`}
+        >
+          <CheckTileGlass className={glass.marker} />
           <h2>Nieuwe producten toevoegen</h2>
 
           <p>
@@ -708,7 +728,11 @@ export default function GuidePage() {
           </div>
         </section>
 
-        <section id="instellingen" className={styles.section}>
+        <section
+          id="instellingen"
+          className={`${styles.section} ${glass.surface}`}
+        >
+          <CheckTileGlass className={glass.marker} />
           <div className={styles.sectionHeading}>
             <Settings2 size={21} aria-hidden="true" />
             <h2>Instellingen onderhouden</h2>
@@ -783,7 +807,8 @@ export default function GuidePage() {
           </Link>
         </section>
 
-        <section id="vragen" className={styles.section}>
+        <section id="vragen" className={`${styles.section} ${glass.surface}`}>
+          <CheckTileGlass className={glass.marker} />
           <h2>Veelgestelde vragen</h2>
 
           <div className={styles.questions}>

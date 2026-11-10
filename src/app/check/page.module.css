@@ -180,8 +180,6 @@
     linear-gradient(135deg, rgb(255 255 255 / 4%), transparent 55%),
     var(--check-surface);
   box-shadow: var(--check-shadow);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
 }
 
 .productHeader {

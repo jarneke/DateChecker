@@ -12,6 +12,8 @@ import {
   Tag,
 } from "lucide-react";
 
+import CheckTileGlass from "@/components/home/CheckTileGlass";
+import glass from "@/components/home/DateCheckGlass.module.css";
 import styles from "./page.module.css";
 
 const ROUNDS = [
@@ -99,7 +101,7 @@ export default function StickerRoundsPage() {
   });
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${glass.page}`}>
       <header className={styles.header}>
         <p className={styles.brand}>DateCheck</p>
         <h1>Stickerrondes</h1>
@@ -138,6 +140,7 @@ export default function StickerRoundsPage() {
 
             const content = (
               <>
+                <CheckTileGlass className={glass.marker} />
                 <span className={styles.icon}>
                   {locked ? (
                     <LockKeyhole size={23} aria-hidden="true" />
@@ -158,12 +161,14 @@ export default function StickerRoundsPage() {
             return (
               <li key={type}>
                 {locked ? (
-                  <div className={`${styles.row} ${styles.locked}`}>
+                  <div
+                    className={`${styles.row} ${styles.locked} ${glass.surface} ${glass.round}`}
+                  >
                     {content}
                   </div>
                 ) : (
                   <Link
-                    className={styles.row}
+                    className={`${styles.row} ${glass.surface} ${glass.round}`}
                     data-round={type}
                     href={`/check?type=${type}`}
                   >

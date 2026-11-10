@@ -1,6 +1,8 @@
 "use client";
 
 import { ArrowLeft, Check, LoaderCircle, X } from "lucide-react";
+import CheckTileGlass from "@/components/home/CheckTileGlass";
+import glass from "@/components/home/DateCheckGlass.module.css";
 
 import type { CheckType } from "../types";
 import styles from "../page.module.css";
@@ -41,16 +43,23 @@ export default function CheckActions({
   const stickerNoLabel =
     type === "monthly" ? "Niet gestickerd" : "Niet aanwezig";
 
+  const primaryClass = `${styles.primaryAction} ${glass.surface} ${glass.primary}`;
+
   return (
-    <div className={styles.actionsContainer}>
+    <div
+      className={`${styles.actionsContainer} ${glass.surface} ${glass.sticky}`}
+    >
+      <CheckTileGlass className={glass.marker} />
+
       {isEvening ? (
         <button
           type="button"
-          className={styles.primaryAction}
+          className={primaryClass}
           onClick={onEveningNext}
           disabled={saving}
           aria-label="Opgehaald of verkocht, ga naar het volgende product"
         >
+          <CheckTileGlass foreground className={glass.tint} />
           {saving ? (
             <LoaderCircle size={20} className={styles.actionSpinner} />
           ) : (
@@ -61,10 +70,11 @@ export default function CheckActions({
       ) : showDateInput ? (
         <button
           type="button"
-          className={styles.primaryAction}
+          className={primaryClass}
           onClick={onSaveDate}
           disabled={!validDate || saving}
         >
+          <CheckTileGlass foreground className={glass.tint} />
           {saving ? (
             <LoaderCircle size={20} className={styles.actionSpinner} />
           ) : (
@@ -76,20 +86,22 @@ export default function CheckActions({
         <div className={styles.actionRow}>
           <button
             type="button"
-            className={styles.secondaryAction}
+            className={`${styles.secondaryAction} ${glass.surface} ${glass.warning}`}
             onClick={onNo}
             disabled={saving}
           >
+            <CheckTileGlass foreground className={glass.tint} />
             <X size={21} />
             {isStickerQuestion ? stickerNoLabel : "Geen voorraad"}
           </button>
 
           <button
             type="button"
-            className={styles.primaryAction}
+            className={primaryClass}
             onClick={onYes}
             disabled={saving}
           >
+            <CheckTileGlass foreground className={glass.tint} />
             <Check size={21} />
             {isStickerQuestion ? "Gestickerd" : "Vervaldatum invullen"}
           </button>
@@ -99,10 +111,11 @@ export default function CheckActions({
       {canGoBack && (
         <button
           type="button"
-          className={styles.backAction}
+          className={`${styles.backAction} ${glass.surface}`}
           onClick={onBack}
           disabled={saving}
         >
+          <CheckTileGlass foreground />
           <ArrowLeft size={17} aria-hidden="true" />
           {showDateInput ? "Datumkeuze annuleren" : "Vorige controlestap"}
         </button>
