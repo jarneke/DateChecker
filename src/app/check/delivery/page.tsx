@@ -16,6 +16,7 @@ import ProductCard from "../components/ProductCard";
 import CheckQuestion from "../components/CheckQuestion";
 import CheckActions from "../components/CheckActions";
 import CheckStates from "../components/CheckStates";
+import { useCheckSwipe } from "../hooks/useCheckSwipe";
 
 import type { Item } from "../types";
 import { formatDate } from "../utils";
@@ -303,6 +304,52 @@ function DeliveryContent() {
     }
   }
 
+  const currentItem = snapshot?.items[0] ?? null;
+  const completed = snapshot !== null && snapshot.completedAt !== null;
+  const interactionBlocked = saving || Boolean(error);
+
+  const showDateInput =
+    currentItem !== null &&
+    draft !== null &&
+    draft.itemId === currentItem.id &&
+    draft.version === currentItem.version;
+
+  function openDate() {
+    if (interactionBlocked || !currentItem) return;
+
+    setLocalDraft({
+      itemId: currentItem.id,
+      version: currentItem.version,
+      value: "",
+    });
+  }
+
+  function noStock() {
+    void performAction("answer", null);
+  }
+
+  const gestureKey =
+    context &&
+    currentItem &&
+    !loading &&
+    !completed &&
+    !interactionBlocked &&
+    !showDateInput
+      ? JSON.stringify([context, currentItem.id, currentItem.version])
+      : null;
+
+  const {
+    swipeOffset,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    handleTouchCancel,
+  } = useCheckSwipe({
+    gestureKey,
+    onSwipeRight: openDate,
+    onSwipeLeft: noStock,
+  });
+
   if (!context) return <CheckStates state="invalid" />;
   if (loading) return <CheckStates state="loading" />;
 
@@ -314,10 +361,6 @@ function DeliveryContent() {
       />
     );
   }
-
-  const currentItem = snapshot.items[0] ?? null;
-  const completed = snapshot.completedAt !== null;
-  const interactionBlocked = saving || Boolean(error);
 
   const deliveryDescription = snapshot.deliveries
     .map(
@@ -411,11 +454,6 @@ function DeliveryContent() {
     );
   }
 
-  const showDateInput =
-    draft !== null &&
-    draft.itemId === currentItem.id &&
-    draft.version === currentItem.version;
-
   const nextExpiryDate = showDateInput && draft ? draft.value : "";
   const canGoBack = showDateInput || snapshot.previous !== null;
 
@@ -423,16 +461,6 @@ function DeliveryContent() {
     snapshot.initialCount > 0
       ? Math.min(100, (snapshot.completedCount / snapshot.initialCount) * 100)
       : 0;
-
-  function openDate() {
-    if (interactionBlocked || !currentItem) return;
-
-    setLocalDraft({
-      itemId: currentItem.id,
-      version: currentItem.version,
-      value: "",
-    });
-  }
 
   function changeDate(value: string) {
     if (interactionBlocked || !currentItem) return;
@@ -456,10 +484,6 @@ function DeliveryContent() {
     }
 
     void performAction("answer", nextExpiryDate);
-  }
-
-  function noStock() {
-    void performAction("answer", null);
   }
 
   function goBack() {
@@ -496,14 +520,20 @@ function DeliveryContent() {
           onChangeCategory={() => router.push("/check/delivery/select")}
         />
 
-        <div className={styles.checkBody}>
+        <div
+          className={styles.checkBody}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
+        >
           <ProductCard
             key={currentItem.id}
             item={currentItem}
             type="stock"
             missedCheck={false}
             editReturnUrl={`/check/delivery?${returnParams.toString()}`}
-            swipeOffset={0}
+            swipeOffset={swipeOffset}
           >
             {errorNotice}
 

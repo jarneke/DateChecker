@@ -2,9 +2,9 @@
 
 import {
     useCallback,
-    useLayoutEffect, useRef,
+    useLayoutEffect,
+    useRef,
     useState,
-    type TouchEvent,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -16,6 +16,7 @@ import {
     type Item,
 } from "../types";
 import { getToday } from "../utils";
+import { useCheckSwipe } from "./useCheckSwipe";
 
 type CheckStage =
     | "sticker"
@@ -99,7 +100,6 @@ export function useCheckWorkflow() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [nextExpiryDate, setDateDraft] = useState("");
-    const [swipeOffset, setSwipeOffset] = useState(0);
     const [history, setHistory] = useState<CompletionEntry[]>([]);
 
     const snapshotRef = useRef<CheckSnapshot | null>(null);
@@ -112,7 +112,6 @@ export function useCheckWorkflow() {
     const requestIdRef = useRef(0);
     const mountedRef = useRef(false);
     const contextRef = useRef("");
-    const touchStart = useRef<{ x: number; y: number } | null>(null);
 
     const context = `${type ?? ""}:${categoryId}:${refreshToken ?? ""}`;
 
@@ -166,8 +165,6 @@ export function useCheckWorkflow() {
                 localDateDraftRef.current = null;
                 setDateDraft(nextItem?.draft_expiry_date ?? "");
             }
-
-            setSwipeOffset(0);
         },
         [updateHistory],
     );
@@ -250,7 +247,6 @@ export function useCheckWorkflow() {
             updateHistory([]);
             setSnapshot(null);
             setDateDraft("");
-            setSwipeOffset(0);
             setSaving(false);
             setError(null);
             setLoading(Boolean(type));
@@ -315,7 +311,6 @@ export function useCheckWorkflow() {
         requestIdRef.current += 1;
         setSaving(true);
         setError(null);
-        setSwipeOffset(0);
 
         try {
             const response = await fetch("/api/checks/action", {
@@ -434,7 +429,6 @@ export function useCheckWorkflow() {
         requestIdRef.current += 1;
         setSaving(true);
         setError(null);
-        setSwipeOffset(0);
 
         try {
             const response = await fetch("/api/checks/action", {
@@ -683,73 +677,25 @@ export function useCheckWorkflow() {
         return reopenPreviousItem();
     }
 
-    function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
-        if (!canSwipe || event.touches.length !== 1) {
-            touchStart.current = null;
-            return;
-        }
-
-        const target = event.target as HTMLElement;
-
-        if (
-            target.closest(
-                "button, a, input, textarea, select, [role='button']",
-            )
-        ) {
-            touchStart.current = null;
-            return;
-        }
-
-        touchStart.current = {
-            x: event.touches[0].clientX,
-            y: event.touches[0].clientY,
-        };
-    }
-
-    function handleTouchMove(event: TouchEvent<HTMLDivElement>) {
-        if (
-            !touchStart.current ||
-            !canSwipe ||
-            event.touches.length !== 1
-        ) {
-            return;
-        }
-
-        const dx = event.touches[0].clientX - touchStart.current.x;
-        const dy = event.touches[0].clientY - touchStart.current.y;
-
-        setSwipeOffset(
-            Math.abs(dx) > Math.abs(dy) * 1.5
-                ? Math.max(-110, Math.min(110, dx))
-                : 0,
-        );
-    }
-
-    function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
-        const start = touchStart.current;
-        touchStart.current = null;
-        setSwipeOffset(0);
-
-        if (!start || !canSwipe || !event.changedTouches[0]) return;
-
-        const dx = event.changedTouches[0].clientX - start.x;
-        const dy = event.changedTouches[0].clientY - start.y;
-
-        if (Math.abs(dx) < 90 || Math.abs(dx) < Math.abs(dy) * 1.5) {
-            return;
-        }
-
-        if (dx > 0) {
-            handleYes();
-        } else {
-            handleNo();
-        }
-    }
-
-    function handleTouchCancel() {
-        touchStart.current = null;
-        setSwipeOffset(0);
-    }
+    const {
+        swipeOffset,
+        handleTouchStart,
+        handleTouchMove,
+        handleTouchEnd,
+        handleTouchCancel,
+    } = useCheckSwipe({
+        gestureKey:
+            canSwipe && currentItem
+                ? JSON.stringify([
+                    context,
+                    todayString,
+                    currentItem.id,
+                    currentItem.version,
+                ])
+                : null,
+        onSwipeRight: handleYes,
+        onSwipeLeft: handleNo,
+    });
 
     return {
         type,
