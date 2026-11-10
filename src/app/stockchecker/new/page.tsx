@@ -719,7 +719,6 @@ export default function AddProductsPage() {
 
   return (
     <main className={`${fastStyles.page} ${glass.page}`}>
-      {" "}
       {confirmClearList && (
         <ConfirmDialog
           tone="danger"

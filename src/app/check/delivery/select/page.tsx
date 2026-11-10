@@ -418,7 +418,7 @@ export default function DeliverySelectionPage() {
                       key={category.id}
                       className={`${styles.option} ${glass.surface} ${chosenCategoryIds.includes(category.id) ? glass.primary : ""}`}
                     >
-                      <CheckTileGlass foreground className={glass.tint} />{" "}
+                      <CheckTileGlass foreground className={glass.tint} />
                       <input
                         type="checkbox"
                         checked={chosenCategoryIds.includes(category.id)}
@@ -463,7 +463,7 @@ export default function DeliverySelectionPage() {
               )}
               {starting
                 ? "Controle openen…"
-                : `Controle starten${chosenCategoryIds.length > 0 ? ` · ${chosenCategoryIds.length} ${chosenCategoryIds.length === 1 ? "categorie" : "categorieën"}` : ""}`}{" "}
+                : `Controle starten${chosenCategoryIds.length > 0 ? ` · ${chosenCategoryIds.length} ${chosenCategoryIds.length === 1 ? "categorie" : "categorieën"}` : ""}`}
             </button>
           </>
         )}

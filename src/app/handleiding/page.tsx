@@ -292,7 +292,7 @@ export default function GuidePage() {
 
           <div className={styles.quickStart}>
             <a href="#dagelijks-stickeren" className={glass.surface}>
-              <CheckTileGlass foreground className={glass.tint} />{" "}
+              <CheckTileGlass foreground className={glass.tint} />
               <span className={styles.stepNumber}>01</span>
               <strong>Bij de stickercontrole</strong>
               <span>
@@ -302,7 +302,7 @@ export default function GuidePage() {
             </a>
 
             <a href="#leveringen" className={glass.surface}>
-              <CheckTileGlass foreground className={glass.tint} />{" "}
+              <CheckTileGlass foreground className={glass.tint} />
               <span className={styles.stepNumber}>02</span>
               <strong>Na een levering</strong>
               <span>
@@ -312,7 +312,7 @@ export default function GuidePage() {
             </a>
 
             <a href="#dagelijks-ophalen" className={glass.surface}>
-              <CheckTileGlass foreground className={glass.tint} />{" "}
+              <CheckTileGlass foreground className={glass.tint} />
               <span className={styles.stepNumber}>03</span>
               <strong>Bij het ophalen</strong>
               <span>

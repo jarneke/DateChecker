@@ -406,7 +406,6 @@ export default function SettingsPage() {
 
   return (
     <main className={styles.page}>
-      {" "}
       {hasUnsavedChanges && pendingLink && (
         <ConfirmDialog
           tone="warning"
