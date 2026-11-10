@@ -140,7 +140,7 @@ export default function CheckQuestion({
         <p className={styles.questionDescription}>
           {isForwardPickup ? (
             <>
-              Haal de resterende exemplaren met een 50%-sticker en vervaldatum
+              Haal de resterende exemplaren met een 50%-sticker en vervaldatum{" "}
               <strong className={styles.highlightDate}>
                 {formatDate(expiryDate)}
               </strong>{" "}
