@@ -98,7 +98,9 @@ export function useCheckWorkflow() {
     const [snapshot, setSnapshot] = useState<CheckSnapshot | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [actionError, setError] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const error = actionError ?? loadError;
     const [nextExpiryDate, setDateDraft] = useState("");
     const [history, setHistory] = useState<CompletionEntry[]>([]);
 
@@ -211,6 +213,7 @@ export function useCheckWorkflow() {
                 }
 
                 applySnapshot(data as CheckSnapshot);
+                setLoadError(null);
                 setLoading(false);
                 return true;
             } catch (caughtError) {
@@ -219,7 +222,7 @@ export function useCheckWorkflow() {
                     requestId === requestIdRef.current &&
                     requestContext === contextRef.current
                 ) {
-                    setError(
+                    setLoadError(
                         caughtError instanceof Error
                             ? caughtError.message
                             : "De controle kon niet geladen worden.",
@@ -249,6 +252,7 @@ export function useCheckWorkflow() {
             setDateDraft("");
             setSaving(false);
             setError(null);
+            setLoadError(null);
             setLoading(Boolean(type));
 
             if (type) void loadSnapshot();
