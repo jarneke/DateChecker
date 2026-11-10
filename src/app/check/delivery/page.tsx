@@ -16,6 +16,7 @@ import ProductCard from "../components/ProductCard";
 import CheckQuestion from "../components/CheckQuestion";
 import CheckActions from "../components/CheckActions";
 import CheckStates from "../components/CheckStates";
+import CheckSwipeHint from "../components/CheckSwipeHint";
 import { useCheckSwipe } from "../hooks/useCheckSwipe";
 
 import type { Item } from "../types";
@@ -549,6 +550,13 @@ function DeliveryContent() {
               saving={interactionBlocked}
               onDateChange={changeDate}
             />
+
+            {gestureKey !== null && (
+              <CheckSwipeHint
+                swipeLeftText="Geen voorraad"
+                swipeRightText="Vervaldatum invullen"
+              />
+            )}
           </ProductCard>
         </div>
 

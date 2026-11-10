@@ -60,7 +60,7 @@ const CHECKS: CheckGuide[] = [
       "Zoek het product en controleer welke exemplaren vandaag vervallen.",
       "Geef de aanwezige exemplaren voor vandaag een 30%-sticker. Kies daarna Gestickerd. Zijn er geen exemplaren met die datum? Kies Niet aanwezig.",
       "Controleer vervolgens of er ook voorraad is die na vandaag vervalt.",
-      "Kies Wel voorraad, vul de vroegste datum van die latere voorraad in en bevestig met Nieuwe datum opslaan.",
+      "Kies Vervaldatum invullen. Vul de vroegste datum van die latere voorraad in en bevestig met Nieuwe datum opslaan.",
       "Is er geen latere voorraad? Kies Geen voorraad. De opgeslagen voorraaddatum wordt dan leeggemaakt.",
     ],
     note: "Geen voorraad bij deze tweede vraag gaat alleen over de latere voorraad. De gestickerde exemplaren voor vandaag blijven apart onthouden voor Dagelijks ophalen.",
@@ -98,7 +98,7 @@ const CHECKS: CheckGuide[] = [
       "Alle producten voor dagelijks stickeren die als gestickerd geregistreerd staan, onafhankelijk van hun opgeslagen voorraaddatum.",
     steps: [
       "Zoek het product en verwijder de resterende exemplaren met een 30%-sticker.",
-      "Klik op Volgend product zodra de gestickerde exemplaren verwijderd zijn. Bevestig ook als alles al verkocht is.",
+      "Kies Opgehaald of verkocht zodra alle gestickerde exemplaren uit het rayon zijn.",
       "De stickerstatus wordt uitgezet. De opgeslagen datum van de overige voorraad blijft behouden.",
     ],
     note: "De opgeslagen voorraaddatum kan ondertussen op een latere dag staan of leeg zijn. Dat verandert niets aan de noodzaak om de resterende gestickerde exemplaren op te halen.",
@@ -113,10 +113,10 @@ const CHECKS: CheckGuide[] = [
       "Vooruit gestickerde producten waarvan de opgeslagen vervaldatum vandaag is.",
     steps: [
       "Ronde 1: verwijder bij ieder product de resterende gestickerde exemplaren met de getoonde datum.",
-      "Klik telkens op Volgend product. Bevestig ook wanneer de exemplaren al verkocht zijn.",
+      "Kies per product Opgehaald of verkocht zodra alle gestickerde exemplaren uit het rayon zijn.",
       "Werk eerst de volledige ophaalronde af. De app vraagt tijdens deze ronde nog niet per product naar de overige voorraad.",
       "Ronde 2: controleer vervolgens voor ieder product of er voorraad overblijft die na vandaag vervalt.",
-      "Kies Wel voorraad en sla de vroegste datum op, of kies Geen voorraad wanneer er niets overblijft.",
+      "Kies Vervaldatum invullen en sla de vroegste datum op, of kies Geen voorraad wanneer er niets overblijft.",
     ],
     note: "Een product is pas volledig afgewerkt nadat ook de voorraadvraag beantwoord is. De aanduiding Voorraad bijgewerkt loopt daarom vooral tijdens de tweede ronde op.",
     href: "/check?type=monthly-pickup",
@@ -136,7 +136,7 @@ const CHECKS: CheckGuide[] = [
     steps: [
       "Zoek het product en verwijder de verlopen exemplaren.",
       "Controleer of er nog verkoopbare voorraad overblijft.",
-      "Kies Wel voorraad en bewaar de vroegste vervaldatum van de resterende voorraad.",
+      "Kies Vervaldatum invullen en bewaar de vroegste vervaldatum van de resterende voorraad.",
       "Is er niets meer over? Kies Geen voorraad.",
     ],
     note: "Deze controle vangt ook producten op waarvan de vervaldatum verstreken is voordat een eerdere ronde afgewerkt werd.",
@@ -152,7 +152,7 @@ const CHECKS: CheckGuide[] = [
     steps: [
       "Open Stockcheck en kies een categorie of Alle categorieën.",
       "Zoek het product en controleer of het opnieuw in voorraad is.",
-      "Kies Wel voorraad, vul de vroegste vervaldatum in en bevestig met Nieuwe datum opslaan.",
+      "Kies Vervaldatum invullen. Vul de vroegste vervaldatum in en bevestig met Nieuwe datum opslaan.",
       "Is er nog geen voorraad? Kies Geen voorraad. De datum blijft leeg, maar het product telt wel als gecontroleerd voor deze ronde.",
     ],
     note: "De gewone stockcheck en de leveringscheck bewaren hun voortgang afzonderlijk. Een eerdere gewone stockcheck vervangt dus niet automatisch een nieuwe leveringscheck.",
@@ -483,9 +483,9 @@ export default function GuidePage() {
               categorieën in één ronde en toont ieder product maar één keer.
             </li>
             <li>
-              Controleer de producten zonder opgeslagen datum. Kies Wel voorraad
-              en sla de vroegste datum op, of kies Geen voorraad wanneer het
-              product nog niet aanwezig is.
+              Controleer de producten zonder opgeslagen datum. Kies Vervaldatum
+              invullen en sla de vroegste datum op, of kies Geen voorraad
+              wanneer het product nog niet aanwezig is.
             </li>
             <li>
               Wanneer jouw selectie klaar is, zie je het eindscherm. Kies indien

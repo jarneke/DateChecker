@@ -1,13 +1,13 @@
 "use client";
 
 import { Suspense } from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import CheckHeader from "./components/CheckHeader";
 import ProductCard from "./components/ProductCard";
 import CheckQuestion from "./components/CheckQuestion";
 import CheckActions from "./components/CheckActions";
 import CheckStates from "./components/CheckStates";
+import CheckSwipeHint from "./components/CheckSwipeHint";
 import CategorySelector from "./components/CategorySelector";
 
 import { useCheckWorkflow } from "./hooks/useCheckWorkflow";
@@ -109,6 +109,18 @@ function CheckContent() {
   const stickerNoLabel =
     type === "monthly" ? "Niet gestickerd" : "Niet aanwezig";
 
+  const swipeLeftText = isEvening
+    ? undefined
+    : isStickerQuestion
+      ? stickerNoLabel
+      : "Geen voorraad";
+
+  const swipeRightText = isEvening
+    ? "Opgehaald of verkocht"
+    : isStickerQuestion
+      ? "Gestickerd"
+      : "Vervaldatum invullen";
+
   const remainingCount = Math.max(items.length, initialCount - completedCount);
 
   return (
@@ -166,28 +178,10 @@ function CheckContent() {
             />
 
             {canSwipe && (
-              <div className={styles.swipeHint}>
-                {isEvening ? (
-                  <>
-                    <span>Swipe naar rechts: klaar, volgend product</span>
-                    <ArrowRight size={15} />
-                  </>
-                ) : (
-                  <>
-                    <ArrowLeft size={15} />
-                    <span>
-                      {isStickerQuestion ? stickerNoLabel : "Geen voorraad"}
-                    </span>
-                    <span className={styles.swipeDivider}>·</span>
-                    <span>Swipe</span>
-                    <span className={styles.swipeDivider}>·</span>
-                    <span>
-                      {isStickerQuestion ? "Gestickerd" : "Wel voorraad"}
-                    </span>
-                    <ArrowRight size={15} />
-                  </>
-                )}
-              </div>
+              <CheckSwipeHint
+                swipeLeftText={swipeLeftText}
+                swipeRightText={swipeRightText}
+              />
             )}
           </ProductCard>
         </div>

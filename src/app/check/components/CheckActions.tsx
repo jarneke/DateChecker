@@ -49,14 +49,14 @@ export default function CheckActions({
           className={styles.primaryAction}
           onClick={onEveningNext}
           disabled={saving}
-          aria-label="Opgehaald of al verkocht, ga naar het volgende product"
+          aria-label="Opgehaald of verkocht, ga naar het volgende product"
         >
           {saving ? (
             <LoaderCircle size={20} className={styles.actionSpinner} />
           ) : (
             <Check size={20} />
           )}
-          {saving ? "Opslaan..." : "Volgend product"}
+          {saving ? "Opslaan..." : "Opgehaald of verkocht"}
         </button>
       ) : showDateInput ? (
         <button
@@ -91,7 +91,7 @@ export default function CheckActions({
             disabled={saving}
           >
             <Check size={21} />
-            {isStickerQuestion ? "Gestickerd" : "Wel voorraad"}
+            {isStickerQuestion ? "Gestickerd" : "Vervaldatum invullen"}
           </button>
         </div>
       )}

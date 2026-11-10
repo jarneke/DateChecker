@@ -26,7 +26,7 @@ type QuestionLayoutProps = {
   title: string;
   step?: string;
   icon: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
 };
 
 function QuestionLayout({ title, step, icon, children }: QuestionLayoutProps) {
@@ -106,10 +106,10 @@ export default function CheckQuestion({
       >
         <p className={styles.questionDescription}>
           {isDaily
-            ? "Vul de vroegste datum na vandaag in. Gestickerde exemplaren voor vandaag tellen niet mee."
+            ? "Kies een datum na vandaag. Tel exemplaren met een sticker voor vandaag niet mee."
             : isForwardPickup
               ? "Vul de vroegste datum na vandaag in van de overblijvende voorraad."
-              : "Vul de vroegste vervaldatum in van de aanwezige verkoopbare voorraad."}
+              : "Tel alleen verkoopbare voorraad mee."}
         </p>
 
         <div className={styles.dateField}>
@@ -152,7 +152,8 @@ export default function CheckQuestion({
         </p>
 
         <p className={styles.questionPrompt}>
-          Kies Volgend product zodra alles opgehaald of al verkocht is.
+          Kies <strong>Opgehaald of verkocht</strong> zodra alle gestickerde
+          exemplaren uit het rayon zijn.
         </p>
 
         {isForwardPickup && (
@@ -184,7 +185,7 @@ export default function CheckQuestion({
           .
           {isDaily
             ? " Geef de aanwezige exemplaren een 30%-sticker."
-            : " Beoordeel de hoeveelheid en hoe snel het product verkoopt. Weinig voorraad die goed verkoopt, heeft mogelijk geen korting nodig."}
+            : " Weinig voorraad die snel verkoopt, hoeft misschien geen 50%-sticker."}
         </p>
 
         {type === "monthly" && stickered && (
@@ -202,8 +203,8 @@ export default function CheckQuestion({
 
         {type === "monthly" && (
           <p className={styles.questionDescription}>
-            Niet gestickerd behoudt eerdere stickerregistraties. Een verkeerde
-            datum pas je aan via het productmenu.
+            Eerdere stickers blijven geregistreerd. Pas een foute datum aan via
+            het productmenu.
           </p>
         )}
       </QuestionLayout>
@@ -217,11 +218,6 @@ export default function CheckQuestion({
         step="Stap 2 van 2"
         icon={<PackageCheck size={20} aria-hidden="true" />}
       >
-        <p className={styles.questionDescription}>
-          Kies Wel voorraad om de vroegste datum na vandaag in te vullen. Alleen
-          exemplaren voor vandaag of alles op? Kies Geen voorraad.
-        </p>
-
         <p className={styles.questionPrompt}>
           Gestickerde exemplaren blijven onthouden voor Dagelijks ophalen.
         </p>
@@ -235,12 +231,7 @@ export default function CheckQuestion({
         title="Is er nog voorraad die na vandaag vervalt?"
         step="Ronde 2 van 2 · Voorraad"
         icon={<PackageCheck size={20} aria-hidden="true" />}
-      >
-        <p className={styles.questionDescription}>
-          Controleer de overblijvende voorraad. Kies Wel voorraad om de vroegste
-          datum in te vullen, of Geen voorraad als er niets overblijft.
-        </p>
-      </QuestionLayout>
+      />
     );
   }
 
@@ -253,16 +244,15 @@ export default function CheckQuestion({
       }
       icon={<PackageCheck size={20} aria-hidden="true" />}
     >
-      <p className={styles.questionDescription}>
-        {isStock
-          ? "Kijk of het product opnieuw in het rayon staat. Kies Wel voorraad om de vroegste datum in te vullen, of Geen voorraad als er niets geleverd is."
-          : "Verwijder verlopen exemplaren. Kies Wel voorraad om de vroegste datum in te vullen, of Geen voorraad als alles weg is."}
-      </p>
+      {!isStock && (
+        <p className={styles.questionDescription}>
+          Verwijder eerst de verlopen exemplaren.
+        </p>
+      )}
 
       {isStock && stickered && (
         <p className={styles.questionDescription}>
-          Exemplaren die al voor ophalen geregistreerd zijn, tellen niet mee als
-          nieuwe voorraad.
+          Voorraad die klaarstaat om op te halen, telt niet mee.
         </p>
       )}
     </QuestionLayout>
