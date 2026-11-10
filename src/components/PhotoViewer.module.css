@@ -54,8 +54,15 @@
   position: fixed;
   inset: 0;
   box-sizing: border-box;
-  width: min(960px, calc(100% - 24px));
-  height: min(820px, calc(100dvh - 24px));
+  width: min(
+    960px,
+    calc(100% - 24px),
+    calc(min(820px, calc(100dvh - 24px)) * var(--photo-aspect, 1.3333))
+  );
+  min-width: min(218px, calc(100% - 24px));
+  min-height: min(156px, calc(100dvh - 24px));
+  height: auto;
+  aspect-ratio: var(--photo-aspect, 1.3333);
   max-width: none;
   max-height: none;
   margin: auto;
@@ -74,34 +81,23 @@
 }
 
 .panel {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  height: 100%;
+  position: absolute;
+  inset: 0;
 }
 
-.header,
-.controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-}
-
-.header {
-  justify-content: space-between;
-}
-
-.header h2 {
-  min-width: 0;
+.title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   margin: 0;
   overflow: hidden;
-  font-size: 15px;
-  text-overflow: ellipsis;
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 
 .viewport {
-  position: relative;
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
   min-width: 0;
@@ -136,13 +132,63 @@
   pointer-events: none;
 }
 
+.close {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  right: 10px;
+  border-color: rgb(255 155 155 / 70%);
+  border-radius: 50%;
+  background: rgb(114 20 32 / 85%);
+  color: #fff;
+}
+
 .controls {
-  justify-content: center;
+  position: absolute;
+  z-index: 1;
+  bottom: 10px;
+  left: 50%;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  transform: translateX(-50%);
+  border: 1px solid rgb(213 233 249 / 42%);
+  border-radius: 999px;
+  background: rgb(17 28 39 / 82%);
+  box-shadow: 0 4px 18px rgb(0 0 0 / 32%);
+}
+
+.close::after,
+.controls::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+}
+
+.close::after {
+  background: rgb(151 24 40 / 55%);
+}
+
+.controls::after {
+  background: rgb(8 15 24 / 42%);
+}
+
+.controls .control {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
 }
 
 .zoomLevel {
-  min-width: 52px;
-  color: var(--dc-text-secondary);
+  min-width: 48px;
+  color: #fff;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   text-align: center;

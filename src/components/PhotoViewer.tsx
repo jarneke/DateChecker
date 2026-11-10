@@ -5,7 +5,9 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
+  type MouseEvent,
   type PointerEvent,
   type TouchEvent,
 } from "react";
@@ -61,6 +63,8 @@ function PhotoDialog({ src, alt, onDismiss }: PhotoDialogProps) {
   const pointers = useRef(new Map<number, Point>());
   const [view, setView] = useState<View>(INITIAL_VIEW);
   const [failed, setFailed] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState(4 / 3);
+  const backdropPress = useRef(false);
 
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
@@ -71,6 +75,23 @@ function PhotoDialog({ src, alt, onDismiss }: PhotoDialogProps) {
 
     return () => dialog.close();
   }, []);
+
+  useLayoutEffect(() => {
+    dialogRef.current?.dispatchEvent(new Event("datecheck:glass-photo-moved"));
+  }, [aspectRatio, view]);
+
+  function isBackdropEvent(event: MouseEvent<HTMLDialogElement>) {
+    if (event.target !== event.currentTarget) return false;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    return (
+      event.clientX < rect.left ||
+      event.clientX >= rect.right ||
+      event.clientY < rect.top ||
+      event.clientY >= rect.bottom
+    );
+  }
 
   function updateView(factor: number, from: Point, to: Point) {
     const viewport = viewportRef.current;
@@ -167,7 +188,15 @@ function PhotoDialog({ src, alt, onDismiss }: PhotoDialogProps) {
     <dialog
       ref={dialogRef}
       className={styles.dialog}
+      style={{ "--photo-aspect": aspectRatio } as CSSProperties}
       aria-labelledby={titleId}
+      onPointerDown={(event) => {
+        backdropPress.current = isBackdropEvent(event);
+      }}
+      onClick={(event) => {
+        if (backdropPress.current && isBackdropEvent(event)) onDismiss();
+        backdropPress.current = false;
+      }}
       onCancel={(event) => {
         event.preventDefault();
         onDismiss();
@@ -177,21 +206,21 @@ function PhotoDialog({ src, alt, onDismiss }: PhotoDialogProps) {
       onTouchEnd={stopTouchPropagation}
       onTouchCancel={stopTouchPropagation}
     >
-      <div className={styles.panel}>
-        <header className={styles.header}>
-          <h2 id={titleId}>{alt || "Foto"}</h2>
+      <div className={styles.panel} data-glass-photo>
+        <h2 id={titleId} className={styles.title}>
+          {alt || "Foto"}
+        </h2>
 
-          <button
-            ref={closeButtonRef}
-            type="button"
-            className={styles.control}
-            aria-label="Foto sluiten"
-            onClick={onDismiss}
-          >
-            <CheckTileGlass foreground />
-            <X size={21} aria-hidden="true" />
-          </button>
-        </header>
+        <button
+          ref={closeButtonRef}
+          type="button"
+          className={`${styles.control} ${styles.close}`}
+          aria-label="Foto sluiten"
+          onClick={onDismiss}
+        >
+          <CheckTileGlass foreground />
+          <X size={21} aria-hidden="true" />
+        </button>
 
         <div
           ref={viewportRef}
@@ -220,12 +249,22 @@ function PhotoDialog({ src, alt, onDismiss }: PhotoDialogProps) {
               style={{
                 transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
               }}
+              onLoad={(event) => {
+                const image = event.currentTarget;
+                setAspectRatio(image.naturalWidth / image.naturalHeight);
+              }}
               onError={() => setFailed(true)}
             />
           )}
         </div>
 
-        <div className={styles.controls}>
+        <div
+          className={styles.controls}
+          role="group"
+          aria-label="Zoom bedienen"
+        >
+          <CheckTileGlass foreground />
+
           <button
             type="button"
             className={styles.control}
@@ -233,7 +272,6 @@ function PhotoDialog({ src, alt, onDismiss }: PhotoDialogProps) {
             disabled={failed || view.scale <= 1}
             onClick={() => updateView(1 / ZOOM_STEP, CENTER, CENTER)}
           >
-            <CheckTileGlass foreground />
             <Minus size={19} aria-hidden="true" />
           </button>
 
@@ -248,7 +286,6 @@ function PhotoDialog({ src, alt, onDismiss }: PhotoDialogProps) {
             disabled={failed || view.scale >= MAX_SCALE}
             onClick={() => updateView(ZOOM_STEP, CENTER, CENTER)}
           >
-            <CheckTileGlass foreground />
             <Plus size={19} aria-hidden="true" />
           </button>
 
@@ -259,7 +296,6 @@ function PhotoDialog({ src, alt, onDismiss }: PhotoDialogProps) {
             disabled={failed || view.scale <= 1}
             onClick={() => setView(INITIAL_VIEW)}
           >
-            <CheckTileGlass foreground />
             <RotateCcw size={17} aria-hidden="true" />
           </button>
         </div>

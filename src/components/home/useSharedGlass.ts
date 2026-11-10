@@ -635,6 +635,7 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
     window.addEventListener("resize", viewportChanged);
     document.addEventListener("scrollend", schedule);
     host.addEventListener("load", schedule, true);
+    host.addEventListener("datecheck:glass-photo-moved", schedule);
     host.addEventListener("transitionend", schedule);
     window.visualViewport?.addEventListener("resize", viewportChanged);
     window.visualViewport?.addEventListener("scroll", viewportChanged);
@@ -697,6 +698,7 @@ function createSharedGlass(host: HTMLElement): SharedGlass {
                 window.removeEventListener("resize", viewportChanged);
                 document.removeEventListener("scrollend", schedule);
                 host.removeEventListener("load", schedule, true);
+                host.removeEventListener("datecheck:glass-photo-moved", schedule);
                 host.removeEventListener("transitionend", schedule);
                 window.visualViewport?.removeEventListener(
                     "resize",
