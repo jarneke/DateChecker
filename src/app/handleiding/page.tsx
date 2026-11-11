@@ -90,7 +90,7 @@ const CHECKS: CheckGuide[] = [
       "Heb je geen nieuwe stickers aangebracht? Kies Niet gestickerd. Dat kan ook wanneer er wel voorraad is, maar korting niet nodig lijkt.",
       "Klopt de opgeslagen datum niet? Open het productmenu, kies Product bewerken en corrigeer de vroegste datum.",
     ],
-    note: "Niet gestickerd wist een eerdere stickerregistratie niet. Als er al oranje stickers aanwezig zijn, controleer je of er nog bijkomende exemplaren gestickerd moeten worden.",
+    note: "Niet gestickerd blijft gelden voor de huidige productgegevens tot de vervaldag. Op die dag vraagt de app opnieuw of een sticker nodig is. Bij Vooruit ophalen moeten de resterende exemplaren met die datum altijd weg, ook zonder sticker.",
     href: "/check?type=monthly",
   },
   {
@@ -110,14 +110,14 @@ const CHECKS: CheckGuide[] = [
   },
   {
     id: "vooruit-ophalen",
-    title: "Vooruit gestickerde producten ophalen",
+    title: "Vooruit ophalen",
     badge: "50% · twee rondes",
     tone: "orange",
     selection:
-      "Vooruit gestickerde producten waarvan de opgeslagen vervaldatum vandaag is.",
+      "Alle producten voor vooruit stickeren waarvan de opgeslagen vervaldatum vandaag is, ook wanneer ze geen sticker kregen.",
     steps: [
-      "Ronde 1: verwijder bij ieder product de resterende gestickerde exemplaren met de getoonde datum.",
-      "Kies per product Opgehaald of verkocht zodra alle gestickerde exemplaren uit het rayon zijn.",
+      "Ronde 1: verwijder bij ieder product alle resterende exemplaren met de getoonde vervaldatum, ook zonder sticker.",
+      "Kies per product Opgehaald of verkocht zodra alle exemplaren met die datum uit het rayon zijn.",
       "Werk eerst de volledige ophaalronde af. De app vraagt tijdens deze ronde nog niet per product naar de overige voorraad.",
       "Ronde 2: controleer vervolgens voor ieder product of er voorraad overblijft die na vandaag vervalt.",
       "Kies Vervaldatum invullen en sla de vroegste datum op, of kies Geen voorraad wanneer er niets overblijft.",
@@ -128,7 +128,7 @@ const CHECKS: CheckGuide[] = [
       src: "/images/guide/two-round-pickup.png",
       alt: "Links zijn pakken met oranje 50%-stickers verzameld voor ophalen. Rechts staan dezelfde producten zonder korting met latere datums 15/06 en 18/06.",
       caption:
-        "Eerst alle gestickerde exemplaren ophalen. Daarna de resterende voorraad controleren en de vroegste nieuwe datum bewaren.",
+        "Eerst alle exemplaren met de getoonde vervaldatum ophalen, ook zonder sticker. Daarna de resterende voorraad controleren en de vroegste nieuwe datum bewaren.",
     },
   },
   {
@@ -193,7 +193,7 @@ const QUESTIONS = [
   {
     question: "Waarom komt een afgewerkt product later opnieuw terug?",
     answer:
-      "Een nieuwe dag of een relevante wijziging aan het product kan een nieuwe controle nodig maken. Bijvoorbeeld wanneer de datum wordt aangepast of de stickerstatus verandert. De app bepaalt de openstaande controles opnieuw op basis van de actuele gegevens.",
+      "Een relevante wijziging aan het product kan opnieuw een controle nodig maken, bijvoorbeeld een andere vervaldatum. Bij Vooruit stickeren blijft Niet gestickerd gelden tot de vervaldag. Op die dag wordt de stickervraag opnieuw gesteld zolang het product ongestickerd is. Een antwoord van vandaag wordt diezelfde dag niet opnieuw gevraagd.",
   },
   {
     question: "Kan ik op een ander toestel verderwerken?",
@@ -316,7 +316,8 @@ export default function GuidePage() {
               <span className={styles.stepNumber}>03</span>
               <strong>Bij het ophalen</strong>
               <span>
-                Verwijder resterende gestickerde exemplaren en werk de
+                Verwijder dagelijks gestickerde exemplaren en alle exemplaren
+                die bij Vooruit ophalen aan de beurt zijn. Werk daarna de
                 bijbehorende voorraadvragen af.
               </span>
             </a>

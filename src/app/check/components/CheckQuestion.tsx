@@ -133,14 +133,18 @@ export default function CheckQuestion({
   if (isPickupQuestion) {
     return (
       <QuestionLayout
-        title="Verwijder de resterende gestickerde exemplaren"
+        title={
+          isForwardPickup
+            ? "Verwijder de exemplaren met de getoonde vervaldatum"
+            : "Verwijder de resterende gestickerde exemplaren"
+        }
         step={isForwardPickup ? "Ronde 1 van 2 · Ophalen" : undefined}
         icon={<PackageCheck size={20} aria-hidden="true" />}
       >
         <p className={styles.questionDescription}>
           {isForwardPickup ? (
             <>
-              Haal de resterende exemplaren met een 50%-sticker en vervaldatum{" "}
+              Haal alle resterende exemplaren met vervaldatum{" "}
               <strong className={styles.highlightDate}>
                 {formatDate(expiryDate)}
               </strong>{" "}
@@ -152,8 +156,17 @@ export default function CheckQuestion({
         </p>
 
         <p className={styles.questionPrompt}>
-          Kies <strong>Opgehaald of verkocht</strong> zodra alle gestickerde
-          exemplaren uit het rayon zijn.
+          {isForwardPickup ? (
+            <>
+              Kies <strong>Opgehaald of verkocht</strong> zodra alle exemplaren
+              met de getoonde vervaldatum uit het rayon zijn.
+            </>
+          ) : (
+            <>
+              Kies <strong>Opgehaald of verkocht</strong> zodra alle gestickerde
+              exemplaren uit het rayon zijn.
+            </>
+          )}
         </p>
 
         {isForwardPickup && (

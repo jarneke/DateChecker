@@ -323,8 +323,8 @@ export default function HomePage() {
             />
 
             <CheckTile
-              title="Vooruit gestickerde producten ophalen"
-              description="Haal vooruit gestickerde exemplaren op zodra hun vervaldag bereikt is."
+              title="Vooruit ophalen"
+              description="Haal op de vervaldag alle resterende exemplaren op, ook zonder sticker."
               icon={PackageCheck}
               tone="evening"
               href="/check?type=monthly-pickup"

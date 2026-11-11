@@ -63,12 +63,12 @@ export const CHECK_CONFIG: Record<CheckType, CheckConfig> = {
         icon: "moon",
     },
     "monthly-pickup": {
-        title: "Vooruit gestickerde producten ophalen",
+        title: "Vooruit ophalen",
         endpoint: "/api/checks?type=monthly-pickup",
         emptyDescription:
-            "Alle vooruit gestickerde producten die aan de beurt zijn, zijn opgehaald en de overige voorraad is bijgewerkt.",
+            "Alle producten die vandaag vervallen zijn opgehaald en de overige voorraad is bijgewerkt.",
         instructions:
-            "Haal eerst alle gestickerde exemplaren op. Controleer daarna in een tweede ronde de overige voorraad.",
+            "Haal eerst alle exemplaren met de getoonde vervaldatum op, ook zonder sticker. Controleer daarna in een tweede ronde de overige voorraad.",
         icon: "package-check",
     },
     overdue: {
